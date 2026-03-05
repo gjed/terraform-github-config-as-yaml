@@ -21,13 +21,14 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ---
 
-# Agents
+## Agents
 
 This file provides guidance to AI coding agents working on this repository.
 
 ## Project Overview
 
-This is a Terraform project for managing GitHub organization repositories using Infrastructure as Code. Configuration is defined in YAML files in the `config/` directory and read directly by Terraform.
+This is a Terraform project for managing GitHub organization repositories using Infrastructure as Code.
+Configuration is defined in YAML files in the `config/` directory and read directly by Terraform.
 
 ## Project Structure
 

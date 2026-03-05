@@ -5,7 +5,9 @@
 Define the requirements for managing GitHub repositories as code using Terraform. This spec covers
 YAML-based configuration, configuration groups with inheritance, repository resource management, team and
 collaborator access, rulesets for branch protection, and subscription tier awareness.
+
 ## Requirements
+
 ### Requirement: YAML-Based Repository Configuration
 
 The system SHALL read repository configurations from YAML files under the directory specified by

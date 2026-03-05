@@ -66,4 +66,5 @@ MD050:
   style: asterisk
 
 # MD060/table-column-style - Table column style
-MD060: true
+# Disabled: aligned style is impractical for tables with long description cells
+MD060: false

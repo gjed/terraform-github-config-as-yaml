@@ -6,7 +6,9 @@ Define the requirements for the consumer-facing scaffolding bundled with the mod
 `examples/consumer/` directory, documentation (README and wiki), onboarding/offboarding script
 support for module-wrapped state paths, and the initial release tag. This spec covers what the
 repository provides to help adopters get started, not the module's internal Terraform logic.
+
 ## Requirements
+
 ### Requirement: Consumer Example Directory
 
 The repository SHALL include an `examples/consumer/` directory that demonstrates the minimal

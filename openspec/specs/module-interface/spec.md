@@ -6,7 +6,9 @@ Define the public interface of the `terraform/` reusable module: the input varia
 must or may set, the provider contract (consumers configure their own), and the outputs the module
 exposes. This spec does not cover internal YAML-parsing logic (see `repository-management`) or
 the consumer-facing example setup (see `consumer-template`).
+
 ## Requirements
+
 ### Requirement: Config Path Variable
 
 The module SHALL accept a `config_path` variable that consumers use to point the module at their YAML
@@ -83,4 +85,3 @@ without reading internal state directly:
 - **WHEN** `terraform apply` completes
 - **THEN** `module.github_org.repositories` contains an entry for each managed repo
 - **AND** each entry includes `url`, `ssh_url`, and `visibility`
-
