@@ -69,5 +69,8 @@ Thumbs.db
 # OpenSpec local files
 .opencode/
 
+# Worktrees
+.worktrees/
+
 # Logs
 *.log
