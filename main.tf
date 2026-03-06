@@ -45,8 +45,9 @@ module "repositories" {
   web_commit_signoff_required = each.value.web_commit_signoff_required
   vulnerability_alerts        = each.value.vulnerability_alerts
 
-  topics = each.value.topics
-  teams  = each.value.teams
+  topics        = each.value.topics
+  teams         = each.value.teams
+  collaborators = each.value.collaborators
 
   license_template = each.value.license_template
 
