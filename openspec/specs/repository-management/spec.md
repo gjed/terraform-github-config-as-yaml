@@ -410,7 +410,7 @@ by name and can be referenced in groups or repositories.
 - **THEN** the system uses an empty webhook definitions map
 - **AND** no error is raised (webhooks are optional)
 
-______________________________________________________________________
+---
 
 ### Requirement: Webhook Configuration
 
@@ -476,7 +476,7 @@ The system SHALL support repository webhook configuration by referencing webhook
 - **AND** the webhook is active by default
 - **AND** SSL verification is enabled by default
 
-______________________________________________________________________
+---
 
 ### Requirement: Webhook Inheritance from Groups
 
@@ -546,7 +546,7 @@ The system SHALL support webhook inheritance from configuration groups with merg
 - **WHEN** `terraform plan` is executed
 - **THEN** Terraform fails with an error indicating the webhook is not defined
 
-______________________________________________________________________
+---
 
 ### Requirement: Webhook Secret Handling
 
