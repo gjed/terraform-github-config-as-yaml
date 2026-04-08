@@ -15,7 +15,7 @@
 
 - [ ] 2.1 Define `strict-main` template (2 approvers, code owner review, linear history)
 - [ ] 2.2 Define `relaxed-dev` template (1 approver, dev/develop branches)
-- [ ] 2.3 Define `release-tags` template (tag protection for v* tags)
+- [ ] 2.3 Define `release-tags` template (tag protection for v\* tags)
 
 ## 3. Documentation
 

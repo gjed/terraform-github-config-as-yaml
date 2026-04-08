@@ -3,6 +3,7 @@
 Manage your GitHub organization's repositories as code using Terraform and YAML configuration.
 
 <!-- markdownlint-disable MD033 -->
+
 <p align="center">
   <img src="docs/logo.png" alt="GitHub As YAML" width="400">
 </p>
@@ -43,30 +44,30 @@ documentation.
 
 ## Requirements
 
-| Name | Version |
-|------|---------|
-| Terraform | >= 1.0 |
-| github provider | ~> 6.0 |
+| Name            | Version |
+| --------------- | ------- |
+| Terraform       | >= 1.0  |
+| github provider | ~> 6.0  |
 
 A GitHub Personal Access Token with `repo` and `admin:org` scopes is required.
 
 ## Inputs
 
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|----------|
-| `config_path` | Absolute path to the directory containing `config.yml`, `group/`, `repository/`, `ruleset/`, and `webhook/` subdirectories. Consumers should set this to `"${path.root}/config"`. Must be a static string. | `string` | n/a | yes |
-| `webhook_secrets` | Map of webhook secret names to their values. Keys should match the `VAR_NAME` in `env:VAR_NAME` patterns used in webhook configurations. | `map(string)` | `{}` | no |
+| Name              | Description                                                                                                                                                                                                | Type          | Default | Required |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------- | -------- |
+| `config_path`     | Absolute path to the directory containing `config.yml`, `group/`, `repository/`, `ruleset/`, and `webhook/` subdirectories. Consumers should set this to `"${path.root}/config"`. Must be a static string. | `string`      | n/a     | yes      |
+| `webhook_secrets` | Map of webhook secret names to their values. Keys should match the `VAR_NAME` in `env:VAR_NAME` patterns used in webhook configurations.                                                                   | `map(string)` | `{}`    | no       |
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| `repositories` | Map of managed repositories with their URLs, SSH URLs, and visibility |
-| `repository_count` | Total number of managed repositories |
-| `organization` | GitHub organization being managed |
-| `subscription_tier` | GitHub subscription tier |
-| `subscription_warnings` | Warnings about features unavailable on current subscription tier |
-| `duplicate_key_warnings` | Warnings about duplicate keys in config files |
+| Name                     | Description                                                           |
+| ------------------------ | --------------------------------------------------------------------- |
+| `repositories`           | Map of managed repositories with their URLs, SSH URLs, and visibility |
+| `repository_count`       | Total number of managed repositories                                  |
+| `organization`           | GitHub organization being managed                                     |
+| `subscription_tier`      | GitHub subscription tier                                              |
+| `subscription_warnings`  | Warnings about features unavailable on current subscription tier      |
+| `duplicate_key_warnings` | Warnings about duplicate keys in config files                         |
 
 ## Configuration Structure
 
@@ -102,12 +103,12 @@ api-gateway:
 
 ## GitHub Subscription Tiers
 
-| Feature | Free | Pro | Team | Enterprise |
-| ------- | ---- | --- | ---- | ---------- |
-| Public repo rulesets | Yes | Yes | Yes | Yes |
-| Private repo rulesets | No | Yes | Yes | Yes |
-| Push rulesets | No | No | Yes | Yes |
-| Actions permissions | Yes | Yes | Yes | Yes |
+| Feature               | Free | Pro | Team | Enterprise |
+| --------------------- | ---- | --- | ---- | ---------- |
+| Public repo rulesets  | Yes  | Yes | Yes  | Yes        |
+| Private repo rulesets | No   | Yes | Yes  | Yes        |
+| Push rulesets         | No   | No  | Yes  | Yes        |
+| Actions permissions   | Yes  | Yes | Yes  | Yes        |
 
 Unsupported features are automatically skipped based on your subscription tier.
 

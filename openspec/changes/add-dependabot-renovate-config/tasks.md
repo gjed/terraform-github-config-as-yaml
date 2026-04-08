@@ -39,7 +39,7 @@
 - [ ] 5.1 Document Dependabot configuration options
 - [ ] 5.2 Document Renovate configuration options
 - [ ] 5.3 Add examples for different project types (npm, docker, python, etc.)
-- [ ] 5.4 Add migration guide (Dependabot <-> Renovate)
+- [ ] 5.4 Add migration guide (Dependabot \<-> Renovate)
 - [ ] 5.5 Document configuration merging behavior
 
 ## 6. Testing

@@ -2,19 +2,19 @@
 
 - [x] 1.1 Add `config_path` variable to `terraform/variables.tf` with description and type `string`
 - [x] 1.2 Replace `${path.module}/../config` with `var.config_path` in `terraform/yaml-config.tf`
-      (all occurrences including `webhook_dir` and the hardcoded paths in `check` block error message)
+  (all occurrences including `webhook_dir` and the hardcoded paths in `check` block error message)
 - [x] 1.3 Remove the `provider "github"` block from `terraform/main.tf`
 - [x] 1.4 Pass `read_delay_ms` and `write_delay_ms` from module variables to the provider configuration
-      in the consumer example (not the module itself — provider is consumer-side)
+  in the consumer example (not the module itself — provider is consumer-side)
 - [x] 1.5 Run `terraform validate` in `terraform/` to confirm module is syntactically valid
 - [x] 1.6 Run `terraform fmt` on all modified files
 
 ## 2. Module Outputs
 
 - [x] 2.1 Verify `organization` output is already exposed in `terraform/outputs.tf` (it is — confirm
-      no changes needed)
+  no changes needed)
 - [x] 2.2 Confirm all outputs listed in the spec (`repositories`, `repository_count`, `organization`,
-      `subscription_tier`, `subscription_warnings`, `duplicate_key_warnings`) are present
+  `subscription_tier`, `subscription_warnings`, `duplicate_key_warnings`) are present
 
 ## 3. Consumer Example
 
@@ -34,7 +34,7 @@
 
 - [x] 4.1 Add `--module-path` flag to `onboard-repos.sh`; default to `""` (direct layout)
 - [x] 4.2 Update the `terraform import` command in `onboard-repos.sh` to prepend `${MODULE_PATH}`
-      to the resource address when set
+  to the resource address when set
 - [x] 4.3 Add `--module-path` flag to `offboard-repos.sh`; update `terraform state rm` similarly
 - [x] 4.4 Add `--module-path` flag to `offboard-repos.sh --list` to scope state listing correctly
 - [x] 4.5 Test scripts against both direct layout (no flag) and wrapped layout (with flag) scenarios
@@ -55,7 +55,7 @@
   - `config_path` static-string constraint note
   - Migration guide for existing forks
 - [x] 6.2 Ensure `terraform/` directory `README.md` (if any) or inline comments are updated to
-      reflect that `config_path` is now an input variable
+  reflect that `config_path` is now an input variable
 
 ## 7. Validation
 

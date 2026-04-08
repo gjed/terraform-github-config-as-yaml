@@ -103,7 +103,7 @@ The system SHALL support named configuration groups that define shared repositor
 - **WHEN** a repository specifies both a group and an explicit setting (e.g., `has_wiki: true`)
 - **THEN** the explicit setting overrides the group setting
 
----
+______________________________________________________________________
 
 ### Requirement: Configuration Merging Strategy
 
@@ -127,7 +127,7 @@ The system SHALL merge configurations from groups and repositories using the fol
 - **WHEN** the configuration is merged
 - **THEN** the repository has teams `{devops: admin, developers: push}`
 
----
+______________________________________________________________________
 
 ### Requirement: Repository Resource Management
 
@@ -153,7 +153,7 @@ The system SHALL create and manage GitHub repositories using the Terraform GitHu
   allow_rebase_merge, allow_auto_merge, allow_update_branch, delete_branch_on_merge,
   web_commit_signoff_required, vulnerability_alerts, topics, license_template
 
----
+______________________________________________________________________
 
 ### Requirement: Team Access Management
 
@@ -171,7 +171,7 @@ The system SHALL manage team access permissions for repositories.
 - **AND** `terraform apply` is executed
 - **THEN** the team's permission is updated
 
----
+______________________________________________________________________
 
 ### Requirement: Collaborator Access Management
 
@@ -183,7 +183,7 @@ The system SHALL manage individual collaborator access permissions for repositor
 - **WHEN** `terraform apply` is executed
 - **THEN** the user `username` is granted `push` permission on the repository
 
----
+______________________________________________________________________
 
 ### Requirement: Repository Rulesets
 
@@ -208,7 +208,7 @@ The system SHALL support repository rulesets for branch protection and policy en
 - **WHEN** the ruleset is applied
 - **THEN** pull requests to matching branches require at least 1 approving review
 
----
+______________________________________________________________________
 
 ### Requirement: Subscription Tier Awareness
 
@@ -229,7 +229,7 @@ The system SHALL respect GitHub subscription tier limitations when applying rule
 - **WHEN** Terraform is planned
 - **THEN** rulesets are applied to the private repository
 
----
+______________________________________________________________________
 
 ### Requirement: Organization Configuration
 
@@ -245,7 +245,7 @@ The system SHALL read organization-level settings from `config/config.yml`.
 - **WHEN** `subscription: free` is specified
 - **THEN** the system adjusts feature availability accordingly
 
----
+______________________________________________________________________
 
 ### Requirement: Output Values
 
@@ -295,7 +295,7 @@ The system SHALL manage GitHub Actions permissions for repositories through YAML
 - **WHEN** `terraform apply` is executed
 - **THEN** GitHub Actions is disabled for that repository
 
----
+______________________________________________________________________
 
 ### Requirement: Organization Actions Permissions
 
@@ -321,7 +321,7 @@ The system SHALL support organization-level GitHub Actions permissions in `confi
 - **WHEN** `terraform apply` is executed
 - **THEN** no `github_actions_organization_permissions` resource is created
 
----
+______________________________________________________________________
 
 ### Requirement: Actions Configuration Inheritance
 
@@ -349,7 +349,7 @@ The system SHALL support Actions configuration inheritance from configuration gr
 - **WHEN** the configuration is merged
 - **THEN** the repository has `patterns_allowed: ["actions/*", "myorg/*"]`
 
----
+______________________________________________________________________
 
 ### Requirement: Actions Secure Defaults
 
@@ -410,7 +410,7 @@ by name and can be referenced in groups or repositories.
 - **THEN** the system uses an empty webhook definitions map
 - **AND** no error is raised (webhooks are optional)
 
----
+______________________________________________________________________
 
 ### Requirement: Webhook Configuration
 
@@ -476,7 +476,7 @@ The system SHALL support repository webhook configuration by referencing webhook
 - **AND** the webhook is active by default
 - **AND** SSL verification is enabled by default
 
----
+______________________________________________________________________
 
 ### Requirement: Webhook Inheritance from Groups
 
@@ -546,7 +546,7 @@ The system SHALL support webhook inheritance from configuration groups with merg
 - **WHEN** `terraform plan` is executed
 - **THEN** Terraform fails with an error indicating the webhook is not defined
 
----
+______________________________________________________________________
 
 ### Requirement: Webhook Secret Handling
 

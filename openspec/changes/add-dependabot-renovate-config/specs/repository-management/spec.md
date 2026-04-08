@@ -65,7 +65,7 @@ configuration.
 - **WHEN** the configuration is generated
 - **THEN** the commit message configuration is included
 
----
+______________________________________________________________________
 
 ### Requirement: Renovate Configuration Management
 
@@ -119,7 +119,7 @@ configuration.
 - **WHEN** the configuration is generated
 - **THEN** the file is provisioned to `.github/renovate.json` instead of the root
 
----
+______________________________________________________________________
 
 ### Requirement: Dependency Update Configuration Groups
 
@@ -154,7 +154,7 @@ The system SHALL support configuration groups for shared dependency update polic
 - **WHEN** the configuration is merged
 - **THEN** the repository-level schedule takes precedence
 
----
+______________________________________________________________________
 
 ### Requirement: Dependency Update Merging Strategy
 
@@ -182,7 +182,7 @@ The system SHALL merge dependency update configurations following the establishe
 - **WHEN** the configuration is merged
 - **THEN** the repository configuration completely replaces the group's `npm` entry
 
----
+______________________________________________________________________
 
 ### Requirement: Dual Tool Support
 
@@ -205,7 +205,7 @@ repositories.
 - **THEN** a warning is emitted about potential conflicts
 - **AND** both configurations are generated (user intentionally wants both)
 
----
+______________________________________________________________________
 
 ### Requirement: Dependency Configuration Validation
 
@@ -229,7 +229,7 @@ The system SHALL validate dependency update configurations before provisioning.
 - **WHEN** `terraform validate` is executed
 - **THEN** an error is raised indicating the missing required field
 
----
+______________________________________________________________________
 
 ### Requirement: Dependency Configuration Presets
 

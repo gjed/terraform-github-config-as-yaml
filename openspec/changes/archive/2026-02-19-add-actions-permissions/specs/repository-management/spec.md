@@ -36,7 +36,7 @@ The system SHALL manage GitHub Actions permissions for repositories through YAML
 - **WHEN** `terraform apply` is executed
 - **THEN** GitHub Actions is disabled for that repository
 
----
+______________________________________________________________________
 
 ### Requirement: Organization Actions Permissions
 
@@ -62,7 +62,7 @@ The system SHALL support organization-level GitHub Actions permissions in `confi
 - **WHEN** `terraform apply` is executed
 - **THEN** no `github_actions_organization_permissions` resource is created
 
----
+______________________________________________________________________
 
 ### Requirement: Actions Configuration Inheritance
 
@@ -90,7 +90,7 @@ The system SHALL support Actions configuration inheritance from configuration gr
 - **WHEN** the configuration is merged
 - **THEN** the repository has `patterns_allowed: ["actions/*", "myorg/*"]`
 
----
+______________________________________________________________________
 
 ### Requirement: Actions Secure Defaults
 

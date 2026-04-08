@@ -48,14 +48,14 @@ my-repo:
 
 ### Webhook Schema
 
-| Field          | Description                               | Required |
-| -------------- | ----------------------------------------- | -------- |
-| `url`          | Webhook endpoint URL                      | Yes      |
-| `content_type` | `json` or `form` (default: `json`)        | No       |
-| `secret`       | Webhook secret (`env:VAR_NAME` format)    | No       |
-| `events`       | List of GitHub events to trigger          | Yes      |
-| `active`       | Enable/disable webhook (default: `true`)  | No       |
-| `insecure_ssl` | Skip SSL verification (default: `false`)  | No       |
+| Field          | Description                              | Required |
+| -------------- | ---------------------------------------- | -------- |
+| `url`          | Webhook endpoint URL                     | Yes      |
+| `content_type` | `json` or `form` (default: `json`)       | No       |
+| `secret`       | Webhook secret (`env:VAR_NAME` format)   | No       |
+| `events`       | List of GitHub events to trigger         | Yes      |
+| `active`       | Enable/disable webhook (default: `true`) | No       |
+| `insecure_ssl` | Skip SSL verification (default: `false`) | No       |
 
 ### Merge Behavior
 

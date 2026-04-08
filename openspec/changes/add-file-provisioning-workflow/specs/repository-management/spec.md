@@ -33,7 +33,7 @@ commit workflows through PR-based merging.
 - **THEN** the provisioning branch is created from the default branch
 - **AND** the provisioned files are committed to it
 
----
+______________________________________________________________________
 
 ### Requirement: Provisioning Branch Configuration
 
@@ -60,7 +60,7 @@ The system SHALL support organization-wide and repository-specific provisioning 
 - **THEN** no files are provisioned to that repository
 - **AND** existing provisioned files are not removed
 
----
+______________________________________________________________________
 
 ### Requirement: Provisioned File Management
 
@@ -95,7 +95,7 @@ The system SHALL track and manage provisioned files separately from repository c
 - **WHEN** `terraform apply` is executed
 - **THEN** no new commit is created
 
----
+______________________________________________________________________
 
 ### Requirement: Provisioning PR Workflow (Optional)
 
@@ -129,7 +129,7 @@ provisioning branch.
 - **THEN** the files remain on the provisioning branch
 - **AND** manual PR creation is required to merge changes
 
----
+______________________________________________________________________
 
 ### Requirement: Provisioning Commit Messages
 

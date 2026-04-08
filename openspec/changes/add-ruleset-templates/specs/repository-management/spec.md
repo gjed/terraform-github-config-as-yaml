@@ -16,8 +16,7 @@ full ruleset configurations. Templates are defined in `config/ruleset/templates.
 #### Scenario: Override template settings
 
 - **GIVEN** a template `strict-main` defines `required_approving_review_count: 2`
-- **AND** a repository specifies `rulesets: [{ template: strict-main, rules: { pull_request:
-  { required_approving_review_count: 1 } } }]`
+- **AND** a repository specifies `rulesets: [{ template: strict-main, rules: { pull_request: { required_approving_review_count: 1 } } }]`
 - **WHEN** Terraform is planned
 - **THEN** the override value of `1` is used instead of the template's `2`
 

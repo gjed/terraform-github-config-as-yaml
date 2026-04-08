@@ -88,10 +88,10 @@ is a future option but adds maintenance overhead now.
 For existing forks that currently use this repo as a root module:
 
 1. Wrap existing Terraform in a `module "github_org"` block pointing to the new versioned source.
-2. Run `terraform state mv` for each repo resource from `module.repositories["x"]` to
+1. Run `terraform state mv` for each repo resource from `module.repositories["x"]` to
    `module.github_org.module.repositories["x"]`.
-3. Add a provider block with `owner = "<org>"` to the consumer `main.tf`.
-4. Remove the local fork's `terraform/` directory.
+1. Add a provider block with `owner = "<org>"` to the consumer `main.tf`.
+1. Remove the local fork's `terraform/` directory.
 
 A migration helper script (`scripts/migrate-state.sh`) will be provided as part of this change.
 

@@ -20,7 +20,7 @@ constraints.
 - **THEN** Terraform fails at plan time with a path evaluation error
 - **AND** the module documentation instructs consumers to use a static `"${path.root}/..."` path
 
----
+______________________________________________________________________
 
 ### Requirement: Provider-Agnostic Module Root
 
@@ -39,7 +39,7 @@ provider in their own root module, including setting the `owner` field directly.
 - **THEN** Terraform does not emit a provider-configuration warning
 - **AND** the module inherits the provider from the caller
 
----
+______________________________________________________________________
 
 ### Requirement: Webhook Secrets Variable
 
@@ -52,7 +52,7 @@ inject webhook secret values at runtime without hardcoding them in configuration
 - **AND** a webhook config references `env:MY_SECRET`
 - **THEN** the module resolves the secret value at apply time
 
----
+______________________________________________________________________
 
 ### Requirement: Module Outputs
 

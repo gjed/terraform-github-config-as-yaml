@@ -16,8 +16,8 @@ project maintainers.
 Before creating an issue, please:
 
 1. **Search existing issues** to avoid duplicates
-2. **Use the issue templates** if available
-3. **Include relevant details**:
+1. **Use the issue templates** if available
+1. **Include relevant details**:
    - Terraform version (`terraform version`)
    - GitHub Provider version
    - Operating system
@@ -30,18 +30,18 @@ Before creating an issue, please:
 Feature requests are welcome! Please:
 
 1. **Check existing issues** to see if it's already proposed
-2. **Describe the use case** - what problem does it solve?
-3. **Propose a solution** if you have one in mind
-4. **Consider alternatives** you've thought about
+1. **Describe the use case** - what problem does it solve?
+1. **Propose a solution** if you have one in mind
+1. **Consider alternatives** you've thought about
 
 ### Submitting Pull Requests
 
 1. **Fork the repository** and create your branch from `main`
-2. **Follow the setup instructions** below
-3. **Make your changes** following the code style guidelines
-4. **Test your changes** thoroughly
-5. **Update documentation** if needed
-6. **Submit a pull request** with a clear description
+1. **Follow the setup instructions** below
+1. **Make your changes** following the code style guidelines
+1. **Test your changes** thoroughly
+1. **Update documentation** if needed
+1. **Submit a pull request** with a clear description
 
 ## Development Setup
 
@@ -61,20 +61,20 @@ Feature requests are welcome! Please:
    cd terraform-github-config-as-yaml
    ```
 
-2. Install pre-commit hooks:
+1. Install pre-commit hooks:
 
    ```bash
    pip install pre-commit
    pre-commit install
    ```
 
-3. Install tflint:
+1. Install tflint:
 
    ```bash
    curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
    ```
 
-4. Verify your setup:
+1. Verify your setup:
 
    ```bash
    terraform version
@@ -198,9 +198,9 @@ docs(readme): add troubleshooting section for rate limits
 Include:
 
 1. **What** - Brief description of changes
-2. **Why** - Motivation or issue reference
-3. **How** - Implementation approach (if not obvious)
-4. **Testing** - How you tested the changes
+1. **Why** - Motivation or issue reference
+1. **How** - Implementation approach (if not obvious)
+1. **Testing** - How you tested the changes
 
 Example:
 
@@ -224,9 +224,9 @@ corresponding validation for tag-specific rules.
 ### Review Process
 
 1. Maintainers will review your PR
-2. Address any feedback or requested changes
-3. Once approved, a maintainer will merge the PR
-4. Your contribution will be included in the next release
+1. Address any feedback or requested changes
+1. Once approved, a maintainer will merge the PR
+1. Your contribution will be included in the next release
 
 ## Project Structure
 

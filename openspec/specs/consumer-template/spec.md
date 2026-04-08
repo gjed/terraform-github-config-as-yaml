@@ -33,7 +33,7 @@ setup required to consume the module. The example MUST contain:
 - **AND** it contains exactly one `module` block calling this module
 - **AND** it contains exactly one `provider "github"` block
 
----
+______________________________________________________________________
 
 ### Requirement: Script Support for Nested Module State Paths
 
@@ -52,7 +52,7 @@ in `module "github_org"`, state paths become
 - **WHEN** `onboard-repos.sh --import repo-name` is executed without `--module-path`
 - **THEN** the script imports to `module.repositories["repo-name"]` (legacy direct layout)
 
----
+______________________________________________________________________
 
 ### Requirement: Module README
 
@@ -79,7 +79,7 @@ documenting the module interface for consumers, including:
   consumer-module layout
 - **AND** they know how to perform the required `terraform state mv` operations
 
----
+______________________________________________________________________
 
 ### Requirement: Initial Module Release Tag
 

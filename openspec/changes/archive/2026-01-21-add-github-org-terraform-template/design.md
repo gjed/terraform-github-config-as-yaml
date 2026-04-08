@@ -172,10 +172,10 @@ N/A - This is a new template project, not a migration.
 1. **Should we include team management?** Currently, teams are referenced by slug but not created. Users
    manage teams separately.
 
-2. **Should we support importing existing repositories?** The module works with existing repos, but
+1. **Should we support importing existing repositories?** The module works with existing repos, but
    import workflow could be documented better.
 
 ## Deferred to Future Specs
 
 - **CI/CD workflow**: Users can implement their own GitHub Actions workflow based on their requirements.
-   Common patterns could be documented in a future spec.
+  Common patterns could be documented in a future spec.

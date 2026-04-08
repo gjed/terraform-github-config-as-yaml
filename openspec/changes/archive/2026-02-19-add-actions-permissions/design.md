@@ -96,11 +96,11 @@ repositories can do; they cannot be escalated by repository settings.
 
 **Behavior:**
 
-| Org Setting | Repo Setting | Result |
-| ----------- | ------------ | ------ |
-| `allowed_actions: local_only` | `allowed_actions: all` | **Error** or org wins (repo cannot escalate) |
-| `allowed_actions: all` | `allowed_actions: selected` | Repo wins (more restrictive is allowed) |
-| `default_workflow_permissions: read` | `write` | Depends on org's `can_approve_pull_request_reviews` |
+| Org Setting                          | Repo Setting                | Result                                              |
+| ------------------------------------ | --------------------------- | --------------------------------------------------- |
+| `allowed_actions: local_only`        | `allowed_actions: all`      | **Error** or org wins (repo cannot escalate)        |
+| `allowed_actions: all`               | `allowed_actions: selected` | Repo wins (more restrictive is allowed)             |
+| `default_workflow_permissions: read` | `write`                     | Depends on org's `can_approve_pull_request_reviews` |
 
 **Implementation approach:**
 
@@ -119,12 +119,12 @@ settings. Organization Actions settings are enforced by GitHub itself, not our c
 
 ## Risks / Trade-offs
 
-| Risk | Mitigation |
-| ---- | ---------- |
+| Risk                                           | Mitigation                                                 |
+| ---------------------------------------------- | ---------------------------------------------------------- |
 | Overly permissive defaults expose supply chain | Default to `read` permissions and require explicit `write` |
-| Configuration complexity | Provide sensible defaults; full config is optional |
-| API rate limits from many permission resources | Batch where possible; document rate limit considerations |
-| Breaking changes if GitHub API changes | Pin provider version; follow semver for this project |
+| Configuration complexity                       | Provide sensible defaults; full config is optional         |
+| API rate limits from many permission resources | Batch where possible; document rate limit considerations   |
+| Breaking changes if GitHub API changes         | Pin provider version; follow semver for this project       |
 
 ## Configuration Schema
 
@@ -181,21 +181,22 @@ organization:
 
 ## Terraform Resource Mapping
 
-| Configuration | Terraform Resource | Notes |
-| ------------- | ------------------ | ----- |
-| Repository `actions.*` | `github_actions_repository_permissions` | Per-repository |
+| Configuration            | Terraform Resource                        | Notes           |
+| ------------------------ | ----------------------------------------- | --------------- |
+| Repository `actions.*`   | `github_actions_repository_permissions`   | Per-repository  |
 | Organization `actions.*` | `github_actions_organization_permissions` | Single resource |
 
 ## Open Questions
 
 1. **Fork PR workflow settings:** The issue mentions `fork_pull_request_workflows` configuration.
    The `github_actions_repository_permissions` resource doesn't directly expose this. Should we:
+
    - Defer this to a future enhancement?
    - Use a different resource/approach?
 
    **Recommendation:** Defer to future change. Focus on core permissions first.
 
-2. **Repository access level:** The `github_actions_repository_access_level` resource controls which
+1. **Repository access level:** The `github_actions_repository_access_level` resource controls which
    other repositories can access Actions in a repository. Should this be included?
 
    **Recommendation:** Defer to future change to keep scope manageable.

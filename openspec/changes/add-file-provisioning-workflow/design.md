@@ -34,9 +34,9 @@ causes Terraform file provisioning to fail or bypass protection rules.
 **Why:** This approach:
 
 1. Avoids signed commit conflicts - the provisioning branch can be unprotected
-2. Enables PR-based review of provisioned content
-3. Allows GitHub Actions to create signed commits when merging
-4. Works with any branch protection configuration
+1. Enables PR-based review of provisioned content
+1. Allows GitHub Actions to create signed commits when merging
+1. Works with any branch protection configuration
 
 **Alternatives considered:**
 
@@ -53,8 +53,8 @@ causes Terraform file provisioning to fail or bypass protection rules.
 existing automation. Making it optional:
 
 1. Reduces setup complexity for simple use cases
-2. Allows customization of PR workflow
-3. Supports orgs with existing PR automation
+1. Allows customization of PR workflow
+1. Supports orgs with existing PR automation
 
 ### Decision: Configuration inheritance for provisioning settings
 
@@ -65,18 +65,18 @@ existing automation. Making it optional:
 
 ## Risks / Trade-offs
 
-| Risk | Mitigation |
-|------|------------|
-| Branch divergence if PRs not merged | Document best practices; consider staleness warnings |
-| Complexity increase for simple use cases | Make PR workflow optional; direct provisioning still works |
-| Race conditions with manual changes | Document provisioning branch as managed; use clear commit messages |
+| Risk                                     | Mitigation                                                         |
+| ---------------------------------------- | ------------------------------------------------------------------ |
+| Branch divergence if PRs not merged      | Document best practices; consider staleness warnings               |
+| Complexity increase for simple use cases | Make PR workflow optional; direct provisioning still works         |
+| Race conditions with manual changes      | Document provisioning branch as managed; use clear commit messages |
 
 ## Migration Plan
 
 1. **Phase 1**: Add provisioning configuration schema (backwards compatible)
-2. **Phase 2**: Implement branch-based provisioning for new files
-3. **Phase 3**: Provide migration guide for existing `github_repository_file` users
-4. **Rollback**: Provisioning can be disabled per-repository; no destructive changes
+1. **Phase 2**: Implement branch-based provisioning for new files
+1. **Phase 3**: Provide migration guide for existing `github_repository_file` users
+1. **Rollback**: Provisioning can be disabled per-repository; no destructive changes
 
 ## Open Questions
 
