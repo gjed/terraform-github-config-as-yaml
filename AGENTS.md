@@ -1,25 +1,4 @@
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
-
-These instructions are for AI assistants working in this project.
-
-Always open `@/openspec/AGENTS.md` when the request:
-
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
-
-Use `@/openspec/AGENTS.md` to learn:
-
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
-
-Keep this managed block so 'openspec update' can refresh the instructions.
-
-<!-- OPENSPEC:END -->
-
----
+______________________________________________________________________
 
 ## Agents
 
@@ -68,9 +47,9 @@ terraform-github-config-as-yaml/
 ### Adding a new repository
 
 1. Edit `config/repositories.yml`
-2. Add entry with description and groups
-3. Assign appropriate groups (e.g., `["gjed", "internal"]` or `["gjed", "oss"]`)
-4. Run `terraform plan` to preview, then `terraform apply`
+1. Add entry with description and groups
+1. Assign appropriate groups (e.g., `["gjed", "internal"]` or `["gjed", "oss"]`)
+1. Run `terraform plan` to preview, then `terraform apply`
 
 ### Modifying configuration groups
 
@@ -81,12 +60,12 @@ Edit `config/groups.yml`. Groups are merged when multiple are assigned to a repo
 Rulesets allow you to enforce branch protection and other repository rules across multiple repositories based on their groups.
 
 1. Edit `config/rulesets.yml` to define reusable rulesets
-2. Each ruleset must specify:
+1. Each ruleset must specify:
    - `target`: Type of target (e.g., `branch`, `tag`)
    - `enforcement`: Enforcement level (`active`, `evaluate`, or `disabled`)
    - `conditions`: Conditions for when the ruleset applies (e.g., branch name patterns)
    - `rules`: Array of rules to enforce
-3. Reference rulesets in groups or repositories by adding a `rulesets:` field
+1. Reference rulesets in groups or repositories by adding a `rulesets:` field
 
 Example in `config/rulesets.yml`:
 
@@ -175,10 +154,10 @@ automatically skipped (with a warning in the validation script output).
 ## Development Workflow
 
 1. Create/activate virtual environment: `source .venv/bin/activate`
-2. Make changes to configuration files
-3. Run `pre-commit run --all-files` before committing
-4. Use `make plan` to preview Terraform changes
-5. Use `make apply` to apply changes
+1. Make changes to configuration files
+1. Run `pre-commit run --all-files` before committing
+1. Use `make plan` to preview Terraform changes
+1. Use `make apply` to apply changes
 
 ## Commits
 
