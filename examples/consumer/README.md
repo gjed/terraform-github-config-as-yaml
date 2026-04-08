@@ -72,10 +72,10 @@ make init && make plan && make apply
 
 ## Module variables
 
-| Variable | Type | Default | Description |
-| -------- | ---- | ------- | ----------- |
-| `config_path` | `string` | *(required)* | Path to the `config/` directory. Use `"${path.root}/config"`. |
-| `webhook_secrets` | `map(string)` | `{}` | Webhook secrets keyed by the name used in `env:NAME` patterns. |
+| Variable          | Type          | Default      | Description                                                    |
+| ----------------- | ------------- | ------------ | -------------------------------------------------------------- |
+| `config_path`     | `string`      | *(required)* | Path to the `config/` directory. Use `"${path.root}/config"`.  |
+| `webhook_secrets` | `map(string)` | `{}`         | Webhook secrets keyed by the name used in `env:NAME` patterns. |
 
 > **Important:** `config_path` must be a static string. Computed values (data sources,
 > locals with unknown values) are not supported because `file()` and `fileset()` are
@@ -83,14 +83,14 @@ make init && make plan && make apply
 
 ## Module outputs
 
-| Output | Description |
-| ------ | ----------- |
-| `organization` | GitHub organization name read from `config.yml` |
-| `repository_count` | Number of managed repositories |
-| `repositories` | Map of repository names → `{ name, url, ssh_url, visibility }` |
-| `subscription_tier` | Subscription tier from `config.yml` |
-| `subscription_warnings` | Warning when rulesets are skipped on free tier |
-| `duplicate_key_warnings` | Warning when the same key appears in multiple config files |
+| Output                   | Description                                                    |
+| ------------------------ | -------------------------------------------------------------- |
+| `organization`           | GitHub organization name read from `config.yml`                |
+| `repository_count`       | Number of managed repositories                                 |
+| `repositories`           | Map of repository names → `{ name, url, ssh_url, visibility }` |
+| `subscription_tier`      | Subscription tier from `config.yml`                            |
+| `subscription_warnings`  | Warning when rulesets are skipped on free tier                 |
+| `duplicate_key_warnings` | Warning when the same key appears in multiple config files     |
 
 ## Remote state (optional)
 
@@ -104,13 +104,16 @@ If you previously forked this repository and used it as a root module, follow th
 steps to migrate to the module pattern:
 
 1. Create a new consumer directory (this example) pointing at the versioned module.
-2. Run the migration helper to generate `terraform state mv` commands:
+
+1. Run the migration helper to generate `terraform state mv` commands:
 
    ```bash
    # From your existing Terraform directory:
    ../../scripts/migrate-state.sh --dry-run
    ```
 
-3. Review the generated commands, then run without `--dry-run` to execute them.
-4. Add a `provider "github"` block to your new `main.tf` with `owner = "your-org"`.
-5. Remove the old Terraform root directory.
+1. Review the generated commands, then run without `--dry-run` to execute them.
+
+1. Add a `provider "github"` block to your new `main.tf` with `owner = "your-org"`.
+
+1. Remove the old Terraform root directory.
