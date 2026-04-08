@@ -66,8 +66,12 @@ ENV/
 ehthumbs.db
 Thumbs.db
 
-# OpenSpec local files
-.opencode/
+# OpenSpec local files (JS artifacts only)
+.opencode/node_modules/
+.opencode/package.json
+.opencode/package-lock.json
+.opencode/bun.lock
+.opencode/.gitignore
 
 # Worktrees
 .worktrees/
