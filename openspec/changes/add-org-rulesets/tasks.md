@@ -5,6 +5,7 @@
 ### 1. Parse and separate org rulesets in `yaml-config.tf`
 
 Add a local that filters `rulesets_config` into two maps:
+
 - `repo_rulesets_config` — entries without `scope` or with `scope: repository`
 - `org_rulesets_config` — entries with `scope: organization`
 
@@ -13,7 +14,7 @@ uses `rulesets_config` which will continue to contain only repo-scoped entries).
 
 **Validates:** `terraform validate`; confirm org rulesets are separated from repo rulesets.
 
----
+______________________________________________________________________
 
 ### 2. Apply subscription tier filtering for org rulesets
 
@@ -25,7 +26,7 @@ with a warning output similar to `repos_with_skipped_rulesets`.
 
 **Validates:** Set `subscription: free` in `config.yml` and confirm org rulesets are not created.
 
----
+______________________________________________________________________
 
 ### 3. Add `github_organization_ruleset` resource in `main.tf`
 
@@ -39,7 +40,7 @@ The `conditions` block must support both `ref_name` and `repository_name` sub-bl
 
 **Validates:** `terraform plan` with an org ruleset defined; confirm resource appears in plan.
 
----
+______________________________________________________________________
 
 ### 4. Update `config/ruleset/default-rulesets.yml` with an example org ruleset
 
@@ -48,7 +49,7 @@ the `scope: organization` field and `repository_name` conditions.
 
 **Validates:** Manual review; validate-config.py should not error.
 
----
+______________________________________________________________________
 
 ### 5. Update `scripts/validate-config.py` to accept `scope` field
 
@@ -59,12 +60,13 @@ referencing them per-repo is a misconfiguration).
 
 **Validates:** Run `scripts/validate-config.py` with org ruleset config; confirm no false errors.
 
----
+______________________________________________________________________
 
 ### 6. Add spec delta for org ruleset management
 
 Write the spec delta in `openspec/changes/add-org-rulesets/specs/org-ruleset-management/spec.md`
 covering:
+
 - `scope: organization` field on ruleset definitions
 - `repository_name` conditions
 - Subscription tier gating (team/enterprise only)
@@ -72,7 +74,7 @@ covering:
 
 **Validates:** `openspec validate add-org-rulesets --strict`
 
----
+______________________________________________________________________
 
 ### 7. Update `repository-management` spec
 
@@ -81,7 +83,7 @@ Add a `MODIFIED` requirement to the existing `Repository Rulesets` requirement a
 
 **Validates:** `openspec validate add-org-rulesets --strict`
 
----
+______________________________________________________________________
 
 ### 8. Update `AGENTS.md` and template YAML examples
 
@@ -89,7 +91,7 @@ Document the `scope` field in `AGENTS.md` ruleset docs and update the `config/ru
 
 **Validates:** Manual review.
 
----
+______________________________________________________________________
 
 ## Dependencies
 

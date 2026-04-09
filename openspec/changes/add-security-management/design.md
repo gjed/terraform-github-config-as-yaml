@@ -9,7 +9,7 @@ across all repositories in the organization. The Terraform GitHub provider offer
 this:
 
 1. `github_organization_security_manager` — **deprecated**, accepts only `team_slug`
-2. `github_organization_role_team` — **replacement**, accepts `role_id` + `team_slug`, works with
+1. `github_organization_role_team` — **replacement**, accepts `role_id` + `team_slug`, works with
    any org-level role (not just security manager)
 
 The new resource requires looking up the `security_manager` role ID dynamically via the

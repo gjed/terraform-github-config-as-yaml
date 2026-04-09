@@ -19,27 +19,27 @@ org governance under the same GitOps discipline.
 
 ## Supported Settings
 
-| YAML Key | Terraform Attribute | Notes |
-|---|---|---|
-| `default_repository_permission` | `default_repository_permission` | `none`/`read`/`write`/`admin` |
-| `members_can_create_repositories` | `members_can_create_repositories` | bool |
-| `members_can_create_public_repositories` | `members_can_create_public_repositories` | bool |
-| `members_can_create_private_repositories` | `members_can_create_private_repositories` | bool |
-| `members_can_create_internal_repositories` | `members_can_create_internal_repositories` | enterprise only |
-| `members_can_fork_private_repositories` | `members_can_fork_private_repositories` | bool |
-| `web_commit_signoff_required` | `web_commit_signoff_required` | bool |
-| `two_factor_requirement` | `two_factor_requirement` | ⚠️ removes members without 2FA immediately |
-| `dependabot_alerts_enabled_for_new_repositories` | `dependabot_alerts_enabled_for_new_repositories` | bool |
-| `dependabot_security_updates_enabled_for_new_repositories` | `dependabot_security_updates_enabled_for_new_repositories` | bool |
-| `dependency_graph_enabled_for_new_repositories` | `dependency_graph_enabled_for_new_repositories` | bool |
-| `secret_scanning_enabled_for_new_repositories` | `secret_scanning_enabled_for_new_repositories` | GHAS/Enterprise |
-| `secret_scanning_push_protection_enabled_for_new_repositories` | `secret_scanning_push_protection_enabled_for_new_repositories` | GHAS/Enterprise |
-| `advanced_security_enabled_for_new_repositories` | `advanced_security_enabled_for_new_repositories` | GHAS/Enterprise |
-| `blog` | `blog` | string |
-| `company` | `company` | string |
-| `description` | `description` | string |
-| `email` | `email` | string |
-| `location` | `location` | string |
+| YAML Key                                                       | Terraform Attribute                                            | Notes                                      |
+| -------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------ |
+| `default_repository_permission`                                | `default_repository_permission`                                | `none`/`read`/`write`/`admin`              |
+| `members_can_create_repositories`                              | `members_can_create_repositories`                              | bool                                       |
+| `members_can_create_public_repositories`                       | `members_can_create_public_repositories`                       | bool                                       |
+| `members_can_create_private_repositories`                      | `members_can_create_private_repositories`                      | bool                                       |
+| `members_can_create_internal_repositories`                     | `members_can_create_internal_repositories`                     | enterprise only                            |
+| `members_can_fork_private_repositories`                        | `members_can_fork_private_repositories`                        | bool                                       |
+| `web_commit_signoff_required`                                  | `web_commit_signoff_required`                                  | bool                                       |
+| `two_factor_requirement`                                       | `two_factor_requirement`                                       | ⚠️ removes members without 2FA immediately |
+| `dependabot_alerts_enabled_for_new_repositories`               | `dependabot_alerts_enabled_for_new_repositories`               | bool                                       |
+| `dependabot_security_updates_enabled_for_new_repositories`     | `dependabot_security_updates_enabled_for_new_repositories`     | bool                                       |
+| `dependency_graph_enabled_for_new_repositories`                | `dependency_graph_enabled_for_new_repositories`                | bool                                       |
+| `secret_scanning_enabled_for_new_repositories`                 | `secret_scanning_enabled_for_new_repositories`                 | GHAS/Enterprise                            |
+| `secret_scanning_push_protection_enabled_for_new_repositories` | `secret_scanning_push_protection_enabled_for_new_repositories` | GHAS/Enterprise                            |
+| `advanced_security_enabled_for_new_repositories`               | `advanced_security_enabled_for_new_repositories`               | GHAS/Enterprise                            |
+| `blog`                                                         | `blog`                                                         | string                                     |
+| `company`                                                      | `company`                                                      | string                                     |
+| `description`                                                  | `description`                                                  | string                                     |
+| `email`                                                        | `email`                                                        | string                                     |
+| `location`                                                     | `location`                                                     | string                                     |
 
 ## Subscription / GHAS Gating
 

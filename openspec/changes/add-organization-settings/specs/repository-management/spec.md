@@ -30,7 +30,7 @@ is created and existing organization settings are left unchanged.
 - **THEN** no `github_organization_settings` resource is created
 - **AND** a warning or documentation note advises the user the block is ignored
 
----
+______________________________________________________________________
 
 ### Requirement: Supported Organization Settings Keys
 
@@ -68,7 +68,7 @@ The `settings:` block SHALL support the following keys, all optional:
 - **WHEN** Terraform is applied
 - **THEN** the resource attributes `company` and `location` reflect the configured values
 
----
+______________________________________________________________________
 
 ### Requirement: Enterprise-Only Settings Gating
 
@@ -77,6 +77,7 @@ from the resource when the `subscription` tier is not `enterprise`. The system S
 for each skipped setting.
 
 GHAS/Enterprise-only settings:
+
 - `secret_scanning_enabled_for_new_repositories`
 - `secret_scanning_push_protection_enabled_for_new_repositories`
 - `advanced_security_enabled_for_new_repositories`
@@ -97,7 +98,7 @@ GHAS/Enterprise-only settings:
 - **WHEN** Terraform is planned
 - **THEN** the `github_organization_settings` resource includes the attribute set to `true`
 
----
+______________________________________________________________________
 
 ### Requirement: Two-Factor Enforcement Warning
 

@@ -67,7 +67,7 @@ plans, all org rulesets are skipped with a warning output.
 - **WHEN** `terraform apply` is executed
 - **THEN** all specified rules are applied to the org ruleset
 
----
+______________________________________________________________________
 
 ## ADDED Requirements
 
@@ -106,7 +106,7 @@ Organization rulesets require a `team` or `enterprise` GitHub subscription.
 - **WHEN** `terraform apply` is executed
 - **THEN** all org rulesets are created without restriction
 
----
+______________________________________________________________________
 
 ## MODIFIED Requirements
 
@@ -126,7 +126,7 @@ rulesets map and are not available for assignment via `rulesets:` in groups or r
 - **THEN** the org-scoped ruleset is silently ignored (treated as a missing ruleset reference)
   OR an error is raised indicating org-scoped rulesets cannot be assigned per-repository
 
----
+______________________________________________________________________
 
 ## MODIFIED Requirements
 
