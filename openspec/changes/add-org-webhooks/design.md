@@ -66,10 +66,10 @@ audit-logger:
 `yaml-config.tf` adds a new local that:
 
 1. Reads `org_webhooks` list from `local.common_config` (defaults to `[]`)
-2. Looks up each name in `local.webhooks_config` (existing map from `config/webhook/`)
-3. Normalizes types (same `tostring`/`tolist`/`tobool` pattern as repo webhook resolution)
-4. Resolves `env:VAR_NAME` secrets via `var.webhook_secrets` (existing variable)
-5. Filters out undefined references (or fails — see design decision below)
+1. Looks up each name in `local.webhooks_config` (existing map from `config/webhook/`)
+1. Normalizes types (same `tostring`/`tolist`/`tobool` pattern as repo webhook resolution)
+1. Resolves `env:VAR_NAME` secrets via `var.webhook_secrets` (existing variable)
+1. Filters out undefined references (or fails — see design decision below)
 
 ### Organization-Only Guard
 
@@ -92,11 +92,11 @@ tiers. No filtering logic is needed.
 
 ## Components Changed
 
-| File | Change |
-|---|---|
-| `yaml-config.tf` | New locals: `org_webhook_names`, `resolved_org_webhooks` |
-| `main.tf` | New resource: `github_organization_webhook.this` |
-| `outputs.tf` | New output: `org_webhooks` |
-| `variables.tf` | No change (reuses existing `webhook_secrets`) |
-| `config/config.yml` | New optional key: `org_webhooks` |
-| `scripts/validate-config.py` | Validate org webhook name references |
+| File                         | Change                                                   |
+| ---------------------------- | -------------------------------------------------------- |
+| `yaml-config.tf`             | New locals: `org_webhook_names`, `resolved_org_webhooks` |
+| `main.tf`                    | New resource: `github_organization_webhook.this`         |
+| `outputs.tf`                 | New output: `org_webhooks`                               |
+| `variables.tf`               | No change (reuses existing `webhook_secrets`)            |
+| `config/config.yml`          | New optional key: `org_webhooks`                         |
+| `scripts/validate-config.py` | Validate org webhook name references                     |
