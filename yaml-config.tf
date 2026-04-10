@@ -361,8 +361,9 @@ locals {
     var.membership_management_enabled && local.is_organization
   ) ? local.membership_config : {}
   # Organization-level webhook names
-  # Reads the org_webhooks list from config.yml; empty for personal accounts
-  org_webhook_names = local.is_organization ? tolist(lookup(local.common_config, "org_webhooks", [])) : []
+  # Reads the org_webhooks list from config.yml; empty for personal accounts.
+  # try() guards against org_webhooks being null or a non-list type in YAML.
+  org_webhook_names = local.is_organization ? try(tolist(lookup(local.common_config, "org_webhooks", [])), []) : []
 
   # Organization webhook invalid references (for check block)
   # Collects any org_webhook names not defined in config/webhook/
@@ -371,12 +372,19 @@ locals {
     if lookup(local.webhooks_config, name, null) == null
   ]
 
+  # Org webhook definitions that are missing the required url field
+  invalid_org_webhook_urls = [
+    for name in local.org_webhook_names : name
+    if lookup(local.webhooks_config, name, null) != null &&
+    try(tostring(lookup(local.webhooks_config, name, {}).url), null) == null
+  ]
+
   # Resolve org webhook definitions: look up each name in webhooks_config,
   # normalize types, and apply env:VAR_NAME secret resolution.
   # Only populated for organizations; empty map for personal accounts.
   resolved_org_webhooks_raw = local.is_organization ? {
     for name in local.org_webhook_names : name => {
-      url          = tostring(lookup(local.webhooks_config, name, { url = null }).url)
+      url          = try(tostring(lookup(local.webhooks_config, name, {}).url), null)
       content_type = tostring(lookup(lookup(local.webhooks_config, name, {}), "content_type", "json"))
       secret       = try(tostring(lookup(local.webhooks_config, name, {}).secret), null)
       events       = tolist(lookup(lookup(local.webhooks_config, name, {}), "events", []))
@@ -1073,6 +1081,17 @@ check "org_webhook_references" {
       ${join("\n      ", [for name in local.invalid_org_webhook_refs : "- '${name}' is not defined in config/webhook/"])}
 
       Available webhooks: ${join(", ", keys(local.webhooks_config))}
+    EOT
+  }
+}
+
+# Validate that all referenced org webhooks have a non-null url field
+check "org_webhook_urls" {
+  assert {
+    condition     = length(local.invalid_org_webhook_urls) == 0
+    error_message = <<-EOT
+      Org webhooks missing required 'url' field:
+      ${join("\n      ", [for name in local.invalid_org_webhook_urls : "- '${name}' in config/webhook/ has no url"])}
     EOT
   }
 }
