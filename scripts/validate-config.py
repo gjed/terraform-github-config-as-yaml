@@ -39,6 +39,7 @@ VALID_RULE_TYPES = [
     "commit_author_email_pattern",
     "committer_email_pattern",
 ]
+VALID_SCOPES = ["organization", "repository"]
 
 VALID_TEAM_PRIVACIES = ["closed", "secret"]
 VALID_DELEGATION_ALGORITHMS = ["round_robin", "load_balance"]
@@ -66,6 +67,23 @@ def load_yaml_directory(directory: Path) -> dict:
     return merged
 
 
+def split_rulesets_by_scope(rulesets: dict) -> tuple[dict, dict]:
+    """Split rulesets into repo-scoped and org-scoped maps.
+
+    Returns (repo_rulesets, org_rulesets).
+    Definitions without 'scope' or with 'scope: repository' are repo-scoped.
+    Definitions with 'scope: organization' are org-scoped.
+    """
+    repo_rulesets = {}
+    org_rulesets = {}
+    for name, config in rulesets.items():
+        if isinstance(config, dict) and config.get("scope") == "organization":
+            org_rulesets[name] = config
+        else:
+            repo_rulesets[name] = config
+    return repo_rulesets, org_rulesets
+
+
 def validate_config(config: dict) -> list[str]:
     """Validate config.yml."""
     errors = []
@@ -80,7 +98,7 @@ def validate_config(config: dict) -> list[str]:
     return errors
 
 
-def validate_groups(groups: dict) -> list[str]:
+def validate_groups(groups: dict, org_ruleset_names: set) -> list[str]:
     """Validate groups configuration."""
     errors = []
 
@@ -105,10 +123,25 @@ def validate_groups(groups: dict) -> list[str]:
                         f"groups: Group '{group_name}' team '{team}' has invalid permission '{permission}'"
                     )
 
+        # Org rulesets must not be assigned to groups via rulesets:
+        for ruleset_entry in group_config.get("rulesets", []):
+            entry_name = (
+                ruleset_entry
+                if isinstance(ruleset_entry, str)
+                else ruleset_entry.get("template", "")
+            )
+            if entry_name in org_ruleset_names:
+                errors.append(
+                    f"groups: Group '{group_name}' references org-scoped ruleset '{entry_name}' "
+                    f"via 'rulesets:' — org rulesets apply globally and cannot be assigned per-group"
+                )
+
     return errors
 
 
-def validate_repositories(repos: dict, groups: dict, rulesets: dict) -> list[str]:
+def validate_repositories(
+    repos: dict, groups: dict, repo_rulesets: dict, org_ruleset_names: set
+) -> list[str]:
     """Validate repositories configuration."""
     errors = []
 
@@ -154,13 +187,23 @@ def validate_repositories(repos: dict, groups: dict, rulesets: dict) -> list[str
         for ruleset_entry in repo_config.get("rulesets", []):
             # Handle both string references and template references
             if isinstance(ruleset_entry, str):
-                if ruleset_entry not in rulesets:
+                if ruleset_entry in org_ruleset_names:
+                    errors.append(
+                        f"repositories: Repository '{repo_name}' references org-scoped ruleset '{ruleset_entry}' "
+                        f"via 'rulesets:' — org rulesets apply globally and cannot be assigned per-repository"
+                    )
+                elif ruleset_entry not in repo_rulesets:
                     errors.append(
                         f"repositories: Repository '{repo_name}' references unknown ruleset '{ruleset_entry}'"
                     )
             elif isinstance(ruleset_entry, dict) and "template" in ruleset_entry:
                 template_name = ruleset_entry["template"]
-                if template_name not in rulesets:
+                if template_name in org_ruleset_names:
+                    errors.append(
+                        f"repositories: Repository '{repo_name}' references org-scoped ruleset '{template_name}' "
+                        f"via 'rulesets:' — org rulesets apply globally and cannot be assigned per-repository"
+                    )
+                elif template_name not in repo_rulesets:
                     errors.append(
                         f"repositories: Repository '{repo_name}' references unknown template '{template_name}'"
                     )
@@ -176,6 +219,14 @@ def validate_rulesets(rulesets: dict) -> list[str]:
         if not isinstance(ruleset_config, dict):
             errors.append(f"rulesets: Ruleset '{ruleset_name}' must be a dictionary")
             continue
+
+        # Validate scope if specified
+        scope = ruleset_config.get("scope")
+        if scope is not None and scope not in VALID_SCOPES:
+            errors.append(
+                f"rulesets: Ruleset '{ruleset_name}' has invalid scope '{scope}' "
+                f"(valid: {', '.join(VALID_SCOPES)})"
+            )
 
         # Check required fields
         if "target" not in ruleset_config:
@@ -457,6 +508,8 @@ def check_team_cross_references(
             )
 
     return warnings
+
+
 def validate_membership(members: dict) -> list[str]:
     """Validate membership configuration."""
     errors = []
@@ -554,11 +607,14 @@ def main():
         print(f"ERROR: {e}")
         sys.exit(1)
 
+    # Separate rulesets by scope for targeted validation
+    repo_rulesets, org_rulesets = split_rulesets_by_scope(rulesets)
+    org_ruleset_names = set(org_rulesets.keys())
+
     # Validate each config type
     all_errors.extend(validate_config(config))
-    all_errors.extend(validate_groups(groups))
+    all_errors.extend(validate_groups(groups, org_ruleset_names))
     all_errors.extend(validate_rulesets(rulesets))
-    all_errors.extend(validate_repositories(repos, groups, rulesets))
     all_errors.extend(validate_membership(members))
 
     # Print SCIM/SSO reminder when membership config is present
@@ -582,6 +638,18 @@ def main():
     if flat_teams:
         managed_slugs = {t["slug"] for t in flat_teams}
         team_xref_warnings = check_team_cross_references(repos, groups, managed_slugs)
+    all_errors.extend(
+        validate_repositories(repos, groups, repo_rulesets, org_ruleset_names)
+    )
+
+    # Warn about subscription tier and org rulesets
+    subscription = config.get("subscription", "free")
+    if org_rulesets and subscription in ("free", "pro"):
+        print(
+            f"WARNING: {len(org_rulesets)} org ruleset(s) defined but subscription is '{subscription}' "
+            f"— org rulesets require 'team' or 'enterprise' and will be skipped by Terraform."
+        )
+        print()
 
     # Report results
     if all_errors:
@@ -614,6 +682,9 @@ def main():
 
         if members:
             print(f"  - Members: {len(members)}")
+        print(f"  - Rulesets (repo-scoped): {len(repo_rulesets)}")
+        if org_rulesets:
+            print(f"  - Rulesets (org-scoped): {len(org_rulesets)}")
         sys.exit(0)
 
 

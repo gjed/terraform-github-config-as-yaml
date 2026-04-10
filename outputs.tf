@@ -53,6 +53,16 @@ output "managed_member_count" {
   value       = length(github_membership.this)
 }
 
+# Output warning when org rulesets are skipped due to subscription tier
+output "skipped_org_rulesets" {
+  description = "Org rulesets skipped because the subscription tier (free/pro) does not support them"
+  value = length(local.skipped_org_ruleset_names) > 0 ? {
+    message  = "Organization rulesets skipped - requires team or enterprise GitHub plan"
+    rulesets = local.skipped_org_ruleset_names
+    tier     = local.subscription
+  } : null
+}
+
 # Output warning when duplicate keys are detected across config files
 # Duplicates cause shallow merge - the entire definition from the later file wins
 output "duplicate_key_warnings" {
