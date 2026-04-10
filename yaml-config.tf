@@ -25,7 +25,7 @@ locals {
   repository_files = toset(concat(
     tolist(fileset(local.repository_config_path, "*.yml")),
     flatten([
-      for partition in local.active_partitions :
+      for partition in setintersection(local.active_partitions, local.repository_partition_dirs) :
       [for f in fileset("${local.repository_config_path}/${partition}", "*.yml") : "${partition}/${f}"]
     ])
   ))
