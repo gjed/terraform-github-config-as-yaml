@@ -65,8 +65,11 @@ module "github_org" {
   # repository_partitions = []  # default: all partitions
 
   # Optional: pass webhook secrets via environment variables or a secrets manager.
+  # Used for both repository-level and organization-level webhooks that use
+  # the env:VAR_NAME secret pattern in config/webhook/.
   # webhook_secrets = {
-  #   MY_WEBHOOK_SECRET = var.my_webhook_secret
+  #   MY_WEBHOOK_SECRET       = var.my_webhook_secret
+  #   ORG_WEBHOOK_SECRET      = var.org_webhook_secret
   # }
 
   # Optional: enable organization membership management via config/membership/.
@@ -78,4 +81,8 @@ module "github_org" {
   # WARNING: Do NOT enable alongside SCIM/IdP provisioning (Okta, Azure AD, SCIM) — they conflict.
   #
   # membership_management_enabled = true
+  #
+  # Organization webhooks are configured in config/config.yml under org_webhooks:.
+  # They fire for events across ALL repositories in the organization.
+  # Example: org_webhooks: [audit-logger, ci-notifier]
 }

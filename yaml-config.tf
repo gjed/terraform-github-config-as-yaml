@@ -360,6 +360,47 @@ locals {
   effective_membership = (
     var.membership_management_enabled && local.is_organization
   ) ? local.membership_config : {}
+  # Organization-level webhook names
+  # Reads the org_webhooks list from config.yml; empty for personal accounts
+  org_webhook_names = local.is_organization ? tolist(lookup(local.common_config, "org_webhooks", [])) : []
+
+  # Organization webhook invalid references (for check block)
+  # Collects any org_webhook names not defined in config/webhook/
+  invalid_org_webhook_refs = [
+    for name in local.org_webhook_names : name
+    if lookup(local.webhooks_config, name, null) == null
+  ]
+
+  # Resolve org webhook definitions: look up each name in webhooks_config,
+  # normalize types, and apply env:VAR_NAME secret resolution.
+  # Only populated for organizations; empty map for personal accounts.
+  resolved_org_webhooks_raw = local.is_organization ? {
+    for name in local.org_webhook_names : name => {
+      url          = tostring(lookup(local.webhooks_config, name, { url = null }).url)
+      content_type = tostring(lookup(lookup(local.webhooks_config, name, {}), "content_type", "json"))
+      secret       = try(tostring(lookup(local.webhooks_config, name, {}).secret), null)
+      events       = tolist(lookup(lookup(local.webhooks_config, name, {}), "events", []))
+      active       = tobool(lookup(lookup(local.webhooks_config, name, {}), "active", true))
+      insecure_ssl = tobool(lookup(lookup(local.webhooks_config, name, {}), "insecure_ssl", false))
+    }
+    if lookup(local.webhooks_config, name, null) != null
+  } : {}
+
+  # Resolve env:VAR_NAME secrets for org webhooks (same pattern as repo webhooks)
+  resolved_org_webhooks = {
+    for name, webhook in local.resolved_org_webhooks_raw : name => {
+      url          = webhook.url
+      content_type = webhook.content_type
+      secret = (
+        webhook.secret != null && can(regex("^env:", webhook.secret)) ?
+        lookup(var.webhook_secrets, substr(webhook.secret, 4, -1), null) :
+        webhook.secret
+      )
+      events       = webhook.events
+      active       = webhook.active
+      insecure_ssl = webhook.insecure_ssl
+    }
+  }
 
   # 1.1 Organization-level settings configuration
   # Parses optional `settings:` block from config.yml.
@@ -1020,6 +1061,19 @@ check "valid_partitions" {
   assert {
     condition     = length(local.invalid_partition_names) == 0
     error_message = "Invalid partition name(s): ${join(", ", local.invalid_partition_names)}. Available partitions: ${join(", ", sort(tolist(local.repository_partition_dirs)))}. Check config/repository/ for valid subdirectory names."
+  }
+}
+
+# Validate that all org_webhook references are defined in config/webhook/
+check "org_webhook_references" {
+  assert {
+    condition     = length(local.invalid_org_webhook_refs) == 0
+    error_message = <<-EOT
+      Invalid org_webhook references found in config.yml:
+      ${join("\n      ", [for name in local.invalid_org_webhook_refs : "- '${name}' is not defined in config/webhook/"])}
+
+      Available webhooks: ${join(", ", keys(local.webhooks_config))}
+    EOT
   }
 }
 

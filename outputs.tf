@@ -78,6 +78,13 @@ output "organization_settings_warnings" {
 # All three outputs share the same shape for consistency.
 
 
+output "org_webhooks" {
+  description = "Map of organization webhook names to their URLs (empty when no org webhooks configured)"
+  value = {
+    for name, webhook in github_organization_webhook.this : name => webhook.url
+  }
+}
+
 # Output warning when duplicate keys are detected across config files
 # Duplicates cause shallow merge - the entire definition from the later file wins
 output "duplicate_key_warnings" {
