@@ -127,6 +127,25 @@ locals {
     fileset(local.team_dir, "*.yml"),
     toset([])
   )
+  # Load per-file for duplicate-slug detection (mirrors repo/group/ruleset pattern)
+  team_configs_by_file = {
+    for f in sort(tolist(local.team_files)) :
+    f => try(yamldecode(file("${local.team_dir}/${f}")), {})
+  }
+  duplicate_team_slugs = {
+    for slug in distinct(flatten([
+      for f, config in local.team_configs_by_file :
+      config != null ? keys(config) : []
+    ])) :
+    slug => [
+      for f, config in local.team_configs_by_file :
+      f if config != null && contains(keys(config), slug)
+    ]
+    if length([
+      for f, config in local.team_configs_by_file :
+      f if config != null && contains(keys(config), slug)
+    ]) > 1
+  }
   teams_config_raw = merge([
     for f in sort(tolist(local.team_files)) :
     try(yamldecode(file("${local.team_dir}/${f}")), {})
@@ -140,15 +159,18 @@ locals {
   # Tier 0: root teams (no parent)
   # Tier 1: children of tier 0
   # Tier 2: children of tier 1 (max depth)
+  #
+  # All optional list/map fields use coalesce(lookup(..., null), fallback) so that
+  # an explicit `key: null` in YAML is treated the same as an absent key.
 
   # Tier 0 - root level teams
   tier_0_teams = {
     for slug, config in local.teams_config_raw : slug => {
       name                      = slug
       description               = config.description
-      privacy                   = lookup(config, "privacy", "closed")
-      members                   = lookup(config, "members", [])
-      maintainers               = lookup(config, "maintainers", [])
+      privacy                   = coalesce(lookup(config, "privacy", null), "closed")
+      members                   = coalesce(lookup(config, "members", null), [])
+      maintainers               = coalesce(lookup(config, "maintainers", null), [])
       review_request_delegation = lookup(config, "review_request_delegation", null)
       parent_slug               = null
       tier                      = 0
@@ -158,12 +180,12 @@ locals {
   # Tier 1 - children of root teams
   tier_1_teams = merge([
     for parent_slug, parent_config in local.teams_config_raw : {
-      for child_slug, child_config in lookup(parent_config, "teams", {}) : child_slug => {
+      for child_slug, child_config in coalesce(lookup(parent_config, "teams", null), {}) : child_slug => {
         name                      = child_slug
         description               = child_config.description
-        privacy                   = lookup(child_config, "privacy", "closed")
-        members                   = lookup(child_config, "members", [])
-        maintainers               = lookup(child_config, "maintainers", [])
+        privacy                   = coalesce(lookup(child_config, "privacy", null), "closed")
+        members                   = coalesce(lookup(child_config, "members", null), [])
+        maintainers               = coalesce(lookup(child_config, "maintainers", null), [])
         review_request_delegation = lookup(child_config, "review_request_delegation", null)
         parent_slug               = parent_slug
         tier                      = 1
@@ -174,13 +196,13 @@ locals {
   # Tier 2 - grandchildren (children of tier 1)
   tier_2_teams = merge([
     for parent_slug, parent_config in local.teams_config_raw : merge([
-      for child_slug, child_config in lookup(parent_config, "teams", {}) : {
-        for grandchild_slug, grandchild_config in lookup(child_config, "teams", {}) : grandchild_slug => {
+      for child_slug, child_config in coalesce(lookup(parent_config, "teams", null), {}) : {
+        for grandchild_slug, grandchild_config in coalesce(lookup(child_config, "teams", null), {}) : grandchild_slug => {
           name                      = grandchild_slug
           description               = grandchild_config.description
-          privacy                   = lookup(grandchild_config, "privacy", "closed")
-          members                   = lookup(grandchild_config, "members", [])
-          maintainers               = lookup(grandchild_config, "maintainers", [])
+          privacy                   = coalesce(lookup(grandchild_config, "privacy", null), "closed")
+          members                   = coalesce(lookup(grandchild_config, "members", null), [])
+          maintainers               = coalesce(lookup(grandchild_config, "maintainers", null), [])
           review_request_delegation = lookup(grandchild_config, "review_request_delegation", null)
           parent_slug               = child_slug
           tier                      = 2
@@ -197,12 +219,12 @@ locals {
   # length(tier_N_teams) < tier_N_raw_count means a collision occurred.
   tier_1_raw_count = length(flatten([
     for parent_slug, parent_config in local.teams_config_raw :
-    keys(lookup(parent_config, "teams", {}))
+    keys(coalesce(lookup(parent_config, "teams", null), {}))
   ]))
   tier_2_raw_count = length(flatten([
     for parent_slug, parent_config in local.teams_config_raw : flatten([
-      for child_slug, child_config in lookup(parent_config, "teams", {}) :
-      keys(lookup(child_config, "teams", {}))
+      for child_slug, child_config in coalesce(lookup(parent_config, "teams", null), {}) :
+      keys(coalesce(lookup(child_config, "teams", null), {}))
     ])
   ]))
 
@@ -704,6 +726,15 @@ locals {
       webhooks = local.merged_webhooks[repo_name]
 
     }
+  }
+}
+
+# Validate no duplicate top-level team slugs across config/team/*.yml files
+# Last-file-wins merge silently drops definitions when two files share a top-level slug.
+check "duplicate_team_file_slugs" {
+  assert {
+    condition     = length(local.duplicate_team_slugs) == 0
+    error_message = "Duplicate top-level team slugs found across config/team/ files: ${join(", ", keys(local.duplicate_team_slugs))}. Each team slug must appear in only one file."
   }
 }
 
