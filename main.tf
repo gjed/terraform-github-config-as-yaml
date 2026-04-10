@@ -99,3 +99,51 @@ resource "github_actions_organization_workflow_permissions" "this" {
   # Secure default: false
   can_approve_pull_request_reviews = try(local.org_actions_config.can_approve_pull_request_reviews, false)
 }
+
+# Manage GitHub Teams - Tier 0 (root teams, no parent)
+# Only created for organizations (teams are not available for personal accounts)
+module "teams_root" {
+  source = "./modules/team"
+
+  for_each = local.is_organization ? local.tier_0_teams : {}
+
+  name        = each.value.name
+  description = each.value.description
+  privacy     = each.value.privacy
+  members     = each.value.members
+  maintainers = each.value.maintainers
+
+  review_request_delegation = each.value.review_request_delegation
+}
+
+# Manage GitHub Teams - Tier 1 (children of root teams)
+module "teams_level_1" {
+  source = "./modules/team"
+
+  for_each = local.is_organization ? local.tier_1_teams : {}
+
+  name           = each.value.name
+  description    = each.value.description
+  privacy        = each.value.privacy
+  parent_team_id = module.teams_root[each.value.parent_slug].team_id
+  members        = each.value.members
+  maintainers    = each.value.maintainers
+
+  review_request_delegation = each.value.review_request_delegation
+}
+
+# Manage GitHub Teams - Tier 2 (grandchildren, max depth)
+module "teams_level_2" {
+  source = "./modules/team"
+
+  for_each = local.is_organization ? local.tier_2_teams : {}
+
+  name           = each.value.name
+  description    = each.value.description
+  privacy        = each.value.privacy
+  parent_team_id = module.teams_level_1[each.value.parent_slug].team_id
+  members        = each.value.members
+  maintainers    = each.value.maintainers
+
+  review_request_delegation = each.value.review_request_delegation
+}
