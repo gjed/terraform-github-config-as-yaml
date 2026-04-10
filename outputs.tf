@@ -87,6 +87,6 @@ output "managed_teams" {
 }
 
 output "team_count" {
-  description = "Total number of managed teams"
-  value       = length(local.all_teams)
+  description = "Total number of managed teams (0 when is_organization is false)"
+  value       = local.is_organization ? length(local.all_teams) : 0
 }

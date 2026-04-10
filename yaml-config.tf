@@ -192,6 +192,20 @@ locals {
   # Combined flat map of all teams (for validation and outputs)
   all_teams = merge(local.tier_0_teams, local.tier_1_teams, local.tier_2_teams)
 
+  # Raw child counts BEFORE merge - used to detect intra-tier duplicate slugs.
+  # merge([...]) silently drops entries when two parents share a child slug, so
+  # length(tier_N_teams) < tier_N_raw_count means a collision occurred.
+  tier_1_raw_count = length(flatten([
+    for parent_slug, parent_config in local.teams_config_raw :
+    keys(lookup(parent_config, "teams", {}))
+  ]))
+  tier_2_raw_count = length(flatten([
+    for parent_slug, parent_config in local.teams_config_raw : flatten([
+      for child_slug, child_config in lookup(parent_config, "teams", {}) :
+      keys(lookup(child_config, "teams", {}))
+    ])
+  ]))
+
   # Extract values from YAML
   github_org      = local.common_config.organization
   is_organization = lookup(local.common_config, "is_organization", true)
@@ -693,7 +707,8 @@ locals {
   }
 }
 
-# Validate no duplicate team slugs across tiers
+# Validate no duplicate team slugs across tiers (cross-tier check)
+# Catches cases where a slug appears in multiple tiers (e.g. tier 0 and tier 1).
 check "team_slug_uniqueness" {
   assert {
     condition = (
@@ -701,6 +716,19 @@ check "team_slug_uniqueness" {
       length(local.tier_0_teams) + length(local.tier_1_teams) + length(local.tier_2_teams)
     )
     error_message = "Duplicate team slugs detected across hierarchy levels. Each team slug must be unique."
+  }
+}
+
+# Validate no duplicate slugs within a tier (intra-tier check)
+# merge([...]) silently drops one entry when two parents share a child slug.
+# These checks compare the post-merge count with the raw pre-merge count.
+check "team_slug_uniqueness_intra_tier" {
+  assert {
+    condition = (
+      length(local.tier_1_teams) == local.tier_1_raw_count &&
+      length(local.tier_2_teams) == local.tier_2_raw_count
+    )
+    error_message = "Duplicate team slugs detected within a tier. Two parent teams cannot have child teams with the same slug."
   }
 }
 
