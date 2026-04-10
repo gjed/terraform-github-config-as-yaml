@@ -120,6 +120,78 @@ locals {
     try(yamldecode(file("${local.webhook_dir}/${f}")), {})
   ]...)
 
+  # Load team definitions from config/team/ directory
+  # Directory is optional - missing directory results in empty map
+  team_dir = "${local.config_base_path}/team"
+  team_files = try(
+    fileset(local.team_dir, "*.yml"),
+    toset([])
+  )
+  teams_config_raw = merge([
+    for f in sort(tolist(local.team_files)) :
+    try(yamldecode(file("${local.team_dir}/${f}")), {})
+  ]...)
+
+  # Flatten nested team hierarchy into a tiered flat map
+  # Input: nested YAML where child teams are under parent's `teams` key
+  # Output: flat map of slug => { description, privacy, members, maintainers,
+  #          review_request_delegation, parent_slug, tier }
+  #
+  # Tier 0: root teams (no parent)
+  # Tier 1: children of tier 0
+  # Tier 2: children of tier 1 (max depth)
+
+  # Tier 0 - root level teams
+  tier_0_teams = {
+    for slug, config in local.teams_config_raw : slug => {
+      name                      = slug
+      description               = config.description
+      privacy                   = lookup(config, "privacy", "closed")
+      members                   = lookup(config, "members", [])
+      maintainers               = lookup(config, "maintainers", [])
+      review_request_delegation = lookup(config, "review_request_delegation", null)
+      parent_slug               = null
+      tier                      = 0
+    }
+  }
+
+  # Tier 1 - children of root teams
+  tier_1_teams = merge([
+    for parent_slug, parent_config in local.teams_config_raw : {
+      for child_slug, child_config in lookup(parent_config, "teams", {}) : child_slug => {
+        name                      = child_slug
+        description               = child_config.description
+        privacy                   = lookup(child_config, "privacy", "closed")
+        members                   = lookup(child_config, "members", [])
+        maintainers               = lookup(child_config, "maintainers", [])
+        review_request_delegation = lookup(child_config, "review_request_delegation", null)
+        parent_slug               = parent_slug
+        tier                      = 1
+      }
+    }
+  ]...)
+
+  # Tier 2 - grandchildren (children of tier 1)
+  tier_2_teams = merge([
+    for parent_slug, parent_config in local.teams_config_raw : merge([
+      for child_slug, child_config in lookup(parent_config, "teams", {}) : {
+        for grandchild_slug, grandchild_config in lookup(child_config, "teams", {}) : grandchild_slug => {
+          name                      = grandchild_slug
+          description               = grandchild_config.description
+          privacy                   = lookup(grandchild_config, "privacy", "closed")
+          members                   = lookup(grandchild_config, "members", [])
+          maintainers               = lookup(grandchild_config, "maintainers", [])
+          review_request_delegation = lookup(grandchild_config, "review_request_delegation", null)
+          parent_slug               = child_slug
+          tier                      = 2
+        }
+      }
+    ]...)
+  ]...)
+
+  # Combined flat map of all teams (for validation and outputs)
+  all_teams = merge(local.tier_0_teams, local.tier_1_teams, local.tier_2_teams)
+
   # Extract values from YAML
   github_org      = local.common_config.organization
   is_organization = lookup(local.common_config, "is_organization", true)
@@ -618,6 +690,45 @@ locals {
       webhooks = local.merged_webhooks[repo_name]
 
     }
+  }
+}
+
+# Validate no duplicate team slugs across tiers
+check "team_slug_uniqueness" {
+  assert {
+    condition = (
+      length(local.all_teams) ==
+      length(local.tier_0_teams) + length(local.tier_1_teams) + length(local.tier_2_teams)
+    )
+    error_message = "Duplicate team slugs detected across hierarchy levels. Each team slug must be unique."
+  }
+}
+
+# Validate no user appears in both members and maintainers for any team
+check "team_member_maintainer_overlap" {
+  assert {
+    condition = length([
+      for slug, team in local.all_teams : slug
+      if length(setintersection(toset(team.members), toset(team.maintainers))) > 0
+    ]) == 0
+    error_message = "Some teams have users in both members and maintainers. A user can only have one role per team."
+  }
+}
+
+# Validate no teams nested deeper than 3 levels
+# This checks that tier 2 teams have no nested `teams` key with content
+check "team_nesting_depth" {
+  assert {
+    condition = length(flatten([
+      for parent_slug, parent_config in local.teams_config_raw : flatten([
+        for child_slug, child_config in lookup(parent_config, "teams", {}) : [
+          for grandchild_slug, grandchild_config in lookup(child_config, "teams", {}) :
+          grandchild_slug
+          if length(lookup(grandchild_config, "teams", {})) > 0
+        ]
+      ])
+    ])) == 0
+    error_message = "Team nesting exceeds maximum depth of 3 levels. Reorganize your team hierarchy."
   }
 }
 
