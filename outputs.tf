@@ -63,6 +63,21 @@ output "skipped_org_rulesets" {
   } : null
 }
 
+# Output warning when enterprise-only org settings are skipped due to subscription tier
+output "organization_settings_warnings" {
+  description = "Warnings about enterprise-only organization settings skipped on current subscription tier"
+  value = length(local.org_settings_warnings) > 0 ? {
+    message  = "Enterprise-only settings skipped - requires GitHub Enterprise subscription"
+    settings = local.org_settings_warnings
+    tier     = local.subscription
+  } : null
+}
+
+# Note: subscription_warnings covers repo ruleset skipping; skipped_org_rulesets covers org ruleset
+# skipping; organization_settings_warnings covers enterprise-only settings skipping.
+# All three outputs share the same shape for consistency.
+
+
 # Output warning when duplicate keys are detected across config files
 # Duplicates cause shallow merge - the entire definition from the later file wins
 output "duplicate_key_warnings" {
