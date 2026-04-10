@@ -329,16 +329,17 @@ locals {
   # - team/enterprise: Full ruleset support including push rulesets
   rulesets_require_paid_for_private = contains(["free"], local.subscription)
 
-  # Organization rulesets require team or enterprise subscription
-  # On free or pro plans, all org rulesets are skipped with a warning
-  org_rulesets_require_paid = contains(["free", "pro"], local.subscription)
+  # Organization rulesets require organization mode and team/enterprise subscription
+  # On free or pro plans, or when not in organization mode, all org rulesets are skipped
+  org_rulesets_require_paid = local.is_organization && contains(["free", "pro"], local.subscription)
 
-  # Effective org rulesets after subscription tier filtering
-  # Returns empty map when subscription is insufficient
-  effective_org_rulesets = local.org_rulesets_require_paid ? tomap({}) : local.org_rulesets_config
+  # Effective org rulesets after account type and subscription tier filtering
+  # Returns empty map when not in organization mode or when subscription is insufficient
+  effective_org_rulesets = local.is_organization && !local.org_rulesets_require_paid ? local.org_rulesets_config : tomap({})
 
   # Track which org rulesets are skipped due to subscription tier
-  skipped_org_ruleset_names = local.org_rulesets_require_paid ? keys(local.org_rulesets_config) : []
+  # (only meaningful in organization mode; personal accounts simply never have org rulesets)
+  skipped_org_ruleset_names = local.is_organization && local.org_rulesets_require_paid ? keys(local.org_rulesets_config) : []
 
   # Merge multiple config groups for each repository
   # Groups are applied sequentially: later groups override single values, lists are merged

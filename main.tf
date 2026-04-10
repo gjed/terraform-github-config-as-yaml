@@ -96,13 +96,11 @@ resource "github_organization_ruleset" "this" {
       exclude = each.value.conditions.ref_name.exclude
     }
 
-    # repository_name is optional; defaults to all repositories when omitted
-    dynamic "repository_name" {
-      for_each = lookup(lookup(each.value, "conditions", {}), "repository_name", null) != null ? [each.value.conditions.repository_name] : []
-      content {
-        include = lookup(repository_name.value, "include", ["*"])
-        exclude = lookup(repository_name.value, "exclude", [])
-      }
+    # repository_name is required by the GitHub provider (AtLeastOneOf constraint).
+    # When omitted from YAML config, defaults to include all repositories.
+    repository_name {
+      include = lookup(lookup(lookup(each.value, "conditions", {}), "repository_name", {}), "include", ["*"])
+      exclude = lookup(lookup(lookup(each.value, "conditions", {}), "repository_name", {}), "exclude", [])
     }
   }
 
