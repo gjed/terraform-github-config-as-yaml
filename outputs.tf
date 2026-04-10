@@ -71,7 +71,8 @@ output "duplicate_key_warnings" {
     length(local.duplicate_repository_keys) > 0 ||
     length(local.duplicate_group_keys) > 0 ||
     length(local.duplicate_ruleset_keys) > 0 ||
-    length(local.duplicate_membership_keys) > 0
+    length(local.duplicate_membership_keys) > 0 ||
+    length(local.duplicate_branch_protection_keys) > 0
     ) ? {
     message = "WARNING: Duplicate keys detected across config files. Later files (alphabetically) completely override earlier ones - no deep merge!"
     repositories = length(local.duplicate_repository_keys) > 0 ? {
@@ -88,6 +89,10 @@ output "duplicate_key_warnings" {
     } : null
     members = length(local.duplicate_membership_keys) > 0 ? {
       for key, files in local.duplicate_membership_keys :
+      key => "defined in: ${join(", ", files)} - using: ${files[length(files) - 1]}"
+    } : null
+    branch_protections = length(local.duplicate_branch_protection_keys) > 0 ? {
+      for key, files in local.duplicate_branch_protection_keys :
       key => "defined in: ${join(", ", files)} - using: ${files[length(files) - 1]}"
     } : null
   } : null
