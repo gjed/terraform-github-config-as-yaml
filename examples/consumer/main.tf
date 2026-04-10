@@ -39,6 +39,31 @@ module "github_org" {
   # Must be a static string — computed values are not supported.
   config_path = "${path.root}/config"
 
+  # Optional: scope the plan to specific repository partitions (subdirectories
+  # under config/repository/). Useful for large organisations that exceed GitHub
+  # API rate limits on a full plan.
+  #
+  # Example directory layout:
+  #   config/repository/
+  #   ├── common.yml          # Always loaded (top-level, not a partition)
+  #   ├── infra/              # Partition "infra"
+  #   │   └── services.yml
+  #   └── product/            # Partition "product"
+  #       └── apps.yml
+  #
+  # Load only the "infra" partition (common.yml is still always loaded):
+  #   repository_partitions = ["infra"]
+  #
+  # Default (empty list) loads all partitions — identical to pre-partitioning
+  # behaviour. No migration needed for flat config/repository/ layouts.
+  #
+  # ⚠️  WARNING: Narrowing the partition list causes repositories outside the
+  # selected partitions to disappear from Terraform's view, resulting in a
+  # planned destroy for their resources. Always review the plan carefully before
+  # applying when changing repository_partitions. See docs/scaling.md for details.
+  #
+  # repository_partitions = []  # default: all partitions
+
   # Optional: pass webhook secrets via environment variables or a secrets manager.
   # webhook_secrets = {
   #   MY_WEBHOOK_SECRET = var.my_webhook_secret
