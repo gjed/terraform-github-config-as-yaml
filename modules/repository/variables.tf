@@ -229,6 +229,10 @@ variable "branch_protections" {
       require_code_owner_reviews      = optional(bool, false)
       require_last_push_approval      = optional(bool, false)
       restrict_dismissals             = optional(bool, false)
+      # Actor strings must use the provider's format:
+      #   users: "/username"
+      #   teams: "orgname/teamslug"
+      #   apps:  node ID (use data.github_app.example.node_id)
       dismissal_restrictions = optional(object({
         users = optional(list(string), [])
         teams = optional(list(string), [])
@@ -247,7 +251,13 @@ variable "branch_protections" {
     }))
 
     restrict_pushes = optional(object({
-      blocks_creations = optional(bool, true)
+      # Defaults to false — matching GitHub's default behavior.
+      # Set to true to also prevent branch creation by non-allowed actors.
+      blocks_creations = optional(bool, false)
+      # Actor strings must use the provider's format:
+      #   users: "/username"
+      #   teams: "orgname/teamslug"
+      #   apps:  node ID (use data.github_app.example.node_id)
       push_allowances = optional(object({
         users = optional(list(string), [])
         teams = optional(list(string), [])

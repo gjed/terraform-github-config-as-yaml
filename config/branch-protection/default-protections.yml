@@ -16,6 +16,11 @@
 # Only "pattern" is required. All other fields have sensible defaults.
 # Sub-blocks (required_pull_request_reviews, required_status_checks, restrict_pushes)
 # are optional — omitting them means that feature is not configured.
+#
+# Actor format for dismissal_restrictions, pull_request_bypassers, and push_allowances:
+#   users: "/username"                (leading slash)
+#   teams: "your-org/team-slug"       (org name + slash + team slug)
+#   apps:  use the app's node ID      (data.github_app.example.node_id)
 
 # Basic protection for the default branch: requires a PR and prevents force-pushes
 main-protection:
