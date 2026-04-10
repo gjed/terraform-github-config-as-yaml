@@ -361,6 +361,41 @@ locals {
     var.membership_management_enabled && local.is_organization
   ) ? local.membership_config : {}
 
+  # 1.1 Organization-level settings configuration
+  # Parses optional `settings:` block from config.yml
+  # Defaults to null if not specified (no org settings resource created)
+  # Only applicable for organizations, not personal accounts
+  org_settings_raw = local.is_organization ? lookup(local.common_config, "settings", null) : null
+
+  # 1.3 GHAS (GitHub Advanced Security) features require Enterprise subscription
+  ghas_settings_enabled = local.subscription == "enterprise"
+
+  # Keys that require GitHub Enterprise subscription
+  # These are silently removed from effective settings on non-enterprise tiers
+  enterprise_only_keys = [
+    "advanced_security_enabled_for_new_repositories",
+    "secret_scanning_enabled_for_new_repositories",
+    "secret_scanning_push_protection_enabled_for_new_repositories",
+    "members_can_create_internal_repositories",
+  ]
+
+  # 1.5 Collect skipped enterprise-only keys for warnings output
+  org_settings_warnings = (
+    local.org_settings_raw != null && !local.ghas_settings_enabled
+    ) ? [
+    for key in local.enterprise_only_keys :
+    key if contains(keys(local.org_settings_raw), key)
+  ] : []
+
+  # 1.2 / 1.4 Effective org settings: filter out enterprise-only keys on non-enterprise tiers
+  # Result is null when is_organization=false (raw is already null) or when settings: block is absent
+  org_settings_config = local.org_settings_raw != null ? (
+    local.ghas_settings_enabled ? local.org_settings_raw : {
+      for k, v in local.org_settings_raw : k => v
+      if !contains(local.enterprise_only_keys, k)
+    }
+  ) : null
+
   # Subscription tier feature availability
   # - free: Rulesets only work on public repositories
   # - pro: Rulesets work on public and private repositories
