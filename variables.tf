@@ -5,6 +5,12 @@ variable "config_path" {
   type        = string
 }
 
+variable "repository_partitions" {
+  description = "List of partition names (subdirectories under config/repository/) to load. An empty list loads all partitions. Top-level *.yml files in config/repository/ are always loaded regardless of this setting."
+  type        = list(string)
+  default     = []
+}
+
 variable "webhook_secrets" {
   description = "Map of webhook secret names to their values. Keys should match the VAR_NAME in env:VAR_NAME patterns used in webhook configurations."
   type        = map(string)
