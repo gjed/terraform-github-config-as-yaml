@@ -40,7 +40,7 @@ module invocations in `main.tf` (`teams_root`, `teams_level_1`, `teams_level_2`)
 - Create: `modules/team/variables.tf`
 - Create: `modules/team/outputs.tf`
 
-- [ ] **Step 1: Create `modules/team/variables.tf`**
+- [x] **Step 1: Create `modules/team/variables.tf`**
 
 ```hcl
 variable "name" {
@@ -99,7 +99,7 @@ variable "review_request_delegation" {
 }
 ```
 
-- [ ] **Step 2: Create `modules/team/outputs.tf`**
+- [x] **Step 2: Create `modules/team/outputs.tf`**
 
 ```hcl
 output "team_id" {
@@ -113,7 +113,7 @@ output "team_slug" {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add modules/team/variables.tf modules/team/outputs.tf
@@ -128,7 +128,7 @@ git commit -m "feat(team): add team submodule variables and outputs"
 
 - Create: `modules/team/main.tf`
 
-- [ ] **Step 1: Create `modules/team/main.tf`**
+- [x] **Step 1: Create `modules/team/main.tf`**
 
 ```hcl
 terraform {
@@ -182,13 +182,13 @@ resource "github_team_settings" "this" {
 }
 ```
 
-- [ ] **Step 2: Run `terraform fmt` on the module**
+- [x] **Step 2: Run `terraform fmt` on the module**
 
 Run: `terraform fmt modules/team/`
 
 Expected: Files formatted (or no changes if already correct).
 
-- [ ] **Step 3: Run `terraform validate` on the module**
+- [x] **Step 3: Run `terraform validate` on the module**
 
 Run: `cd modules/team && terraform init -backend=false && terraform validate`
 
@@ -197,7 +197,7 @@ Expected: `Success! The configuration is valid.`
 Note: This validates syntax and structure. The actual resources require a GitHub provider
 connection at apply time.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add modules/team/main.tf
@@ -217,13 +217,13 @@ github_team_settings resources in modules/team/."
   `locals` block, before the `check` blocks)
 - Create: `config/team/.gitkeep`
 
-- [ ] **Step 1: Create the empty team config directory**
+- [x] **Step 1: Create the empty team config directory**
 
 ```bash
 touch config/team/.gitkeep
 ```
 
-- [ ] **Step 2: Add team config path and file loading to `yaml-config.tf`**
+- [x] **Step 2: Add team config path and file loading to `yaml-config.tf`**
 
 Add the following after the existing `webhook_dir` / `webhook_files` / `webhooks_config` block
 (around line 121), inside the same `locals` block:
@@ -242,7 +242,7 @@ Add the following after the existing `webhook_dir` / `webhook_files` / `webhooks
   ]...)
 ```
 
-- [ ] **Step 3: Add the nested team flattening logic**
+- [x] **Step 3: Add the nested team flattening logic**
 
 Add below the `teams_config_raw` local. This walks up to 3 levels of nesting and produces a flat
 map with tier classification.
@@ -309,7 +309,7 @@ map with tier classification.
   all_teams = merge(local.tier_0_teams, local.tier_1_teams, local.tier_2_teams)
 ```
 
-- [ ] **Step 4: Add team validation checks**
+- [x] **Step 4: Add team validation checks**
 
 Add a new `check` block after the existing `check "template_references"` block at the bottom of
 `yaml-config.tf`:
@@ -355,13 +355,13 @@ check "team_nesting_depth" {
 }
 ```
 
-- [ ] **Step 5: Run `terraform fmt`**
+- [x] **Step 5: Run `terraform fmt`**
 
 Run: `terraform fmt yaml-config.tf`
 
 Expected: File formatted.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add yaml-config.tf config/team/.gitkeep
@@ -379,7 +379,7 @@ three tiers, and validates slug uniqueness and nesting depth."
 
 - Modify: `main.tf`
 
-- [ ] **Step 1: Add tiered team module invocations to `main.tf`**
+- [x] **Step 1: Add tiered team module invocations to `main.tf`**
 
 Add after the existing `github_actions_organization_workflow_permissions` resource block (after
 line 101):
@@ -434,13 +434,13 @@ module "teams_level_2" {
 }
 ```
 
-- [ ] **Step 2: Run `terraform fmt`**
+- [x] **Step 2: Run `terraform fmt`**
 
 Run: `terraform fmt main.tf`
 
 Expected: File formatted.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add main.tf
@@ -459,7 +459,7 @@ Guarded by is_organization flag."
 
 - Modify: `outputs.tf`
 
-- [ ] **Step 1: Add team outputs to `outputs.tf`**
+- [x] **Step 1: Add team outputs to `outputs.tf`**
 
 Add at the end of the file:
 
@@ -494,13 +494,13 @@ output "team_count" {
 }
 ```
 
-- [ ] **Step 2: Run `terraform fmt`**
+- [x] **Step 2: Run `terraform fmt`**
 
 Run: `terraform fmt outputs.tf`
 
 Expected: File formatted.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add outputs.tf
@@ -515,7 +515,7 @@ git commit -m "feat(team): add managed_teams and team_count outputs"
 
 - Modify: `scripts/validate-config.py`
 
-- [ ] **Step 1: Add team directory constant and valid values**
+- [x] **Step 1: Add team directory constant and valid values**
 
 At the top of `scripts/validate-config.py`, after the existing directory constants (line 19),
 add:
@@ -531,7 +531,7 @@ VALID_TEAM_PRIVACIES = ["closed", "secret"]
 VALID_DELEGATION_ALGORITHMS = ["round_robin", "load_balance"]
 ```
 
-- [ ] **Step 2: Add `validate_teams` function**
+- [x] **Step 2: Add `validate_teams` function**
 
 Add after the existing `validate_rulesets` function (after line 204):
 
@@ -624,7 +624,7 @@ def validate_teams(teams: dict) -> tuple[list[str], list[str]]:
     return errors, warnings
 ```
 
-- [ ] **Step 3: Add team cross-reference warning function**
+- [x] **Step 3: Add team cross-reference warning function**
 
 Add after `validate_teams`:
 
@@ -660,7 +660,7 @@ def check_team_cross_references(
     return warnings
 ```
 
-- [ ] **Step 4: Update `main()` to call team validation**
+- [x] **Step 4: Update `main()` to call team validation**
 
 In the `main()` function, after the block that loads rulesets (around line 259), add team
 loading:
@@ -710,13 +710,13 @@ Before the final `sys.exit(0)`, add warning output:
                 print(f"  - {warning}")
 ```
 
-- [ ] **Step 5: Run the validation script to verify it works with no teams**
+- [x] **Step 5: Run the validation script to verify it works with no teams**
 
 Run: `python scripts/validate-config.py`
 
 Expected: `Validation PASSED` with `Teams: 0` in the output.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/validate-config.py
@@ -734,13 +734,13 @@ overlap, delegation settings, and cross-reference warnings."
 
 - Create: `examples/consumer/config/team/.gitkeep`
 
-- [ ] **Step 1: Create the team directory in the consumer example**
+- [x] **Step 1: Create the team directory in the consumer example**
 
 ```bash
 touch examples/consumer/config/team/.gitkeep
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add examples/consumer/config/team/.gitkeep
@@ -751,13 +751,13 @@ git commit -m "chore(example): add empty team config directory to consumer examp
 
 ### Task 8: Run Full Validation
 
-- [ ] **Step 1: Run `terraform fmt` on the whole project**
+- [x] **Step 1: Run `terraform fmt` on the whole project**
 
 Run: `terraform fmt -recursive .`
 
 Expected: All files formatted or already correct.
 
-- [ ] **Step 2: Run `terraform validate`**
+- [x] **Step 2: Run `terraform validate`**
 
 Run: `terraform validate`
 
@@ -766,19 +766,19 @@ Expected: `Success! The configuration is valid.`
 Note: This requires `terraform init` to have been run. If providers aren't initialized,
 run `terraform init -backend=false` first.
 
-- [ ] **Step 3: Run the validation script**
+- [x] **Step 3: Run the validation script**
 
 Run: `python scripts/validate-config.py`
 
 Expected: `Validation PASSED` with `Teams: 0`.
 
-- [ ] **Step 4: Run pre-commit hooks**
+- [x] **Step 4: Run pre-commit hooks**
 
 Run: `source .venv/bin/activate && pre-commit run --all-files`
 
 Expected: All checks pass. Fix any formatting issues flagged.
 
-- [ ] **Step 5: If any fixes were needed, commit them**
+- [x] **Step 5: If any fixes were needed, commit them**
 
 ```bash
 git add -A
@@ -789,7 +789,7 @@ git commit -m "style: fix formatting from pre-commit hooks"
 
 ### Task 9: Commit OpenSpec Artifacts
 
-- [ ] **Step 1: Stage and commit all OpenSpec change files**
+- [x] **Step 1: Stage and commit all OpenSpec change files**
 
 ```bash
 git add openspec/changes/add-github-teams-management/
