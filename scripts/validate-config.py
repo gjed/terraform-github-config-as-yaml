@@ -209,96 +209,219 @@ def validate_rulesets(rulesets: dict) -> list[str]:
     return errors
 
 
-def flatten_teams(teams: dict, depth: int = 0, parent: str = None) -> list[dict]:
-    """Recursively flatten nested team definitions."""
-    result = []
+_SLUG_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
+
+
+def load_team_directory(directory: Path) -> dict:
+    """Load team configs with per-file duplicate slug detection.
+
+    Unlike load_yaml_directory (which silently overwrites duplicates), this
+    raises ValueError when the same top-level slug appears in more than one file.
+    """
+    teams: dict = {}
+    sources: dict = {}
+    for team_file in sorted(directory.glob("*.yml")):
+        file_teams = load_yaml(team_file)
+        if not file_teams:
+            continue
+        if not isinstance(file_teams, dict):
+            raise ValueError(
+                f"Team configuration file must contain a mapping: {team_file.name}"
+            )
+        for slug, team_config in file_teams.items():
+            if slug in teams:
+                raise ValueError(
+                    f"Duplicate top-level team slug '{slug}' found in "
+                    f"'{sources[slug].name}' and '{team_file.name}'. "
+                    f"Each team slug must appear in only one file."
+                )
+            teams[slug] = team_config
+            sources[slug] = team_file
+    return teams
+
+
+def flatten_teams(
+    teams: dict, depth: int = 0, parent: str | None = None
+) -> tuple[list[dict], list[str]]:
+    """Recursively flatten nested team definitions.
+
+    Returns (flat_list, type_errors) so callers learn about malformed entries
+    instead of silently skipping them.
+    """
+    result: list[dict] = []
+    errors: list[str] = []
+
     for slug, config in teams.items():
         if not isinstance(config, dict):
+            errors.append(
+                f"teams: Team '{slug}' configuration must be a mapping, "
+                f"got {type(config).__name__!r}"
+            )
             continue
+
         result.append(
-            {
-                "slug": slug,
-                "config": config,
-                "depth": depth,
-                "parent": parent,
-            }
+            {"slug": slug, "config": config, "depth": depth, "parent": parent}
         )
-        # Recurse into nested teams
-        nested = config.get("teams", {})
-        if isinstance(nested, dict) and nested:
-            result.extend(flatten_teams(nested, depth + 1, slug))
-    return result
+
+        nested = config.get("teams")
+        if nested is None:
+            pass  # key absent or explicitly null — treat as no children
+        elif isinstance(nested, dict):
+            child_result, child_errors = flatten_teams(nested, depth + 1, slug)
+            result.extend(child_result)
+            errors.extend(child_errors)
+        else:
+            errors.append(
+                f"teams: Team '{slug}' field 'teams' must be a mapping, "
+                f"got {type(nested).__name__!r}"
+            )
+
+    return result, errors
 
 
-def validate_teams(teams: dict) -> tuple[list[str], list[str]]:
-    """Validate teams configuration. Returns (errors, warnings)."""
-    errors = []
-    warnings = []
+def validate_teams(
+    teams: dict,
+    flat_teams: list[dict] | None = None,
+    flat_errors: list[str] | None = None,
+) -> tuple[list[str], list[str]]:
+    """Validate teams configuration. Returns (errors, warnings).
+
+    Pass pre-computed flat_teams / flat_errors to avoid re-flattening.
+    """
+    errors: list[str] = list(flat_errors or [])
+    warnings: list[str] = []
 
     if not teams:
         return errors, warnings
 
-    flat = flatten_teams(teams)
+    if flat_teams is None:
+        flat_teams, type_errors = flatten_teams(teams)
+        errors.extend(type_errors)
 
-    # Check for duplicate slugs
-    slugs = [t["slug"] for t in flat]
-    seen = set()
-    for slug in slugs:
+    # Check for duplicate slugs across the hierarchy
+    seen: set[str] = set()
+    for t in flat_teams:
+        slug = t["slug"]
         if slug in seen:
             errors.append(f"teams: Duplicate team slug '{slug}' found across hierarchy")
         seen.add(slug)
 
     # Check max nesting depth
-    for team in flat:
-        if team["depth"] > 2:
+    for t in flat_teams:
+        if t["depth"] > 2:
             errors.append(
-                f"teams: Team '{team['slug']}' exceeds maximum nesting depth of 3 levels "
-                f"(depth {team['depth'] + 1})"
+                f"teams: Team '{t['slug']}' exceeds maximum nesting depth of 3 levels "
+                f"(depth {t['depth'] + 1})"
             )
 
-    # Validate each team's fields
-    _slug_re = re.compile(r"^[a-z0-9][a-z0-9\-]*$")
-    for team in flat:
-        slug = team["slug"]
-        config = team["config"]
+    # Field-level validation
+    for t in flat_teams:
+        slug = t["slug"]
+        config = t["config"]
 
-        # Validate slug characters (GitHub normalises slugs; mismatches cause confusing state)
-        if not _slug_re.match(slug):
+        # Slug format (GitHub normalises slugs; mismatches cause perpetual plan diff)
+        if not _SLUG_RE.match(slug):
             errors.append(
                 f"teams: Team slug '{slug}' contains invalid characters. "
-                f"Use only lowercase letters, digits, and hyphens (e.g. 'platform-team')."
+                f"Use only lowercase letters, digits, and hyphens; "
+                f"must not start or end with a hyphen (e.g. 'platform-team')."
             )
 
         if "description" not in config:
             errors.append(f"teams: Team '{slug}' missing required field 'description'")
 
         privacy = config.get("privacy")
-        if privacy and privacy not in VALID_TEAM_PRIVACIES:
-            errors.append(
-                f"teams: Team '{slug}' has invalid privacy '{privacy}'. "
-                f"Valid values: {', '.join(VALID_TEAM_PRIVACIES)}"
-            )
-
-        # Validate no overlap between members and maintainers
-        members = set(config.get("members", []))
-        maintainers = set(config.get("maintainers", []))
-        overlap = members & maintainers
-        if overlap:
-            errors.append(
-                f"teams: Team '{slug}' has users in both members and maintainers: "
-                f"{', '.join(sorted(overlap))}"
-            )
-
-        # Validate review_request_delegation
-        # 'enabled' is optional (defaults to true); only validate algorithm when present
-        delegation = config.get("review_request_delegation")
-        if isinstance(delegation, dict):
-            algorithm = delegation.get("algorithm")
-            if algorithm and algorithm not in VALID_DELEGATION_ALGORITHMS:
+        if privacy is not None:
+            if not isinstance(privacy, str):
                 errors.append(
-                    f"teams: Team '{slug}' has invalid delegation algorithm '{algorithm}'. "
-                    f"Valid values: {', '.join(VALID_DELEGATION_ALGORITHMS)}"
+                    f"teams: Team '{slug}' field 'privacy' must be a string, "
+                    f"got {type(privacy).__name__!r}"
                 )
+            elif privacy not in VALID_TEAM_PRIVACIES:
+                errors.append(
+                    f"teams: Team '{slug}' has invalid privacy '{privacy}'. "
+                    f"Valid values: {', '.join(VALID_TEAM_PRIVACIES)}"
+                )
+
+        # members / maintainers: must be list of strings when present
+        for field in ("members", "maintainers"):
+            value = config.get(field)
+            if value is None:
+                continue
+            if not isinstance(value, list):
+                errors.append(
+                    f"teams: Team '{slug}' field '{field}' must be a list, "
+                    f"got {type(value).__name__!r}"
+                )
+            elif not all(isinstance(u, str) for u in value):
+                errors.append(
+                    f"teams: Team '{slug}' field '{field}' must be a list of strings"
+                )
+
+        # Overlap check (only when both are valid lists)
+        raw_members = config.get("members")
+        raw_maintainers = config.get("maintainers")
+        if isinstance(raw_members, list) and isinstance(raw_maintainers, list):
+            overlap = set(raw_members) & set(raw_maintainers)
+            if overlap:
+                errors.append(
+                    f"teams: Team '{slug}' has users in both members and maintainers: "
+                    f"{', '.join(sorted(overlap))}"
+                )
+
+        # review_request_delegation: full type + value validation
+        raw_delegation = config.get("review_request_delegation")
+        if raw_delegation is not None:
+            if not isinstance(raw_delegation, dict):
+                errors.append(
+                    f"teams: Team '{slug}' field 'review_request_delegation' must be "
+                    f"a mapping, got {type(raw_delegation).__name__!r}"
+                )
+            else:
+                delegation = raw_delegation
+
+                enabled = delegation.get("enabled")
+                if enabled is not None and not isinstance(enabled, bool):
+                    errors.append(
+                        f"teams: Team '{slug}' field "
+                        f"'review_request_delegation.enabled' must be a boolean"
+                    )
+
+                algorithm = delegation.get("algorithm")
+                if algorithm is not None:
+                    if not isinstance(algorithm, str):
+                        errors.append(
+                            f"teams: Team '{slug}' field "
+                            f"'review_request_delegation.algorithm' must be a string"
+                        )
+                    elif algorithm not in VALID_DELEGATION_ALGORITHMS:
+                        errors.append(
+                            f"teams: Team '{slug}' has invalid delegation algorithm "
+                            f"'{algorithm}'. Valid values: "
+                            f"{', '.join(VALID_DELEGATION_ALGORITHMS)}"
+                        )
+
+                member_count = delegation.get("member_count")
+                if member_count is not None:
+                    if not isinstance(member_count, int) or isinstance(
+                        member_count, bool
+                    ):
+                        errors.append(
+                            f"teams: Team '{slug}' field "
+                            f"'review_request_delegation.member_count' must be an integer"
+                        )
+                    elif member_count <= 0:
+                        errors.append(
+                            f"teams: Team '{slug}' field "
+                            f"'review_request_delegation.member_count' must be greater than 0"
+                        )
+
+                notify = delegation.get("notify")
+                if notify is not None and not isinstance(notify, bool):
+                    errors.append(
+                        f"teams: Team '{slug}' field "
+                        f"'review_request_delegation.notify' must be a boolean"
+                    )
 
     return errors, warnings
 
@@ -388,9 +511,9 @@ def main():
         else:
             rulesets = load_yaml(CONFIG_DIR / "rulesets.yml")
 
-        # Load teams (optional directory)
+        # Load teams (optional directory) with per-file duplicate detection
         if TEAM_DIR.exists():
-            teams = load_yaml_directory(TEAM_DIR)
+            teams = load_team_directory(TEAM_DIR)
         else:
             teams = {}
     except ValueError as e:
@@ -403,10 +526,12 @@ def main():
     all_errors.extend(validate_rulesets(rulesets))
     all_errors.extend(validate_repositories(repos, groups, rulesets))
 
-    # Flatten once; reused by validate_teams, cross-ref check, and summary output
-    flat_teams = flatten_teams(teams) if teams else []
+    # Flatten once; pass into validate_teams so it isn't re-computed internally
+    flat_teams, flat_errors = flatten_teams(teams) if teams else ([], [])
 
-    team_errors, team_warnings = validate_teams(teams)
+    team_errors, team_warnings = validate_teams(
+        teams, flat_teams=flat_teams, flat_errors=flat_errors
+    )
     all_errors.extend(team_errors)
 
     # Cross-reference check for team slugs (warnings only)

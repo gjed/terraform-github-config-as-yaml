@@ -4,6 +4,11 @@
 # Child teams are nested under the parent's `teams:` key (up to 3 levels deep).
 #
 # Remove or replace with your real team definitions before applying.
+#
+# WARNING: Renaming a team slug (the YAML key) is DESTRUCTIVE. Terraform will
+# destroy the old team and create a new one, losing all repository assignments,
+# nested team relationships managed outside this module, and audit history.
+# To rename a team, use `terraform state mv` before changing the key.
 
 engineering:
   description: "Engineering organisation"
