@@ -39,13 +39,17 @@ resource "github_team_membership" "maintainers" {
 # Note: the GitHub provider does not support a "disabled" delegation state via HCL;
 # setting enabled = false removes the resource, which is the closest approximation.
 resource "github_team_settings" "this" {
-  count = (var.review_request_delegation != null && var.review_request_delegation.enabled) ? 1 : 0
+  # coalesce guards against an explicit `enabled: null` in YAML, which bypasses
+  # the optional() default and would otherwise cause a type error in the condition.
+  count = (var.review_request_delegation != null && coalesce(var.review_request_delegation.enabled, true)) ? 1 : 0
 
   team_id = github_team.this.id
 
   review_request_delegation {
-    algorithm    = var.review_request_delegation.algorithm
-    member_count = var.review_request_delegation.member_count
-    notify       = var.review_request_delegation.notify
+    # coalesce(try(...)) guards against fields explicitly set to null in YAML,
+    # which bypasses optional() defaults and would fail at plan/apply time.
+    algorithm    = coalesce(try(var.review_request_delegation.algorithm, null), "round_robin")
+    member_count = coalesce(try(var.review_request_delegation.member_count, null), 1)
+    notify       = coalesce(try(var.review_request_delegation.notify, null), true)
   }
 }

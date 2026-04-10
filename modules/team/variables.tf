@@ -51,4 +51,9 @@ variable "review_request_delegation" {
     condition     = var.review_request_delegation == null || contains(["round_robin", "load_balance"], coalesce(var.review_request_delegation.algorithm, "round_robin"))
     error_message = "Algorithm must be 'round_robin' or 'load_balance'."
   }
+
+  validation {
+    condition     = var.review_request_delegation == null || coalesce(var.review_request_delegation.member_count, 1) > 0
+    error_message = "member_count must be greater than 0."
+  }
 }
