@@ -19,8 +19,10 @@ GROUP_DIR = CONFIG_DIR / "group"
 REPOSITORY_DIR = CONFIG_DIR / "repository"
 RULESET_DIR = CONFIG_DIR / "ruleset"
 TEAM_DIR = CONFIG_DIR / "team"
+MEMBERSHIP_DIR = CONFIG_DIR / "membership"
 
 VALID_VISIBILITIES = ["public", "private", "internal"]
+VALID_MEMBERSHIP_ROLES = ["member", "admin"]
 VALID_PERMISSIONS = ["pull", "triage", "push", "maintain", "admin"]
 VALID_RULE_TYPES = [
     "deletion",
@@ -455,6 +457,28 @@ def check_team_cross_references(
             )
 
     return warnings
+def validate_membership(members: dict) -> list[str]:
+    """Validate membership configuration."""
+    errors = []
+
+    for username, role in members.items():
+        if not isinstance(username, str) or not username:
+            errors.append(
+                f"membership: Entry '{username}' has an invalid username (must be a non-empty string)"
+            )
+            continue
+
+        if not isinstance(role, str):
+            errors.append(
+                f"membership: Member '{username}' has invalid role type '{type(role).__name__}' (must be a string)"
+            )
+        elif role not in VALID_MEMBERSHIP_ROLES:
+            errors.append(
+                f"membership: Member '{username}' has invalid role '{role}' "
+                f"(valid roles: {', '.join(VALID_MEMBERSHIP_ROLES)})"
+            )
+
+    return errors
 
 
 def main():
@@ -516,6 +540,8 @@ def main():
             teams = load_team_directory(TEAM_DIR)
         else:
             teams = {}
+        # Membership directory is optional
+        members = load_yaml_directory(MEMBERSHIP_DIR) if MEMBERSHIP_DIR.exists() else {}
     except ValueError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
@@ -525,6 +551,15 @@ def main():
     all_errors.extend(validate_groups(groups))
     all_errors.extend(validate_rulesets(rulesets))
     all_errors.extend(validate_repositories(repos, groups, rulesets))
+    all_errors.extend(validate_membership(members))
+
+    # Print SCIM/SSO reminder when membership config is present
+    if members:
+        print(
+            "⚠️  REMINDER: Membership config detected. Do NOT use membership management "
+            "alongside SCIM/IdP provisioning (Okta, Azure AD, GitHub Enterprise SCIM). "
+            "They will conflict and cause unpredictable membership changes.\n"
+        )
 
     # Flatten once; pass into validate_teams so it isn't re-computed internally
     flat_teams, flat_errors = flatten_teams(teams) if teams else ([], [])
@@ -569,6 +604,8 @@ def main():
             for warning in all_warnings:
                 print(f"  - {warning}")
 
+        if members:
+            print(f"  - Members: {len(members)}")
         sys.exit(0)
 
 

@@ -62,6 +62,17 @@ module "repositories" {
 
 }
 
+# Organization membership management
+# Only managed when membership_management_enabled = true AND target is an organization
+# WARNING: Removing a username from config/membership/ will remove them from the org on apply
+# WARNING: Do NOT use alongside SCIM/IdP provisioning — they will conflict
+resource "github_membership" "this" {
+  for_each = local.effective_membership
+
+  username = each.key
+  role     = each.value
+}
+
 # Organization-level Actions permissions
 # Only created when actions configuration is specified in config.yml
 resource "github_actions_organization_permissions" "this" {

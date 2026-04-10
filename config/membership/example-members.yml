@@ -1,0 +1,33 @@
+# Organization membership configuration
+#
+# Format: map of GitHub username → role
+# Valid roles: "member" (org member), "admin" (org owner)
+#
+# ⚠️  BEFORE ENABLING membership management, read the warnings below:
+#
+#   1. DESTRUCTIVE OPERATIONS: Removing a username from this file will remove
+#      that person from the GitHub organization on the next `terraform apply`.
+#      This revokes access to ALL private repositories and destroys private forks.
+#      Always run `terraform plan` and review before applying.
+#
+#   2. SCIM/SSO CONFLICT: Do NOT use this if your organization uses SCIM or an
+#      IdP (Okta, Azure AD, GitHub Enterprise SCIM) for membership provisioning.
+#      Terraform and SCIM will conflict and cause unpredictable membership changes.
+#
+#   3. OPT-IN REQUIRED: Membership management is disabled by default. Enable it
+#      by setting `membership_management_enabled = true` in your module call.
+#
+# Example:
+#
+# alice: member
+# bob: member
+# carol: admin
+#
+# To use this file:
+#   1. Uncomment and populate the entries below
+#   2. Set membership_management_enabled = true in your module call
+#   3. Run terraform plan to preview, then terraform apply
+
+# alice: member
+# bob: member
+# carol: admin

@@ -37,6 +37,22 @@ output "subscription_warnings" {
   } : null
 }
 
+output "managed_members" {
+  description = "Map of organization members managed by Terraform, keyed by username with their role"
+  value = {
+    for username, membership in github_membership.this :
+    username => {
+      username = membership.username
+      role     = membership.role
+    }
+  }
+}
+
+output "managed_member_count" {
+  description = "Total number of organization members managed by Terraform"
+  value       = length(github_membership.this)
+}
+
 # Output warning when duplicate keys are detected across config files
 # Duplicates cause shallow merge - the entire definition from the later file wins
 output "duplicate_key_warnings" {
@@ -44,7 +60,8 @@ output "duplicate_key_warnings" {
   value = (
     length(local.duplicate_repository_keys) > 0 ||
     length(local.duplicate_group_keys) > 0 ||
-    length(local.duplicate_ruleset_keys) > 0
+    length(local.duplicate_ruleset_keys) > 0 ||
+    length(local.duplicate_membership_keys) > 0
     ) ? {
     message = "WARNING: Duplicate keys detected across config files. Later files (alphabetically) completely override earlier ones - no deep merge!"
     repositories = length(local.duplicate_repository_keys) > 0 ? {
@@ -57,6 +74,10 @@ output "duplicate_key_warnings" {
     } : null
     rulesets = length(local.duplicate_ruleset_keys) > 0 ? {
       for key, files in local.duplicate_ruleset_keys :
+      key => "defined in: ${join(", ", files)} - using: ${files[length(files) - 1]}"
+    } : null
+    members = length(local.duplicate_membership_keys) > 0 ? {
+      for key, files in local.duplicate_membership_keys :
       key => "defined in: ${join(", ", files)} - using: ${files[length(files) - 1]}"
     } : null
   } : null

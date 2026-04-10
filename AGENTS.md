@@ -22,7 +22,8 @@ terraform-github-config-as-yaml/
 │   ├── config.yml                    # Organization and global settings
 │   ├── group/                        # Configuration groups (oss, internal, etc.)
 │   ├── repository/                   # Repository definitions
-│   └── ruleset/                      # Ruleset definitions
+│   ├── ruleset/                      # Ruleset definitions
+│   └── membership/                   # Organization membership definitions (optional)
 ├── examples/consumer/                # Consumer example for module usage
 ├── scripts/
 │   ├── validate-config.py            # Validates configuration files
@@ -144,6 +145,46 @@ subscription: free  # Options: free, pro, team, enterprise
 
 If you configure rulesets for private repos on the free tier, they will be
 automatically skipped (with a warning in the validation script output).
+
+### Adding/managing organization members
+
+> ⚠️ **High-risk feature.** Read all warnings before enabling.
+
+Organization membership is managed via YAML files in `config/membership/`. Each file maps GitHub
+usernames to their role (`member` or `admin`).
+
+**SCIM/SSO conflict warning:** Do **NOT** enable membership management if your organization uses
+SCIM or an IdP (Okta, Azure AD, GitHub Enterprise SCIM) for provisioning. Terraform and SCIM will
+conflict and cause unpredictable membership changes.
+
+1. Create or edit files in `config/membership/` with the format:
+
+   ```yaml
+   # config/membership/engineering.yml
+   alice: member
+   bob: member
+   carol: admin
+   ```
+
+1. Enable membership management in your module call:
+
+   ```hcl
+   module "github_org" {
+     source = "gjed/config-as-yaml/github"
+     # ...
+     membership_management_enabled = true
+   }
+   ```
+
+1. Run `terraform plan` — carefully review any removals before applying
+1. Run `terraform apply`
+
+**Removing a member:** Delete their username from the YAML. On the next apply, Terraform will
+remove them from the organization, revoking all private repo access and destroying private forks.
+Always review `terraform plan` output before applying.
+
+Only effective for organizations (`is_organization: true` in `config/config.yml`).
+Has no effect on personal accounts.
 
 ### Importing existing repositories
 
