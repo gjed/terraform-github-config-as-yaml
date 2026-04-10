@@ -542,6 +542,14 @@ def main():
             teams = {}
         # Membership directory is optional
         members = load_yaml_directory(MEMBERSHIP_DIR) if MEMBERSHIP_DIR.exists() else {}
+        # Membership directory is optional (load_yaml_directory handles missing dir)
+        try:
+            members = load_yaml_directory(MEMBERSHIP_DIR)
+        except (TypeError, AttributeError) as e:
+            raise ValueError(
+                f"Invalid membership configuration: each YAML file in {MEMBERSHIP_DIR} "
+                "must contain a top-level mapping (username: role), not a list or scalar."
+            ) from e
     except ValueError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
