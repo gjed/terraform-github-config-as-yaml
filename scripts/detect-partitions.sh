@@ -6,19 +6,22 @@
 #
 # Arguments:
 #   <git-diff-range>  Git rev range passed to git diff --name-only (e.g. main...HEAD).
-#                     Defaults to HEAD (staged + unstaged changes against HEAD).
+#                     Defaults to HEAD (tracked file changes vs HEAD).
 #
 # Flags:
 #   --tfvar   Output as a JSON array (e.g. ["infra","platform"]) instead of one-per-line.
+#             Requires jq. Empty output becomes "[]".
 #   --help    Show this help message and exit.
 #
 # Exit codes:
 #   0  Success (including "no config changes" case — empty output signals no plan needed).
-#   1  Error (e.g. git command failed).
+#   1  Error (e.g. git command failed, jq not found).
 #
 # Assumptions:
 #   - Repository config files live under config/repository/
 #   - Partition subdirectories are one level deep: config/repository/<partition>/*.yml
+#   - Only directories containing at least one *.yml file are considered partitions
+#     (matches Terraform's repository_partition_dirs discovery logic)
 #   - Shared config directories: config/group/, config/ruleset/, config/webhook/, config/config.yml
 #   - This script is run from the repository root.
 #
@@ -57,6 +60,11 @@ for arg in "$@"; do
   esac
 done
 
+if [[ "$TFVAR" == true ]] && ! command -v jq &>/dev/null; then
+  echo "Error: --tfvar requires jq. Install it (e.g. apt install jq / brew install jq)." >&2
+  exit 1
+fi
+
 # ---------------------------------------------------------------------------
 # Collect changed files
 # ---------------------------------------------------------------------------
@@ -67,12 +75,28 @@ if [[ -n "$DIFF_RANGE" ]]; then
     exit 1
   }
 else
-  # Default: uncommitted changes (staged + unstaged) against HEAD
+  # Default: tracked file changes vs HEAD (does not include untracked files)
   changed_files=$(git diff --name-only HEAD 2>/dev/null) || {
     echo "Error: git diff failed" >&2
     exit 1
   }
 fi
+
+# ---------------------------------------------------------------------------
+# Discover known partitions (dirs containing at least one *.yml — matches
+# Terraform's repository_partition_dirs logic which uses fileset("*/*.yml"))
+# ---------------------------------------------------------------------------
+
+repo_config_dir="config/repository"
+if [[ ! -d "$repo_config_dir" ]]; then
+  echo "Error: directory '$repo_config_dir' not found. Run from the repository root." >&2
+  exit 1
+fi
+
+known_partitions=$(find "$repo_config_dir" -mindepth 2 -maxdepth 2 -name "*.yml" \
+  | sed "s|^$repo_config_dir/||" \
+  | cut -d/ -f1 \
+  | sort -u)
 
 # ---------------------------------------------------------------------------
 # Classify changed files
@@ -108,15 +132,8 @@ done <<< "$changed_files"
 # ---------------------------------------------------------------------------
 
 if [[ "$shared_change" == true ]]; then
-  # Output all known partitions (discover from filesystem)
-  repo_config_dir="config/repository"
-  if [[ ! -d "$repo_config_dir" ]]; then
-    echo "Error: directory '$repo_config_dir' not found. Run from the repository root." >&2
-    exit 1
-  fi
-  result=$(find "$repo_config_dir" -mindepth 1 -maxdepth 1 -type d -print0 \
-    | sort -z \
-    | xargs -0 -I{} basename {})
+  # All known partitions (only dirs with *.yml, matching Terraform's discovery)
+  result="$known_partitions"
 elif [[ -n "$partition_list" ]]; then
   # Deduplicate and sort
   result=$(echo "$partition_list" | sort -u | grep -v '^$')
@@ -130,24 +147,11 @@ fi
 # ---------------------------------------------------------------------------
 
 if [[ "$TFVAR" == true ]]; then
-  # JSON array format for use as TF_VAR_repository_partitions
+  # JSON array via jq — handles any characters in partition names correctly
   if [[ -z "$result" ]]; then
     echo "[]"
   else
-    # Build JSON array from newline-separated list
-    json="["
-    first=true
-    while IFS= read -r item; do
-      [[ -z "$item" ]] && continue
-      if [[ "$first" == true ]]; then
-        json="${json}\"${item}\""
-        first=false
-      else
-        json="${json},\"${item}\""
-      fi
-    done <<< "$result"
-    json="${json}]"
-    echo "$json"
+    echo "$result" | jq -R -s -c 'split("\n") | map(select(length > 0))'
   fi
 else
   # One partition per line
