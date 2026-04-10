@@ -120,10 +120,6 @@ def split_rulesets_by_scope(rulesets: dict) -> tuple[dict, dict]:
     return repo_rulesets, org_rulesets
 
 
-def validate_config(config: dict) -> list[str]:
-    """Validate config.yml."""
-
-
 def validate_config(config: dict, webhooks: dict) -> tuple[list[str], list[str]]:
     """Validate config.yml. Returns (errors, warnings)."""
     errors = []
@@ -162,6 +158,37 @@ def validate_config(config: dict, webhooks: dict) -> tuple[list[str], list[str]]
                     errors.append(
                         f"config/webhook/{name}: 'events' must define at least one event "
                         "(required by the GitHub provider)"
+                    )
+
+    # Validate optional security section
+    security = config.get("security")
+    if security is not None:
+        if not isinstance(security, dict):
+            errors.append("config.yml: 'security' must be a mapping")
+        else:
+            teams = security.get("security_manager_teams")
+            if teams is not None:
+                if not isinstance(teams, list):
+                    errors.append(
+                        "config.yml: 'security.security_manager_teams' must be a list"
+                    )
+                else:
+                    for i, team in enumerate(teams):
+                        if not isinstance(team, str):
+                            errors.append(
+                                f"config.yml: 'security.security_manager_teams[{i}]' must be a string, got {type(team).__name__}"
+                            )
+                # Warn when teams are configured on an unsupported tier
+                if (
+                    not errors
+                    and isinstance(teams, list)
+                    and len(teams) > 0
+                    and subscription in ["free", "pro"]
+                ):
+                    warnings.append(
+                        f"config.yml: security_manager_teams configured but subscription '{subscription}' "
+                        "does not support security manager roles (requires 'team' or 'enterprise') — "
+                        "resources will be skipped"
                     )
 
     return errors, warnings
@@ -817,6 +844,12 @@ def main():
             print(f"Strict mode: {len(all_warnings)} warning(s) treated as error(s)")
             sys.exit(1)
 
+    # Report warnings (non-fatal)
+    if all_warnings:
+        for warning in all_warnings:
+            print(f"WARNING: {warning}")
+        print()
+
     # Report results
     if all_errors:
         print("Validation FAILED:")
@@ -840,6 +873,18 @@ def main():
         org_webhooks = config.get("org_webhooks", [])
         if org_webhooks:
             print(f"  - Org webhooks: {len(org_webhooks)} ({', '.join(org_webhooks)})")
+
+        if members:
+            print(f"  - Members: {len(members)}")
+
+        security = config.get("security", {})
+        sec_teams = (
+            security.get("security_manager_teams", [])
+            if isinstance(security, dict)
+            else []
+        )
+        if sec_teams:
+            print(f"  - Security manager teams: {len(sec_teams)}")
 
         # Print warnings (non-fatal)
         all_warnings = team_warnings

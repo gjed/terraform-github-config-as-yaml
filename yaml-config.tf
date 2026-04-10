@@ -460,6 +460,10 @@ locals {
     contains(keys(local.org_settings_effective), "billing_email")
   ) ? local.org_settings_effective : null
 
+  # Organization-level security configuration
+  # Defaults to null if not specified (no security manager resources created)
+  security_config = lookup(local.common_config, "security", null)
+
   # Subscription tier feature availability
   # - free: Rulesets only work on public repositories
   # - pro: Rulesets work on public and private repositories
@@ -477,6 +481,18 @@ locals {
   # Track which org rulesets are skipped due to subscription tier
   # (only meaningful in organization mode; personal accounts simply never have org rulesets)
   skipped_org_ruleset_names = local.is_organization && local.org_rulesets_require_paid ? keys(local.org_rulesets_config) : []
+
+  # Whether security manager team designation is supported
+  # Requires: organization account + team or enterprise subscription
+  security_managers_supported = local.is_organization && contains(["team", "enterprise"], local.subscription)
+
+  # Resolved list of team slugs to assign the security_manager role
+  # Empty when feature is unsupported or no teams are configured
+  security_manager_teams = (
+    local.security_managers_supported && local.security_config != null
+    ? toset(lookup(local.security_config, "security_manager_teams", []))
+    : toset([])
+  )
 
   # Merge multiple config groups for each repository
   # Groups are applied sequentially: later groups override single values, lists are merged

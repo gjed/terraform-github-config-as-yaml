@@ -269,6 +269,32 @@ org_webhooks:
 - Secrets follow the same `env:VAR_NAME` pattern as repo webhooks; pass via `webhook_secrets` variable
 - Org webhooks work on all GitHub subscription tiers (no tier gating)
 
+### Managing security managers
+
+Security managers are GitHub teams with read access to security alerts and advisories across all
+repositories. Requires Team or Enterprise subscription.
+
+1. Edit `config/config.yml` and add a `security` section:
+
+   ```yaml
+   security:
+     security_manager_teams:
+       - security-team
+   ```
+
+1. Ensure `subscription` is set to `team` or `enterprise` in `config/config.yml`
+1. Teams must already exist — this module does not create teams
+1. Run `terraform plan` to preview, then `terraform apply`
+
+**Subscription tier limitations:**
+
+Security manager roles require `team` or `enterprise` subscription. On `free` or `pro` plans,
+the resources are silently skipped. The validation script will warn if teams are configured on
+an unsupported tier.
+
+**Note:** Uses `github_organization_role_team` with dynamic role ID lookup (the deprecated
+`github_organization_security_manager` resource is not used).
+
 ### Importing existing repositories
 
 ```bash

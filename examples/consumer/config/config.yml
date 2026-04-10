@@ -18,3 +18,10 @@ subscription: free
 #   allowed_actions: all            # all, local_only, selected
 #   default_workflow_permissions: read
 #   can_approve_pull_request_reviews: false
+
+# Optional: organization-level security manager teams (requires team/enterprise subscription)
+# Teams listed here receive read access to security alerts across all repositories.
+# Teams must already exist before being assigned as security managers.
+# security:
+#   security_manager_teams:
+#     - security-team

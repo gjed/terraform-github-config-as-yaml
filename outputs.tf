@@ -77,6 +77,12 @@ output "organization_settings_warnings" {
 # skipping; organization_settings_warnings covers enterprise-only settings skipping.
 # All three outputs share the same shape for consistency.
 
+# Output the list of teams assigned the security manager role
+output "security_manager_teams" {
+  description = "List of team slugs assigned the security_manager organization role"
+  value       = tolist(local.security_manager_teams)
+}
+
 
 output "org_webhooks" {
   description = "Map of organization webhook names to their URLs (empty when no org webhooks configured)"

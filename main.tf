@@ -356,3 +356,27 @@ module "teams_level_2" {
 
   review_request_delegation = each.value.review_request_delegation
 }
+
+# Look up organization roles to resolve the security_manager role ID dynamically
+# Only instantiated when security manager teams are configured and supported
+data "github_organization_roles" "this" {
+  count = length(local.security_manager_teams) > 0 ? 1 : 0
+}
+
+locals {
+  # Extract the security_manager role ID from the data source
+  # Used by github_organization_role_team resources below
+  security_manager_role_id = length(local.security_manager_teams) > 0 ? one([
+    for role in data.github_organization_roles.this[0].roles :
+    role.role_id if role.name == "security_manager"
+  ]) : null
+}
+
+# Assign the security_manager organization role to each configured team
+# One resource per team slug — requires Team or Enterprise subscription
+resource "github_organization_role_team" "security_managers" {
+  for_each = local.security_manager_teams
+
+  role_id   = local.security_manager_role_id
+  team_slug = each.value
+}
