@@ -210,3 +210,50 @@ variable "webhooks" {
   }))
   default = {}
 }
+
+variable "branch_protections" {
+  description = "Map of branch protection rules to apply"
+  type = map(object({
+    pattern                         = string
+    enforce_admins                  = optional(bool, false)
+    allows_deletions                = optional(bool, false)
+    allows_force_pushes             = optional(bool, false)
+    lock_branch                     = optional(bool, false)
+    require_conversation_resolution = optional(bool, false)
+    require_signed_commits          = optional(bool, false)
+    required_linear_history         = optional(bool, false)
+
+    required_pull_request_reviews = optional(object({
+      required_approving_review_count = optional(number, 1)
+      dismiss_stale_reviews           = optional(bool, false)
+      require_code_owner_reviews      = optional(bool, false)
+      require_last_push_approval      = optional(bool, false)
+      restrict_dismissals             = optional(bool, false)
+      dismissal_restrictions = optional(object({
+        users = optional(list(string), [])
+        teams = optional(list(string), [])
+        apps  = optional(list(string), [])
+      }))
+      pull_request_bypassers = optional(object({
+        users = optional(list(string), [])
+        teams = optional(list(string), [])
+        apps  = optional(list(string), [])
+      }))
+    }))
+
+    required_status_checks = optional(object({
+      strict   = optional(bool, false)
+      contexts = optional(list(string), [])
+    }))
+
+    restrict_pushes = optional(object({
+      blocks_creations = optional(bool, true)
+      push_allowances = optional(object({
+        users = optional(list(string), [])
+        teams = optional(list(string), [])
+        apps  = optional(list(string), [])
+      }))
+    }))
+  }))
+  default = {}
+}

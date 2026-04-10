@@ -1,0 +1,57 @@
+# Default Branch Protection Definitions
+# Named branch protection rules that can be referenced from groups or repositories.
+#
+# Usage in config/group/*.yml:
+#   oss:
+#     branch_protections:
+#       - main-protection
+#
+# Usage in config/repository/*.yml:
+#   my-repo:
+#     description: "My repo"
+#     groups: ["oss"]
+#     branch_protections:
+#       - main-protection
+#
+# Only "pattern" is required. All other fields have sensible defaults.
+# Sub-blocks (required_pull_request_reviews, required_status_checks, restrict_pushes)
+# are optional — omitting them means that feature is not configured.
+
+# Basic protection for the default branch: requires a PR and prevents force-pushes
+main-protection:
+  pattern: "main"
+  enforce_admins: false
+  allows_deletions: false
+  allows_force_pushes: false
+  lock_branch: false
+  require_conversation_resolution: true
+  require_signed_commits: false
+  required_linear_history: false
+  required_pull_request_reviews:
+    required_approving_review_count: 1
+    dismiss_stale_reviews: true
+    require_code_owner_reviews: false
+    require_last_push_approval: false
+    restrict_dismissals: false
+
+# Stricter protection with status checks and signed commits
+strict-main-protection:
+  pattern: "main"
+  enforce_admins: true
+  allows_deletions: false
+  allows_force_pushes: false
+  lock_branch: false
+  require_conversation_resolution: true
+  require_signed_commits: true
+  required_linear_history: true
+  required_pull_request_reviews:
+    required_approving_review_count: 2
+    dismiss_stale_reviews: true
+    require_code_owner_reviews: true
+    require_last_push_approval: true
+    restrict_dismissals: false
+  required_status_checks:
+    strict: true
+    contexts:
+      - "ci/build"
+      - "ci/test"

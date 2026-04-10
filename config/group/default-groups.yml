@@ -36,6 +36,9 @@ oss:
   # webhooks:
   #   - slack-notify           # Reference by name
   #   - security-scanner       # Reference by name
+  # Branch protections: reference by name from config/branch-protection/
+  # branch_protections:
+  #   - main-protection        # Requires PR review before merging
 
 # Internal - Private repositories
 # Use this group for internal/private projects

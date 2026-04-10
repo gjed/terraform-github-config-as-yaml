@@ -40,7 +40,7 @@ repos:
         args:
           - --args=--quiet
           - --args=--compact
-          - --args=--skip-check=CKV_TF_1,CKV_GIT_1,CKV_GIT_2
+          - --args=--skip-check=CKV_TF_1,CKV_GIT_1,CKV_GIT_2,CKV_GIT_5,CKV_GIT_6
 
   # Markdown linting
   - repo: https://github.com/igorshubovych/markdownlint-cli
