@@ -337,9 +337,10 @@ locals {
   }
 
   # Merge all branch protection definitions into a single map (alphabetical file order)
-  branch_protections_config = merge([
+  # Seeded with {} so merge() is never called with zero arguments when the directory is empty
+  branch_protections_config = merge({}, [
     for f in sort(tolist(local.branch_protection_files)) :
-    try(yamldecode(file("${local.branch_protection_config_path}/${f}")), {})
+    yamldecode(file("${local.branch_protection_config_path}/${f}"))
   ]...)
 
   # Extract values from YAML
@@ -679,7 +680,7 @@ locals {
   # Collected from groups in order, repo-specific appended, deduplicated by name (last wins)
   # No subscription tier filtering - branch protection works on all tiers including free-tier private repos
   merged_branch_protections = {
-    for repo_name, repo_config in local.repos_yaml : repo_name => merge([
+    for repo_name, repo_config in local.repos_yaml : repo_name => merge({}, [
       for entry in flatten(concat(
         # Collect branch protection names from all groups (in order)
         [

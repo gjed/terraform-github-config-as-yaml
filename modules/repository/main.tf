@@ -255,16 +255,18 @@ resource "github_branch_protection" "this" {
       require_last_push_approval      = required_pull_request_reviews.value.require_last_push_approval
       restrict_dismissals             = required_pull_request_reviews.value.restrict_dismissals
 
+      # Actor values are passed through as-is. Use the provider's format in YAML:
+      #   users: "/username"  teams: "orgname/teamslug"  apps: node_id
       dismissal_restrictions = required_pull_request_reviews.value.dismissal_restrictions != null ? concat(
-        [for u in required_pull_request_reviews.value.dismissal_restrictions.users : u],
-        [for t in required_pull_request_reviews.value.dismissal_restrictions.teams : "/t:${t}"],
-        [for a in required_pull_request_reviews.value.dismissal_restrictions.apps : "/a:${a}"],
+        required_pull_request_reviews.value.dismissal_restrictions.users,
+        required_pull_request_reviews.value.dismissal_restrictions.teams,
+        required_pull_request_reviews.value.dismissal_restrictions.apps,
       ) : []
 
       pull_request_bypassers = required_pull_request_reviews.value.pull_request_bypassers != null ? concat(
-        [for u in required_pull_request_reviews.value.pull_request_bypassers.users : u],
-        [for t in required_pull_request_reviews.value.pull_request_bypassers.teams : "/t:${t}"],
-        [for a in required_pull_request_reviews.value.pull_request_bypassers.apps : "/a:${a}"],
+        required_pull_request_reviews.value.pull_request_bypassers.users,
+        required_pull_request_reviews.value.pull_request_bypassers.teams,
+        required_pull_request_reviews.value.pull_request_bypassers.apps,
       ) : []
     }
   }
@@ -284,10 +286,12 @@ resource "github_branch_protection" "this" {
     content {
       blocks_creations = restrict_pushes.value.blocks_creations
 
+      # Actor values are passed through as-is. Use the provider's format in YAML:
+      #   users: "/username"  teams: "orgname/teamslug"  apps: node_id
       push_allowances = restrict_pushes.value.push_allowances != null ? concat(
-        [for u in restrict_pushes.value.push_allowances.users : u],
-        [for t in restrict_pushes.value.push_allowances.teams : "/t:${t}"],
-        [for a in restrict_pushes.value.push_allowances.apps : "/a:${a}"],
+        restrict_pushes.value.push_allowances.users,
+        restrict_pushes.value.push_allowances.teams,
+        restrict_pushes.value.push_allowances.apps,
       ) : []
     }
   }
