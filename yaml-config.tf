@@ -55,7 +55,7 @@ locals {
   }
   membership_configs_by_file = {
     for f in sort(tolist(local.membership_files)) :
-    f => try(yamldecode(file("${local.membership_config_path}/${f}")), {})
+    f => yamldecode(file("${local.membership_config_path}/${f}"))
   }
 
   # Detect duplicate keys across files
@@ -279,10 +279,13 @@ locals {
     ])
   ]))
 
-  # Load and merge membership configs from config/membership/ directory (optional)
+  # Load and merge membership configs from config/membership/ directory (optional).
+  # Derived from membership_configs_by_file to avoid re-reading files.
+  # Null entries (comment-only files) are excluded explicitly rather than via try(),
+  # so that genuinely invalid YAML still fails loudly at plan time.
   membership_config = merge([
-    for f in sort(tolist(local.membership_files)) :
-    try(yamldecode(file("${local.membership_config_path}/${f}")), {})
+    for f, config in local.membership_configs_by_file :
+    config != null ? config : {}
   ]...)
 
   # Extract values from YAML
