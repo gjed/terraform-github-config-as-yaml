@@ -1,0 +1,38 @@
+# Example team configuration.
+#
+# Teams are defined at the top level by their GitHub slug.
+# Child teams are nested under the parent's `teams:` key (up to 3 levels deep).
+#
+# Remove or replace with your real team definitions before applying.
+
+engineering:
+  description: "Engineering organisation"
+  privacy: closed
+  maintainers:
+    - eng-lead
+  members:
+    - dev1
+    - dev2
+  review_request_delegation:
+    enabled: true
+    algorithm: round_robin
+    member_count: 2
+    notify: true
+  teams:
+    platform-team:
+      description: "Platform engineering"
+      privacy: closed
+      maintainers:
+        - platform-lead
+      members:
+        - platform-dev1
+      teams:
+        platform-sre:
+          description: "Site reliability engineering"
+          members:
+            - sre1
+    frontend-team:
+      description: "Frontend engineering"
+      members:
+        - fe-dev1
+        - fe-dev2
