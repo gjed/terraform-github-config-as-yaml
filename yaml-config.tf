@@ -151,6 +151,23 @@ locals {
     if f != "templates.yml" # Exclude templates from regular rulesets
   ]...)
 
+  # Separate rulesets by scope
+  # - repo_rulesets_config: definitions without 'scope' or with 'scope: repository'
+  #   These are available for assignment via rulesets: in groups and repositories
+  # - org_rulesets_config: definitions with 'scope: organization'
+  #   These are applied as github_organization_ruleset resources, not per-repository
+  repo_rulesets_config = {
+    for name, config in local.rulesets_config :
+    name => config
+    if lookup(config, "scope", "repository") != "organization"
+  }
+
+  org_rulesets_config = {
+    for name, config in local.rulesets_config :
+    name => config
+    if lookup(config, "scope", "repository") == "organization"
+  }
+
   # Load ruleset templates from config/ruleset/default-rulesets.yml
   # Templates are referenced by name in repository/group configurations
   # This file now contains both templates and default rulesets
@@ -312,6 +329,17 @@ locals {
   # - team/enterprise: Full ruleset support including push rulesets
   rulesets_require_paid_for_private = contains(["free"], local.subscription)
 
+  # Organization rulesets require team or enterprise subscription
+  # On free or pro plans, all org rulesets are skipped with a warning
+  org_rulesets_require_paid = contains(["free", "pro"], local.subscription)
+
+  # Effective org rulesets after subscription tier filtering
+  # Returns empty map when subscription is insufficient
+  effective_org_rulesets = local.org_rulesets_require_paid ? tomap({}) : local.org_rulesets_config
+
+  # Track which org rulesets are skipped due to subscription tier
+  skipped_org_ruleset_names = local.org_rulesets_require_paid ? keys(local.org_rulesets_config) : []
+
   # Merge multiple config groups for each repository
   # Groups are applied sequentially: later groups override single values, lists are merged
   merged_configs = {
@@ -393,7 +421,8 @@ locals {
             ) : null # Template doesn't exist - will be filtered out
             ) : (
             # Direct ruleset name reference (existing behavior)
-            lookup(local.rulesets_config, ruleset_entry, null)
+            # Only looks up repo-scoped rulesets; org-scoped rulesets are excluded here
+            lookup(local.repo_rulesets_config, ruleset_entry, null)
           )
         )
       }

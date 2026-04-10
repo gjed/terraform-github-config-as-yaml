@@ -60,7 +60,16 @@ Edit `config/groups.yml`. Groups are merged when multiple are assigned to a repo
 
 Rulesets allow you to enforce branch protection and other repository rules across multiple repositories based on their groups.
 
-1. Edit `config/rulesets.yml` to define reusable rulesets
+There are two types of rulesets:
+
+- **Repository rulesets** (`scope: repository` or no `scope`) — applied per-repository, assigned
+  via `rulesets:` in groups or repositories.
+- **Organization rulesets** (`scope: organization`) — applied at the org level across multiple
+  repositories by `repository_name` pattern conditions. NOT assignable per-repo or per-group.
+
+#### Repository rulesets
+
+1. Edit a file in `config/ruleset/` to define a ruleset (no `scope` or `scope: repository`)
 1. Each ruleset must specify:
    - `target`: Type of target (e.g., `branch`, `tag`)
    - `enforcement`: Enforcement level (`active`, `evaluate`, or `disabled`)
@@ -68,7 +77,7 @@ Rulesets allow you to enforce branch protection and other repository rules acros
    - `rules`: Array of rules to enforce
 1. Reference rulesets in groups or repositories by adding a `rulesets:` field
 
-Example in `config/rulesets.yml`:
+Example in `config/ruleset/default-rulesets.yml`:
 
 ```yaml
 oss-main-protection:
@@ -110,6 +119,41 @@ my-special-repo:
     - custom-ruleset
 ```
 
+#### Organization rulesets
+
+Organization rulesets apply rules globally across repositories, filtered by `repository_name`
+conditions. They are defined in `config/ruleset/` with `scope: organization` and are NOT
+referenced via `rulesets:` in groups or repositories.
+
+Requires `team` or `enterprise` subscription. On `free`/`pro` plans, org rulesets are skipped
+with a warning in the `skipped_org_rulesets` output.
+
+Example in `config/ruleset/org-rulesets.yml`:
+
+```yaml
+org-main-protection:
+  scope: organization          # Required: marks this as an org-level ruleset
+  target: branch
+  enforcement: active
+  conditions:
+    ref_name:
+      include:
+        - "~DEFAULT_BRANCH"
+      exclude: []
+    repository_name:           # Optional: which repos this applies to (default: all)
+      include:
+        - "*"
+      exclude:
+        - "sandbox-*"
+  rules:
+    - type: deletion
+    - type: non_fast_forward
+    - type: pull_request
+      parameters:
+        required_approving_review_count: 1
+        dismiss_stale_reviews_on_push: true
+```
+
 Supported rule types:
 
 - `deletion` - Prevent branch deletion
@@ -120,7 +164,7 @@ Supported rule types:
 - `required_status_checks` - Require status checks to pass
 - `creation` - Control branch creation
 - `update` - Control branch updates
-- `required_deployments` - Require successful deployments
+- `required_deployments` - Require successful deployments (repository rulesets only)
 - `branch_name_pattern` - Enforce branch naming patterns
 - `commit_message_pattern` - Enforce commit message patterns
 - `commit_author_email_pattern` - Enforce commit author email patterns
@@ -132,9 +176,9 @@ Then run `terraform plan` to preview and `terraform apply` to apply.
 
 Rulesets availability depends on your GitHub subscription:
 
-- `free` - Rulesets only work on **public** repositories
-- `pro` - Rulesets work on public and private repos (personal accounts only)
-- `team` - Full ruleset support including push rulesets
+- `free` - Repository rulesets only work on **public** repositories; org rulesets skipped
+- `pro` - Repository rulesets work on public and private repos; org rulesets skipped
+- `team` - Full ruleset support including org rulesets
 - `enterprise` - Full feature set
 
 Set your subscription tier in `config/config.yml`:
@@ -185,6 +229,8 @@ Always review `terraform plan` output before applying.
 
 Only effective for organizations (`is_organization: true` in `config/config.yml`).
 Has no effect on personal accounts.
+If you configure org rulesets on a free or pro tier, they will be
+automatically skipped (listed in the `skipped_org_rulesets` output).
 
 ### Importing existing repositories
 

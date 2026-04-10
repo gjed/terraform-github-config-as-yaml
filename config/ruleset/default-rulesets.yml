@@ -5,6 +5,43 @@
 # 1. Applied directly by reference (e.g., rulesets: [oss-main-protection])
 # 2. Used as templates with the 'template' key (e.g., template: strict-main)
 #
+# ORGANIZATION-LEVEL RULESETS
+# Add 'scope: organization' to create a github_organization_ruleset instead of a
+# per-repository ruleset. Org rulesets apply across repositories based on
+# repository_name conditions. They require a 'team' or 'enterprise' subscription.
+#
+# Org rulesets CANNOT be referenced via 'rulesets:' in groups or repositories —
+# they are applied globally and filtered only by repository_name conditions.
+#
+# Example org ruleset (uncomment to enable):
+#
+# org-main-protection:
+#   scope: organization          # Required: marks this as an org-level ruleset
+#   target: branch
+#   enforcement: active
+#   conditions:
+#     ref_name:
+#       include:
+#         - "~DEFAULT_BRANCH"
+#       exclude: []
+#     repository_name:           # Optional: which repos this applies to (default: all)
+#       include:
+#         - "*"
+#       exclude:
+#         - "sandbox-*"
+#         - "test-*"
+#   bypass_actors:
+#     - actor_type: RepositoryRole
+#       actor_id: 5              # Admin role
+#       bypass_mode: always
+#   rules:
+#     - type: deletion
+#     - type: non_fast_forward
+#     - type: pull_request
+#       parameters:
+#         required_approving_review_count: 1
+#         dismiss_stale_reviews_on_push: true
+#
 # When using templates in repositories.yml or groups.yml:
 #   rulesets:
 #     - template: strict-main
