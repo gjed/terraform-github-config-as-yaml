@@ -35,9 +35,11 @@ resource "github_team_membership" "maintainers" {
 }
 
 # Manage PR review request delegation settings
-# Only created when review_request_delegation is provided
+# Only created when review_request_delegation is provided AND enabled is true
+# Note: the GitHub provider does not support a "disabled" delegation state via HCL;
+# setting enabled = false removes the resource, which is the closest approximation.
 resource "github_team_settings" "this" {
-  count = var.review_request_delegation != null ? 1 : 0
+  count = (var.review_request_delegation != null && var.review_request_delegation.enabled) ? 1 : 0
 
   team_id = github_team.this.id
 

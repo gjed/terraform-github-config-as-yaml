@@ -40,7 +40,7 @@ variable "maintainers" {
 variable "review_request_delegation" {
   description = "PR review request delegation settings"
   type = object({
-    enabled      = bool
+    enabled      = optional(bool, true)
     algorithm    = optional(string, "round_robin")
     member_count = optional(number, 1)
     notify       = optional(bool, true)
