@@ -238,8 +238,10 @@ resource "github_organization_settings" "this" {
   count = local.org_settings_config != null ? 1 : 0
 
   # Profile fields
-  # billing_email is required by the provider - must be set in settings.billing_email
-  billing_email = try(local.org_settings_config.billing_email, "")
+  # billing_email is required by the provider. org_settings_config is only non-null when
+  # billing_email is present (enforced in yaml-config.tf and validate-config.py), so the
+  # try() fallback to null here is a safety net that will never fire in practice.
+  billing_email = try(local.org_settings_config.billing_email, null)
   company       = try(local.org_settings_config.company, null)
   blog          = try(local.org_settings_config.blog, null)
   email         = try(local.org_settings_config.email, null)
@@ -247,28 +249,31 @@ resource "github_organization_settings" "this" {
   description   = try(local.org_settings_config.description, null)
 
   # 2.2 Member privilege settings
-  default_repository_permission           = try(local.org_settings_config.default_repository_permission, "read")
-  members_can_create_repositories         = try(local.org_settings_config.members_can_create_repositories, true)
-  members_can_create_public_repositories  = try(local.org_settings_config.members_can_create_public_repositories, true)
-  members_can_create_private_repositories = try(local.org_settings_config.members_can_create_private_repositories, true)
-  members_can_fork_private_repositories   = try(local.org_settings_config.members_can_fork_private_repositories, false)
-  web_commit_signoff_required             = try(local.org_settings_config.web_commit_signoff_required, false)
+  # Absent keys resolve to null so only explicitly configured keys are managed by Terraform.
+  # Hard-coded defaults would overwrite existing org settings for keys the user did not set.
+  default_repository_permission           = try(local.org_settings_config.default_repository_permission, null)
+  members_can_create_repositories         = try(local.org_settings_config.members_can_create_repositories, null)
+  members_can_create_public_repositories  = try(local.org_settings_config.members_can_create_public_repositories, null)
+  members_can_create_private_repositories = try(local.org_settings_config.members_can_create_private_repositories, null)
+  members_can_fork_private_repositories   = try(local.org_settings_config.members_can_fork_private_repositories, null)
+  web_commit_signoff_required             = try(local.org_settings_config.web_commit_signoff_required, null)
 
   # Dependabot / dependency graph settings (available on all tiers)
-  dependabot_alerts_enabled_for_new_repositories           = try(local.org_settings_config.dependabot_alerts_enabled_for_new_repositories, false)
-  dependabot_security_updates_enabled_for_new_repositories = try(local.org_settings_config.dependabot_security_updates_enabled_for_new_repositories, false)
-  dependency_graph_enabled_for_new_repositories            = try(local.org_settings_config.dependency_graph_enabled_for_new_repositories, false)
+  # Null for absent keys — leaves existing org settings unmanaged rather than forcing false.
+  dependabot_alerts_enabled_for_new_repositories           = try(local.org_settings_config.dependabot_alerts_enabled_for_new_repositories, null)
+  dependabot_security_updates_enabled_for_new_repositories = try(local.org_settings_config.dependabot_security_updates_enabled_for_new_repositories, null)
+  dependency_graph_enabled_for_new_repositories            = try(local.org_settings_config.dependency_graph_enabled_for_new_repositories, null)
 
   # 2.3 GHAS / Enterprise-only settings
-  # On non-enterprise tiers these keys are filtered out of org_settings_config in yaml-config.tf,
-  # so try() returns the false default and they are set to the provider default (false / disabled).
-  advanced_security_enabled_for_new_repositories               = try(local.org_settings_config.advanced_security_enabled_for_new_repositories, false)
-  secret_scanning_enabled_for_new_repositories                 = try(local.org_settings_config.secret_scanning_enabled_for_new_repositories, false)
-  secret_scanning_push_protection_enabled_for_new_repositories = try(local.org_settings_config.secret_scanning_push_protection_enabled_for_new_repositories, false)
+  # On non-enterprise tiers these keys are filtered out of org_settings_config in yaml-config.tf.
+  # Null (not false) so absent keys are omitted entirely — no unintended disables or perpetual diffs.
+  advanced_security_enabled_for_new_repositories               = try(local.org_settings_config.advanced_security_enabled_for_new_repositories, null)
+  secret_scanning_enabled_for_new_repositories                 = try(local.org_settings_config.secret_scanning_enabled_for_new_repositories, null)
+  secret_scanning_push_protection_enabled_for_new_repositories = try(local.org_settings_config.secret_scanning_push_protection_enabled_for_new_repositories, null)
 
   # 2.4 members_can_create_internal_repositories requires GitHub Enterprise
-  # Filtered from org_settings_config on non-enterprise tiers (defaults to false here)
-  members_can_create_internal_repositories = try(local.org_settings_config.members_can_create_internal_repositories, false)
+  # Filtered from org_settings_config on non-enterprise tiers; null omits it from the resource.
+  members_can_create_internal_repositories = try(local.org_settings_config.members_can_create_internal_repositories, null)
 }
 
 # Organization-level workflow permissions (GITHUB_TOKEN defaults)

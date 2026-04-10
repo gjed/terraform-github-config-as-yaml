@@ -36,7 +36,9 @@ ENTERPRISE_ONLY_SETTINGS = [
     "members_can_create_internal_repositories",
 ]
 
-# All valid settings keys (used for schema validation)
+# All valid settings keys (used for schema validation).
+# Note: two_factor_requirement is intentionally excluded — the GitHub Terraform provider
+# (~> 6.0) does not expose it as a resource attribute. Use the GitHub org security UI instead.
 VALID_SETTINGS_KEYS = [
     "billing_email",
     "company",
@@ -50,7 +52,6 @@ VALID_SETTINGS_KEYS = [
     "members_can_create_private_repositories",
     "members_can_fork_private_repositories",
     "web_commit_signoff_required",
-    "two_factor_requirement",
     "dependabot_alerts_enabled_for_new_repositories",
     "dependabot_security_updates_enabled_for_new_repositories",
     "dependency_graph_enabled_for_new_repositories",
@@ -149,11 +150,35 @@ def validate_settings(config: dict) -> tuple[list[str], list[str]]:
         return errors, warnings
 
     subscription = config.get("subscription", "free")
+    is_organization = config.get("is_organization", True)
+
+    # Warn when settings: is present but is_organization: false — Terraform will silently ignore it
+    if not is_organization:
+        warnings.append(
+            "config.yml: 'settings' block is present but 'is_organization' is false — "
+            "organization settings will not be applied (Terraform ignores them for personal accounts)"
+        )
 
     # 5.1 Check for unknown keys
     for key in settings:
         if key not in VALID_SETTINGS_KEYS:
-            errors.append(f"config.yml: settings: unknown key '{key}'")
+            # Give a specific, actionable message for two_factor_requirement
+            if key == "two_factor_requirement":
+                errors.append(
+                    "config.yml: settings.two_factor_requirement is not managed by Terraform "
+                    "(the integrations/github provider ~> 6.0 does not expose this attribute). "
+                    "Configure two-factor requirement via the GitHub organization security settings UI. "
+                    "See docs/CONFIGURATION.md for details."
+                )
+            else:
+                errors.append(f"config.yml: settings: unknown key '{key}'")
+
+    # billing_email is required by the provider when the settings block is active
+    billing_email = settings.get("billing_email")
+    if not isinstance(billing_email, str) or not billing_email.strip():
+        errors.append(
+            "config.yml: settings.billing_email is required when 'settings' is present"
+        )
 
     # Validate default_repository_permission value
     perm = settings.get("default_repository_permission")
@@ -162,15 +187,6 @@ def validate_settings(config: dict) -> tuple[list[str], list[str]]:
             f"config.yml: settings.default_repository_permission: "
             f"invalid value '{perm}' (must be one of: "
             f"{', '.join(VALID_DEFAULT_REPOSITORY_PERMISSIONS)})"
-        )
-
-    # 5.3 Warn when two_factor_requirement is enabled
-    if settings.get("two_factor_requirement") is True:
-        warnings.append(
-            "config.yml: settings.two_factor_requirement is true — "
-            "WARNING: this will immediately remove all org members who do not "
-            "have two-factor authentication enabled. Ensure all members have "
-            "2FA configured before applying."
         )
 
     # 5.2 Warn when enterprise-only settings are present on non-enterprise tiers
@@ -760,6 +776,10 @@ def main():
         for warning in all_warnings:
             print(f"  ⚠  {warning}")
         print()
+        # --strict: treat warnings as errors
+        if strict:
+            print(f"Strict mode: {len(all_warnings)} warning(s) treated as error(s)")
+            sys.exit(1)
 
     # Report results
     if all_errors:
