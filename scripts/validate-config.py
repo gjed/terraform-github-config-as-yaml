@@ -166,9 +166,24 @@ def validate_config(config: dict, webhooks: dict) -> tuple[list[str], list[str]]
         if not isinstance(security, dict):
             errors.append("config.yml: 'security' must be a mapping")
         else:
-            teams = security.get("security_manager_teams")
-            if teams is not None:
-                if not isinstance(teams, list):
+            # Warn on unknown keys — the section is narrow enough to make typos detectable cheaply
+            known_security_keys = {"security_manager_teams"}
+            unknown_keys = set(security.keys()) - known_security_keys
+            if unknown_keys:
+                warnings.append(
+                    f"config.yml: Unknown key(s) in 'security': {', '.join(sorted(unknown_keys))}"
+                )
+
+            # Use key presence check rather than .get() to distinguish an absent key
+            # from one explicitly set to null — the latter is invalid for Terraform (toset(null) errors).
+            if "security_manager_teams" in security:
+                teams = security["security_manager_teams"]
+                if teams is None:
+                    errors.append(
+                        "config.yml: 'security.security_manager_teams' must be a list, not null "
+                        "(use [] for an empty list)"
+                    )
+                elif not isinstance(teams, list):
                     errors.append(
                         "config.yml: 'security.security_manager_teams' must be a list"
                     )
@@ -178,18 +193,14 @@ def validate_config(config: dict, webhooks: dict) -> tuple[list[str], list[str]]
                             errors.append(
                                 f"config.yml: 'security.security_manager_teams[{i}]' must be a string, got {type(team).__name__}"
                             )
-                # Warn when teams are configured on an unsupported tier
-                if (
-                    not errors
-                    and isinstance(teams, list)
-                    and len(teams) > 0
-                    and subscription in ["free", "pro"]
-                ):
-                    warnings.append(
-                        f"config.yml: security_manager_teams configured but subscription '{subscription}' "
-                        "does not support security manager roles (requires 'team' or 'enterprise') — "
-                        "resources will be skipped"
-                    )
+                    # Tier warning is informational — emit regardless of other unrelated errors
+                    # so users always see it on re-run after fixing separate issues.
+                    if len(teams) > 0 and subscription in ["free", "pro"]:
+                        warnings.append(
+                            f"config.yml: security_manager_teams configured but subscription '{subscription}' "
+                            "does not support security manager roles (requires 'team' or 'enterprise') — "
+                            "resources will be skipped"
+                        )
 
     return errors, warnings
 

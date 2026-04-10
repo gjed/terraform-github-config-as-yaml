@@ -462,7 +462,8 @@ locals {
 
   # Organization-level security configuration
   # Defaults to null if not specified (no security manager resources created)
-  security_config = lookup(local.common_config, "security", null)
+  # Only applicable for organizations, not personal accounts (mirrors org_actions_config pattern)
+  security_config = local.is_organization ? lookup(local.common_config, "security", null) : null
 
   # Subscription tier feature availability
   # - free: Rulesets only work on public repositories
@@ -488,9 +489,11 @@ locals {
 
   # Resolved list of team slugs to assign the security_manager role
   # Empty when feature is unsupported or no teams are configured
+  # coalesce(..., []) guards against security_manager_teams being explicitly set to null in YAML
+  # (lookup() propagates null rather than substituting the default in that case)
   security_manager_teams = (
     local.security_managers_supported && local.security_config != null
-    ? toset(lookup(local.security_config, "security_manager_teams", []))
+    ? toset(coalesce(lookup(local.security_config, "security_manager_teams", []), []))
     : toset([])
   )
 
