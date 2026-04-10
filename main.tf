@@ -364,12 +364,26 @@ data "github_organization_roles" "this" {
 }
 
 locals {
-  # Extract the security_manager role ID from the data source
-  # Used by github_organization_role_team resources below
-  security_manager_role_id = length(local.security_manager_teams) > 0 ? one([
-    for role in data.github_organization_roles.this[0].roles :
-    role.role_id if role.name == "security_manager"
-  ]) : null
+  # Extract the security_manager role ID from the data source.
+  # try() prevents a cryptic one() error when the role is absent or duplicated;
+  # the check block below surfaces a clear diagnostic instead.
+  security_manager_role_id = length(local.security_manager_teams) > 0 ? try(
+    one([
+      for role in data.github_organization_roles.this[0].roles :
+      role.role_id if role.name == "security_manager"
+    ]),
+    null
+  ) : null
+}
+
+# Validate that the security_manager role actually exists in the organization.
+# Produces a clear error when the role is missing (e.g., wrong subscription tier)
+# rather than a cryptic one() or null reference failure.
+check "security_manager_role_exists" {
+  assert {
+    condition     = length(local.security_manager_teams) == 0 || local.security_manager_role_id != null
+    error_message = "The 'security_manager' role was not found in this GitHub organization. Ensure the organization has a Team or Enterprise subscription and that the role exists."
+  }
 }
 
 # Assign the security_manager organization role to each configured team

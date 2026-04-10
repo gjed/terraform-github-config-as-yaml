@@ -78,9 +78,10 @@ output "organization_settings_warnings" {
 # All three outputs share the same shape for consistency.
 
 # Output the list of teams assigned the security manager role
+# sort() ensures deterministic ordering regardless of set iteration order
 output "security_manager_teams" {
   description = "List of team slugs assigned the security_manager organization role"
-  value       = tolist(local.security_manager_teams)
+  value       = sort(tolist(local.security_manager_teams))
 }
 
 
