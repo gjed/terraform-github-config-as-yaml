@@ -71,6 +71,14 @@ defaults:
 #   secret_scanning_enabled_for_new_repositories: false
 #   secret_scanning_push_protection_enabled_for_new_repositories: false
 #   members_can_create_internal_repositories: false
+# Organization-level webhooks (optional)
+# Org webhooks fire for events across ALL repositories in the organization.
+# Webhooks must be defined in config/webhook/ and referenced here by name.
+# Only applicable for organizations (not personal accounts).
+#
+# org_webhooks:
+#   - audit-logger    # Must be defined in config/webhook/
+#   - ci-notifier
 
 # Organization-level GitHub Actions configuration (optional)
 # Uncomment and configure to manage Actions permissions at the organization level

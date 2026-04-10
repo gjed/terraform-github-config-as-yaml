@@ -22,6 +22,7 @@ REPOSITORY_DIR = CONFIG_DIR / "repository"
 RULESET_DIR = CONFIG_DIR / "ruleset"
 TEAM_DIR = CONFIG_DIR / "team"
 MEMBERSHIP_DIR = CONFIG_DIR / "membership"
+WEBHOOK_DIR = CONFIG_DIR / "webhook"
 
 VALID_VISIBILITIES = ["public", "private", "internal"]
 VALID_MEMBERSHIP_ROLES = ["member", "admin"]
@@ -121,7 +122,12 @@ def split_rulesets_by_scope(rulesets: dict) -> tuple[dict, dict]:
 
 def validate_config(config: dict) -> list[str]:
     """Validate config.yml."""
+
+
+def validate_config(config: dict, webhooks: dict) -> tuple[list[str], list[str]]:
+    """Validate config.yml. Returns (errors, warnings)."""
     errors = []
+    warnings = []
 
     if "organization" not in config:
         errors.append("config.yml: Missing required field 'organization'")
@@ -130,7 +136,22 @@ def validate_config(config: dict) -> list[str]:
     if subscription not in VALID_SUBSCRIPTIONS:
         errors.append(f"config.yml: Invalid subscription '{subscription}'")
 
-    return errors
+    # Validate org_webhooks references
+    is_organization = config.get("is_organization", True)
+    org_webhooks = config.get("org_webhooks", [])
+    if org_webhooks:
+        if not is_organization:
+            warnings.append(
+                "config.yml: 'org_webhooks' is set but 'is_organization' is false — "
+                "org webhooks will not be created for personal accounts"
+            )
+        for name in org_webhooks:
+            if name not in webhooks:
+                errors.append(
+                    f"config.yml: org_webhooks references '{name}' which is not defined in config/webhook/"
+                )
+
+    return errors, warnings
 
 
 def validate_settings(config: dict) -> tuple[list[str], list[str]]:
@@ -708,8 +729,6 @@ def main():
             teams = load_team_directory(TEAM_DIR)
         else:
             teams = {}
-        # Membership directory is optional
-        members = load_yaml_directory(MEMBERSHIP_DIR) if MEMBERSHIP_DIR.exists() else {}
         # Membership directory is optional (load_yaml_directory handles missing dir)
         try:
             members = load_yaml_directory(MEMBERSHIP_DIR)
@@ -718,6 +737,8 @@ def main():
                 f"Invalid membership configuration: each YAML file in {MEMBERSHIP_DIR} "
                 "must contain a top-level mapping (username: role), not a list or scalar."
             ) from e
+        # Load webhook definitions (optional directory)
+        webhooks = load_yaml_directory(WEBHOOK_DIR) if WEBHOOK_DIR.exists() else {}
     except ValueError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
@@ -727,7 +748,9 @@ def main():
     org_ruleset_names = set(org_rulesets.keys())
 
     # Validate each config type
-    all_errors.extend(validate_config(config))
+    config_errors, config_warnings = validate_config(config, webhooks)
+    all_errors.extend(config_errors)
+    all_warnings.extend(config_warnings)
     settings_errors, settings_warnings = validate_settings(config)
     all_errors.extend(settings_errors)
     all_warnings.extend(settings_warnings)
@@ -801,6 +824,9 @@ def main():
         print(f"  - Repositories: {len(repos)}")
         print(f"  - Rulesets: {len(rulesets)}")
         print(f"  - Teams: {len(flat_teams)}")
+        org_webhooks = config.get("org_webhooks", [])
+        if org_webhooks:
+            print(f"  - Org webhooks: {len(org_webhooks)} ({', '.join(org_webhooks)})")
 
         # Print warnings (non-fatal)
         all_warnings = team_warnings
