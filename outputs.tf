@@ -80,6 +80,7 @@ output "organization_settings_warnings" {
 
 output "org_webhooks" {
   description = "Map of organization webhook names to their URLs (empty when no org webhooks configured)"
+  sensitive   = true
   value = {
     for name, webhook in github_organization_webhook.this : name => webhook.url
   }

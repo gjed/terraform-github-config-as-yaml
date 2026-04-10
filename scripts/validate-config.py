@@ -140,16 +140,29 @@ def validate_config(config: dict, webhooks: dict) -> tuple[list[str], list[str]]
     is_organization = config.get("is_organization", True)
     org_webhooks = config.get("org_webhooks", [])
     if org_webhooks:
-        if not is_organization:
-            warnings.append(
-                "config.yml: 'org_webhooks' is set but 'is_organization' is false — "
-                "org webhooks will not be created for personal accounts"
+        if not isinstance(org_webhooks, list) or not all(
+            isinstance(n, str) for n in org_webhooks
+        ):
+            errors.append(
+                "config.yml: 'org_webhooks' must be a list of webhook name strings, "
+                f"got {type(org_webhooks).__name__}"
             )
-        for name in org_webhooks:
-            if name not in webhooks:
-                errors.append(
-                    f"config.yml: org_webhooks references '{name}' which is not defined in config/webhook/"
+        else:
+            if not is_organization:
+                warnings.append(
+                    "config.yml: 'org_webhooks' is set but 'is_organization' is false — "
+                    "org webhooks will not be created for personal accounts"
                 )
+            for name in org_webhooks:
+                if name not in webhooks:
+                    errors.append(
+                        f"config.yml: org_webhooks references '{name}' which is not defined in config/webhook/"
+                    )
+                elif not webhooks[name].get("events"):
+                    errors.append(
+                        f"config/webhook/{name}: 'events' must define at least one event "
+                        "(required by the GitHub provider)"
+                    )
 
     return errors, warnings
 
