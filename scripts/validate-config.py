@@ -7,6 +7,8 @@ Usage:
     python scripts/validate-config.py --strict
 """
 
+from __future__ import annotations
+
 import re
 import sys
 import yaml
@@ -125,11 +127,16 @@ def validate_groups(groups: dict, org_ruleset_names: set) -> list[str]:
 
         # Org rulesets must not be assigned to groups via rulesets:
         for ruleset_entry in group_config.get("rulesets", []):
-            entry_name = (
-                ruleset_entry
-                if isinstance(ruleset_entry, str)
-                else ruleset_entry.get("template", "")
-            )
+            if isinstance(ruleset_entry, str):
+                entry_name = ruleset_entry
+            elif isinstance(ruleset_entry, dict):
+                entry_name = ruleset_entry.get("template", "")
+            else:
+                errors.append(
+                    f"groups: Group '{group_name}' has invalid ruleset entry "
+                    f"'{ruleset_entry}' (must be a string or dictionary)"
+                )
+                continue
             if entry_name in org_ruleset_names:
                 errors.append(
                     f"groups: Group '{group_name}' references org-scoped ruleset '{entry_name}' "
@@ -249,6 +256,7 @@ def validate_rulesets(rulesets: dict) -> list[str]:
         if "rules" not in ruleset_config:
             errors.append(f"rulesets: Ruleset '{ruleset_name}' missing 'rules'")
         else:
+            is_org_scoped = ruleset_config.get("scope") == "organization"
             for rule in ruleset_config["rules"]:
                 if "type" not in rule:
                     errors.append(
@@ -257,6 +265,11 @@ def validate_rulesets(rulesets: dict) -> list[str]:
                 elif rule["type"] not in VALID_RULE_TYPES:
                     errors.append(
                         f"rulesets: Ruleset '{ruleset_name}' has invalid rule type '{rule['type']}'"
+                    )
+                elif is_org_scoped and rule["type"] == "required_deployments":
+                    errors.append(
+                        f"rulesets: Org-scoped ruleset '{ruleset_name}' uses rule type "
+                        f"'required_deployments' which is not supported for organization rulesets"
                     )
 
     return errors
