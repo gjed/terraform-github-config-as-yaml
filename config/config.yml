@@ -31,6 +31,47 @@ defaults:
   web_commit_signoff_required: false
   vulnerability_alerts: true
 
+# Organization-level settings (optional)
+# Uncomment and configure to manage GitHub organization settings via Terraform.
+# Only takes effect when is_organization: true (the default).
+# billing_email is required by the GitHub provider when this block is enabled.
+#
+# ⚠️  DANGER: two_factor_requirement: true immediately removes ALL members without 2FA enabled.
+#
+# settings:
+#   # Required when settings block is enabled
+#   billing_email: org-billing@example.com
+#
+#   # Profile
+#   company: "Your Company"
+#   blog: "https://example.com"
+#   email: "contact@example.com"
+#   location: "Earth"
+#   description: "Your organization description"
+#
+#   # Member privileges
+#   default_repository_permission: read   # none, read, write, admin
+#   members_can_create_repositories: true
+#   members_can_create_public_repositories: true
+#   members_can_create_private_repositories: true
+#   members_can_fork_private_repositories: false
+#   web_commit_signoff_required: false
+#
+#   # ⚠️  WARNING: Enabling this removes members without 2FA immediately
+#   # two_factor_requirement: false
+#
+#   # Dependabot / dependency graph (all subscription tiers)
+#   dependabot_alerts_enabled_for_new_repositories: false
+#   dependabot_security_updates_enabled_for_new_repositories: false
+#   dependency_graph_enabled_for_new_repositories: false
+#
+#   # GHAS / Enterprise-only settings (subscription: enterprise required)
+#   # These are silently skipped with a warning on non-enterprise tiers.
+#   advanced_security_enabled_for_new_repositories: false
+#   secret_scanning_enabled_for_new_repositories: false
+#   secret_scanning_push_protection_enabled_for_new_repositories: false
+#   members_can_create_internal_repositories: false
+
 # Organization-level GitHub Actions configuration (optional)
 # Uncomment and configure to manage Actions permissions at the organization level
 # These settings act as a policy ceiling - repositories cannot exceed org permissions

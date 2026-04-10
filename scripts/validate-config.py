@@ -26,6 +26,38 @@ MEMBERSHIP_DIR = CONFIG_DIR / "membership"
 VALID_VISIBILITIES = ["public", "private", "internal"]
 VALID_MEMBERSHIP_ROLES = ["member", "admin"]
 VALID_PERMISSIONS = ["pull", "triage", "push", "maintain", "admin"]
+VALID_SUBSCRIPTIONS = ["free", "pro", "team", "enterprise"]
+
+# Settings keys that require GitHub Enterprise subscription
+ENTERPRISE_ONLY_SETTINGS = [
+    "advanced_security_enabled_for_new_repositories",
+    "secret_scanning_enabled_for_new_repositories",
+    "secret_scanning_push_protection_enabled_for_new_repositories",
+    "members_can_create_internal_repositories",
+]
+
+# All valid settings keys (used for schema validation)
+VALID_SETTINGS_KEYS = [
+    "billing_email",
+    "company",
+    "blog",
+    "email",
+    "location",
+    "description",
+    "default_repository_permission",
+    "members_can_create_repositories",
+    "members_can_create_public_repositories",
+    "members_can_create_private_repositories",
+    "members_can_fork_private_repositories",
+    "web_commit_signoff_required",
+    "two_factor_requirement",
+    "dependabot_alerts_enabled_for_new_repositories",
+    "dependabot_security_updates_enabled_for_new_repositories",
+    "dependency_graph_enabled_for_new_repositories",
+] + ENTERPRISE_ONLY_SETTINGS
+
+VALID_DEFAULT_REPOSITORY_PERMISSIONS = ["none", "read", "write", "admin"]
+
 VALID_RULE_TYPES = [
     "deletion",
     "non_fast_forward",
@@ -94,10 +126,63 @@ def validate_config(config: dict) -> list[str]:
         errors.append("config.yml: Missing required field 'organization'")
 
     subscription = config.get("subscription", "free")
-    if subscription not in ["free", "pro", "team", "enterprise"]:
+    if subscription not in VALID_SUBSCRIPTIONS:
         errors.append(f"config.yml: Invalid subscription '{subscription}'")
 
     return errors
+
+
+def validate_settings(config: dict) -> tuple[list[str], list[str]]:
+    """5.1-5.3 Validate optional settings: block in config.yml.
+
+    Returns (errors, warnings).
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    settings = config.get("settings")
+    if settings is None:
+        return errors, warnings
+
+    if not isinstance(settings, dict):
+        errors.append("config.yml: 'settings' must be a mapping")
+        return errors, warnings
+
+    subscription = config.get("subscription", "free")
+
+    # 5.1 Check for unknown keys
+    for key in settings:
+        if key not in VALID_SETTINGS_KEYS:
+            errors.append(f"config.yml: settings: unknown key '{key}'")
+
+    # Validate default_repository_permission value
+    perm = settings.get("default_repository_permission")
+    if perm is not None and perm not in VALID_DEFAULT_REPOSITORY_PERMISSIONS:
+        errors.append(
+            f"config.yml: settings.default_repository_permission: "
+            f"invalid value '{perm}' (must be one of: "
+            f"{', '.join(VALID_DEFAULT_REPOSITORY_PERMISSIONS)})"
+        )
+
+    # 5.3 Warn when two_factor_requirement is enabled
+    if settings.get("two_factor_requirement") is True:
+        warnings.append(
+            "config.yml: settings.two_factor_requirement is true — "
+            "WARNING: this will immediately remove all org members who do not "
+            "have two-factor authentication enabled. Ensure all members have "
+            "2FA configured before applying."
+        )
+
+    # 5.2 Warn when enterprise-only settings are present on non-enterprise tiers
+    if subscription != "enterprise":
+        skipped = [k for k in ENTERPRISE_ONLY_SETTINGS if k in settings]
+        if skipped:
+            warnings.append(
+                f"config.yml: settings: enterprise-only settings will be "
+                f"skipped on '{subscription}' tier: {', '.join(skipped)}"
+            )
+
+    return errors, warnings
 
 
 def validate_groups(groups: dict, org_ruleset_names: set) -> list[str]:
@@ -551,6 +636,7 @@ def main():
     """Main validation entry point."""
     strict = "--strict" in sys.argv
     all_errors = []
+    all_warnings: list[str] = []
 
     print("Validating configuration files...")
     print()
@@ -626,6 +712,9 @@ def main():
 
     # Validate each config type
     all_errors.extend(validate_config(config))
+    settings_errors, settings_warnings = validate_settings(config)
+    all_errors.extend(settings_errors)
+    all_warnings.extend(settings_warnings)
     all_errors.extend(validate_groups(groups, org_ruleset_names))
     all_errors.extend(validate_rulesets(rulesets))
     all_errors.extend(validate_membership(members))
@@ -664,6 +753,14 @@ def main():
         )
         print()
 
+    # Report warnings
+    if all_warnings:
+        print("Warnings:")
+        print()
+        for warning in all_warnings:
+            print(f"  ⚠  {warning}")
+        print()
+
     # Report results
     if all_errors:
         print("Validation FAILED:")
@@ -678,6 +775,8 @@ def main():
         print()
         print(f"  - Organization: {config.get('organization', 'not set')}")
         print(f"  - Subscription: {config.get('subscription', 'free')}")
+        has_settings = "settings" in config
+        print(f"  - Org settings: {'configured' if has_settings else 'not configured'}")
         print(f"  - Groups: {len(groups)}")
         print(f"  - Repositories: {len(repos)}")
         print(f"  - Rulesets: {len(rulesets)}")

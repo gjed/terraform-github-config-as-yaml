@@ -229,6 +229,45 @@ resource "github_actions_organization_permissions" "this" {
   }
 }
 
+# Organization-level settings
+# 2.1 Only created when `settings:` block is configured and is_organization = true
+resource "github_organization_settings" "this" {
+  count = local.org_settings_config != null ? 1 : 0
+
+  # Profile fields
+  # billing_email is required by the provider - must be set in settings.billing_email
+  billing_email = try(local.org_settings_config.billing_email, "")
+  company       = try(local.org_settings_config.company, null)
+  blog          = try(local.org_settings_config.blog, null)
+  email         = try(local.org_settings_config.email, null)
+  location      = try(local.org_settings_config.location, null)
+  description   = try(local.org_settings_config.description, null)
+
+  # 2.2 Member privilege settings
+  default_repository_permission           = try(local.org_settings_config.default_repository_permission, "read")
+  members_can_create_repositories         = try(local.org_settings_config.members_can_create_repositories, true)
+  members_can_create_public_repositories  = try(local.org_settings_config.members_can_create_public_repositories, true)
+  members_can_create_private_repositories = try(local.org_settings_config.members_can_create_private_repositories, true)
+  members_can_fork_private_repositories   = try(local.org_settings_config.members_can_fork_private_repositories, false)
+  web_commit_signoff_required             = try(local.org_settings_config.web_commit_signoff_required, false)
+
+  # Dependabot / dependency graph settings (available on all tiers)
+  dependabot_alerts_enabled_for_new_repositories           = try(local.org_settings_config.dependabot_alerts_enabled_for_new_repositories, false)
+  dependabot_security_updates_enabled_for_new_repositories = try(local.org_settings_config.dependabot_security_updates_enabled_for_new_repositories, false)
+  dependency_graph_enabled_for_new_repositories            = try(local.org_settings_config.dependency_graph_enabled_for_new_repositories, false)
+
+  # 2.3 GHAS / Enterprise-only settings
+  # On non-enterprise tiers these keys are filtered out of org_settings_config in yaml-config.tf,
+  # so try() returns the false default and they are set to the provider default (false / disabled).
+  advanced_security_enabled_for_new_repositories               = try(local.org_settings_config.advanced_security_enabled_for_new_repositories, false)
+  secret_scanning_enabled_for_new_repositories                 = try(local.org_settings_config.secret_scanning_enabled_for_new_repositories, false)
+  secret_scanning_push_protection_enabled_for_new_repositories = try(local.org_settings_config.secret_scanning_push_protection_enabled_for_new_repositories, false)
+
+  # 2.4 members_can_create_internal_repositories requires GitHub Enterprise
+  # Filtered from org_settings_config on non-enterprise tiers (defaults to false here)
+  members_can_create_internal_repositories = try(local.org_settings_config.members_can_create_internal_repositories, false)
+}
+
 # Organization-level workflow permissions (GITHUB_TOKEN defaults)
 # Only created when actions configuration is specified in config.yml
 resource "github_actions_organization_workflow_permissions" "this" {
