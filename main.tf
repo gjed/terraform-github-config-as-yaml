@@ -210,6 +210,23 @@ resource "github_organization_ruleset" "this" {
   }
 }
 
+# Organization-level webhooks
+# Fires for events across ALL repositories in the organization.
+# Only created when org_webhooks is configured in config.yml and is_organization is true.
+resource "github_organization_webhook" "this" {
+  for_each = local.resolved_org_webhooks
+
+  events = each.value.events
+  active = each.value.active
+
+  configuration {
+    url          = each.value.url
+    content_type = each.value.content_type
+    secret       = each.value.secret
+    insecure_ssl = each.value.insecure_ssl
+  }
+}
+
 # Organization-level Actions permissions
 # Only created when actions configuration is specified in config.yml
 resource "github_actions_organization_permissions" "this" {

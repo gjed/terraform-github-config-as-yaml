@@ -53,3 +53,28 @@
 #     - push
 #     - pull_request
 #   active: true
+
+# Organization-level webhook examples (reference in config.yml under org_webhooks:)
+# These fire for ALL repositories in the organization, not just individual repos.
+
+# audit-logger:
+#   url: https://audit.example.com/github
+#   content_type: json
+#   secret: env:ORG_WEBHOOK_SECRET # pragma: allowlist secret
+#   events:
+#     - repository       # Repo created, deleted, renamed, visibility changed
+#     - member           # Member added or removed
+#     - team             # Team created, deleted, or modified
+#     - organization     # Org member added, removed, or invited
+#     - membership       # User added or removed from a team
+#   active: true
+
+# ci-notifier:
+#   url: https://ci.example.com/github-events
+#   content_type: json
+#   events:
+#     - push
+#     - pull_request
+#     - check_suite
+#     - workflow_run
+#   active: true

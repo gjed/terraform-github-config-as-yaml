@@ -231,6 +231,43 @@ Only effective for organizations (`is_organization: true` in `config/config.yml`
 Has no effect on personal accounts.
 If you configure org rulesets on a free or pro tier, they will be
 automatically skipped (listed in the `skipped_org_rulesets` output).
+### Configuring organization webhooks
+
+Organization webhooks fire for events across **all** repositories in the organization — unlike
+repository webhooks which are scoped to a single repo. They are ideal for centralized audit
+logging, org-wide CI/CD notifications, and security monitoring.
+
+1. Define the webhook in `config/webhook/` (reuses the same format as repo webhooks):
+
+```yaml
+# config/webhook/my-webhooks.yml
+audit-logger:
+  url: https://audit.example.com/github
+  content_type: json
+  secret: env:ORG_WEBHOOK_SECRET
+  events:
+    - repository   # Repo created, deleted, renamed, or visibility changed
+    - member       # Member added or removed
+    - team         # Team created, deleted, or modified
+    - organization # Org member added, removed, or invited
+  active: true
+```
+
+1. Reference the webhook by name in `config/config.yml`:
+
+```yaml
+org_webhooks:
+  - audit-logger
+```
+
+1. Run `terraform plan` to preview, then `terraform apply`
+
+**Important notes:**
+
+- Org webhooks are **organization-only** — they are silently skipped when `is_organization: false`
+- Webhooks must be defined in `config/webhook/` before they can be referenced in `org_webhooks`
+- Secrets follow the same `env:VAR_NAME` pattern as repo webhooks; pass via `webhook_secrets` variable
+- Org webhooks work on all GitHub subscription tiers (no tier gating)
 
 ### Importing existing repositories
 

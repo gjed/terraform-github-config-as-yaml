@@ -47,7 +47,7 @@ webhooks fire for events across all repositories in the organization.
 #### Scenario: Org webhook with secret resolution
 
 - **GIVEN** a webhook defines `secret: env:ORG_WEBHOOK_SECRET`
-- **AND** `var.webhook_secrets` contains `{ ORG_WEBHOOK_SECRET = "supersecret" }`
+- **AND** `var.webhook_secrets` contains `{ ORG_WEBHOOK_SECRET = "supersecret" }` <!-- pragma: allowlist secret -->
 - **WHEN** `terraform apply` is executed
 - **THEN** the org webhook is created with the resolved secret value
 - **AND** the secret is marked as sensitive in Terraform state
