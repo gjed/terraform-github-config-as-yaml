@@ -7,6 +7,7 @@ Usage:
     python scripts/validate-config.py --strict
 """
 
+import re
 import sys
 import yaml
 from pathlib import Path
@@ -256,9 +257,17 @@ def validate_teams(teams: dict) -> tuple[list[str], list[str]]:
             )
 
     # Validate each team's fields
+    _slug_re = re.compile(r"^[a-z0-9][a-z0-9\-]*$")
     for team in flat:
         slug = team["slug"]
         config = team["config"]
+
+        # Validate slug characters (GitHub normalises slugs; mismatches cause confusing state)
+        if not _slug_re.match(slug):
+            errors.append(
+                f"teams: Team slug '{slug}' contains invalid characters. "
+                f"Use only lowercase letters, digits, and hyphens (e.g. 'platform-team')."
+            )
 
         if "description" not in config:
             errors.append(f"teams: Team '{slug}' missing required field 'description'")
@@ -281,13 +290,9 @@ def validate_teams(teams: dict) -> tuple[list[str], list[str]]:
             )
 
         # Validate review_request_delegation
+        # 'enabled' is optional (defaults to true); only validate algorithm when present
         delegation = config.get("review_request_delegation")
         if isinstance(delegation, dict):
-            if "enabled" not in delegation:
-                errors.append(
-                    f"teams: Team '{slug}' review_request_delegation missing "
-                    f"required field 'enabled'"
-                )
             algorithm = delegation.get("algorithm")
             if algorithm and algorithm not in VALID_DELEGATION_ALGORITHMS:
                 errors.append(
@@ -398,13 +403,15 @@ def main():
     all_errors.extend(validate_rulesets(rulesets))
     all_errors.extend(validate_repositories(repos, groups, rulesets))
 
+    # Flatten once; reused by validate_teams, cross-ref check, and summary output
+    flat_teams = flatten_teams(teams) if teams else []
+
     team_errors, team_warnings = validate_teams(teams)
     all_errors.extend(team_errors)
 
     # Cross-reference check for team slugs (warnings only)
     team_xref_warnings = []
-    if teams:
-        flat_teams = flatten_teams(teams)
+    if flat_teams:
         managed_slugs = {t["slug"] for t in flat_teams}
         team_xref_warnings = check_team_cross_references(repos, groups, managed_slugs)
 
@@ -425,11 +432,11 @@ def main():
         print(f"  - Groups: {len(groups)}")
         print(f"  - Repositories: {len(repos)}")
         print(f"  - Rulesets: {len(rulesets)}")
-        print(f"  - Teams: {len(flatten_teams(teams)) if teams else 0}")
+        print(f"  - Teams: {len(flat_teams)}")
 
         # Print warnings (non-fatal)
         all_warnings = team_warnings
-        if teams:
+        if flat_teams:
             all_warnings.extend(team_xref_warnings)
         if all_warnings:
             print()
