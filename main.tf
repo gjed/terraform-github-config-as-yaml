@@ -60,6 +60,9 @@ module "repositories" {
   # Apply webhooks from groups and repo-specific definitions
   webhooks = each.value.webhooks
 
+  # Apply branch protection rules from groups and repo-specific definitions
+  branch_protections = each.value.branch_protections
+
 }
 
 # Organization membership management

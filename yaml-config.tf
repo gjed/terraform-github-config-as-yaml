@@ -305,6 +305,43 @@ locals {
     config != null ? config : {}
   ]...)
 
+  # Load branch protection definitions from config/branch-protection/ directory
+  # Directory is optional - missing directory results in empty map (no error)
+  branch_protection_config_path = "${local.config_base_path}/branch-protection"
+  branch_protection_files = try(
+    fileset(local.branch_protection_config_path, "*.yml"),
+    toset([])
+  )
+
+  # Load individual YAML files (for duplicate detection)
+  branch_protection_configs_by_file = {
+    for f in sort(tolist(local.branch_protection_files)) :
+    f => yamldecode(file("${local.branch_protection_config_path}/${f}"))
+  }
+
+  # Detect duplicate branch protection keys across files
+  branch_protection_key_occurrences = {
+    for key in distinct(flatten([
+      for file, config in local.branch_protection_configs_by_file :
+      config != null ? keys(config) : []
+    ])) :
+    key => [
+      for file, config in local.branch_protection_configs_by_file :
+      file if config != null && contains(keys(config), key)
+    ]
+  }
+
+  duplicate_branch_protection_keys = {
+    for key, files in local.branch_protection_key_occurrences :
+    key => files if length(files) > 1
+  }
+
+  # Merge all branch protection definitions into a single map (alphabetical file order)
+  branch_protections_config = merge([
+    for f in sort(tolist(local.branch_protection_files)) :
+    try(yamldecode(file("${local.branch_protection_config_path}/${f}")), {})
+  ]...)
+
   # Extract values from YAML
   github_org      = local.common_config.organization
   is_organization = lookup(local.common_config, "is_organization", true)
@@ -638,6 +675,26 @@ locals {
       }
     } : null
   }
+  # Merge branch protections from all groups for each repository
+  # Collected from groups in order, repo-specific appended, deduplicated by name (last wins)
+  # No subscription tier filtering - branch protection works on all tiers including free-tier private repos
+  merged_branch_protections = {
+    for repo_name, repo_config in local.repos_yaml : repo_name => merge([
+      for entry in flatten(concat(
+        # Collect branch protection names from all groups (in order)
+        [
+          for group_name in repo_config.groups :
+          lookup(lookup(local.config_groups, group_name, {}), "branch_protections", [])
+        ],
+        # Append repo-specific branch protections
+        [lookup(repo_config, "branch_protections", [])]
+        )) : {
+        (entry) = lookup(local.branch_protections_config, entry, null)
+      }
+      if lookup(local.branch_protections_config, entry, null) != null
+    ]...)
+  }
+
   # Validate that all template references exist
   # Collects any invalid template references across all repos and groups
   # Note: ruleset_entry can be either a string (direct reference) or an object (template reference)
@@ -655,6 +712,23 @@ locals {
       }
       # Only validate if it's an object with a template key (not a direct string reference)
       if can(ruleset_entry.template) && try(ruleset_entry.template, null) != null && lookup(local.ruleset_templates, ruleset_entry.template, null) == null
+    ]
+  ])
+
+  # Collect invalid branch protection references (referenced names not in branch_protections_config)
+  invalid_branch_protection_refs = flatten([
+    for repo_name, repo_config in local.repos_yaml : [
+      for entry in flatten(concat(
+        [
+          for group_name in repo_config.groups :
+          lookup(lookup(local.config_groups, group_name, {}), "branch_protections", [])
+        ],
+        [lookup(repo_config, "branch_protections", [])]
+        )) : {
+        repo  = repo_name
+        entry = entry
+      }
+      if lookup(local.branch_protections_config, entry, null) == null && entry != null
     ]
   ])
 
@@ -821,6 +895,9 @@ locals {
       # Webhooks: merge from all groups + repo-specific webhooks (repo overrides group by name)
       webhooks = local.merged_webhooks[repo_name]
 
+      # Branch protections: merge from all groups + repo-specific (repo overrides group by name)
+      branch_protections = local.merged_branch_protections[repo_name]
+
     }
   }
 }
@@ -907,6 +984,22 @@ check "template_references" {
 ])}
 
       Available templates: ${join(", ", keys(local.ruleset_templates))}
+    EOT
+}
+}
+
+# Validate that all referenced branch protections exist in branch_protections_config
+check "branch_protection_references" {
+  assert {
+    condition = length(local.invalid_branch_protection_refs) == 0
+    error_message = <<-EOT
+      Undefined branch protection references found:
+      ${join("\n      ", [
+    for ref in local.invalid_branch_protection_refs :
+    "Repository '${ref.repo}' references branch protection '${ref.entry}' which is not defined in ${var.config_path}/branch-protection/"
+])}
+
+      Available branch protections: ${length(keys(local.branch_protections_config)) > 0 ? join(", ", keys(local.branch_protections_config)) : "(none defined)"}
     EOT
 }
 }

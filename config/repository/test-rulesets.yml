@@ -30,3 +30,18 @@ test-mixed:
     - template: strict-main
     - oss-main-bypass
     - tag-protection
+
+test-branch-protection:
+  description: "Test repository using branch protection rules"
+  visibility: public
+  groups: []
+  branch_protections:
+    - main-protection
+
+test-branch-protection-strict:
+  description: "Test repository with strict branch protection"
+  visibility: public
+  groups: []
+  branch_protections:
+    - main-protection
+    - strict-main-protection
