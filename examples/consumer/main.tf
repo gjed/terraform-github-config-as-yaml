@@ -68,4 +68,14 @@ module "github_org" {
   # webhook_secrets = {
   #   MY_WEBHOOK_SECRET = var.my_webhook_secret
   # }
+
+  # Optional: enable organization membership management via config/membership/.
+  #
+  # WARNING: When enabled, removing a username from config/membership/ will remove that person
+  # from the GitHub organization on the next terraform apply, revoking all private repo access
+  # and destroying private forks. Always run terraform plan and review before applying.
+  #
+  # WARNING: Do NOT enable alongside SCIM/IdP provisioning (Okta, Azure AD, SCIM) — they conflict.
+  #
+  # membership_management_enabled = true
 }

@@ -5,6 +5,7 @@ locals {
   repository_config_path = "${local.config_base_path}/repository"
   group_config_path      = "${local.config_base_path}/group"
   ruleset_config_path    = "${local.config_base_path}/ruleset"
+  membership_config_path = "${local.config_base_path}/membership"
 
   # Read common config (single file - not splittable)
   common_config = yamldecode(file("${local.config_base_path}/config.yml"))
@@ -33,6 +34,12 @@ locals {
   group_files   = fileset(local.group_config_path, "*.yml")
   ruleset_files = fileset(local.ruleset_config_path, "*.yml")
 
+  # Membership directory is optional - missing directory results in empty set
+  membership_files = try(
+    fileset(local.membership_config_path, "*.yml"),
+    toset([])
+  )
+
   # Load individual YAML files (for duplicate detection)
   repository_configs_by_file = {
     for f in sort(tolist(local.repository_files)) :
@@ -45,6 +52,10 @@ locals {
   ruleset_configs_by_file = {
     for f in sort(tolist(local.ruleset_files)) :
     f => yamldecode(file("${local.ruleset_config_path}/${f}"))
+  }
+  membership_configs_by_file = {
+    for f in sort(tolist(local.membership_files)) :
+    f => try(yamldecode(file("${local.membership_config_path}/${f}")), {})
   }
 
   # Detect duplicate keys across files
@@ -101,6 +112,22 @@ locals {
 
   duplicate_ruleset_keys = {
     for key, files in local.ruleset_key_occurrences :
+    key => files if length(files) > 1
+  }
+
+  membership_key_occurrences = {
+    for key in distinct(flatten([
+      for file, config in local.membership_configs_by_file :
+      config != null ? keys(config) : []
+    ])) :
+    key => [
+      for file, config in local.membership_configs_by_file :
+      file if config != null && contains(keys(config), key)
+    ]
+  }
+
+  duplicate_membership_keys = {
+    for key, files in local.membership_key_occurrences :
     key => files if length(files) > 1
   }
 
@@ -252,6 +279,12 @@ locals {
     ])
   ]))
 
+  # Load and merge membership configs from config/membership/ directory (optional)
+  membership_config = merge([
+    for f in sort(tolist(local.membership_files)) :
+    try(yamldecode(file("${local.membership_config_path}/${f}")), {})
+  ]...)
+
   # Extract values from YAML
   github_org      = local.common_config.organization
   is_organization = lookup(local.common_config, "is_organization", true)
@@ -263,6 +296,12 @@ locals {
   # Defaults to null if not specified (no org-level actions resource created)
   # Only applicable for organizations, not personal accounts
   org_actions_config = local.is_organization ? lookup(local.common_config, "actions", null) : null
+
+  # Effective membership: only managed when explicitly enabled AND target is an organization
+  # Returns empty map when membership_management_enabled is false OR is_organization is false
+  effective_membership = (
+    var.membership_management_enabled && local.is_organization
+  ) ? local.membership_config : {}
 
   # Subscription tier feature availability
   # - free: Rulesets only work on public repositories
