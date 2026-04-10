@@ -9,11 +9,29 @@ locals {
   # Read common config (single file - not splittable)
   common_config = yamldecode(file("${local.config_base_path}/config.yml"))
 
-  # Helper: Load and merge all YAML files from a directory
-  # Files are sorted alphabetically - later files override earlier ones for duplicate keys
-  repository_files = fileset(local.repository_config_path, "*.yml")
-  group_files      = fileset(local.group_config_path, "*.yml")
-  ruleset_files    = fileset(local.ruleset_config_path, "*.yml")
+  # Discover partition subdirectories under config/repository/
+  # Each immediate subdirectory is a named partition
+  repository_partition_dirs = toset([
+    for f in fileset(local.repository_config_path, "*/*.yml") :
+    split("/", f)[0]
+  ])
+
+  # Resolve active partitions: empty list means all discovered partitions
+  active_partitions = length(var.repository_partitions) == 0 ? local.repository_partition_dirs : toset(var.repository_partitions)
+
+  # Partition-aware repository file collection:
+  # - Top-level *.yml files are always loaded (no path prefix)
+  # - Active partition files are loaded with "<partition>/" prefix so file paths are unique
+  repository_files = toset(concat(
+    tolist(fileset(local.repository_config_path, "*.yml")),
+    flatten([
+      for partition in local.active_partitions :
+      [for f in fileset("${local.repository_config_path}/${partition}", "*.yml") : "${partition}/${f}"]
+    ])
+  ))
+
+  group_files   = fileset(local.group_config_path, "*.yml")
+  ruleset_files = fileset(local.ruleset_config_path, "*.yml")
 
   # Load individual YAML files (for duplicate detection)
   repository_configs_by_file = {
@@ -63,6 +81,12 @@ locals {
       file if config != null && contains(keys(config), key)
     ]
   }
+
+  # Validate requested partition names against discovered directories
+  invalid_partition_names = [
+    for p in var.repository_partitions :
+    p if !contains(tolist(local.repository_partition_dirs), p)
+  ]
 
   # Filter to only duplicates (appearing in more than one file)
   duplicate_repository_keys = {
@@ -788,6 +812,14 @@ check "team_nesting_depth" {
       ])
     ])) == 0
     error_message = "Team nesting exceeds maximum depth of 3 levels. Reorganize your team hierarchy."
+  }
+}
+
+# Validate that all requested partition names correspond to existing subdirectories
+check "valid_partitions" {
+  assert {
+    condition     = length(local.invalid_partition_names) == 0
+    error_message = "Invalid partition name(s): ${join(", ", local.invalid_partition_names)}. Available partitions: ${join(", ", sort(tolist(local.repository_partition_dirs)))}. Check config/repository/ for valid subdirectory names."
   }
 }
 
