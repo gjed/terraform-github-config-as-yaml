@@ -71,6 +71,13 @@ resource "github_membership" "this" {
 
   username = each.key
   role     = each.value
+
+  lifecycle {
+    precondition {
+      condition     = contains(["member", "admin"], each.value)
+      error_message = "Invalid role '${each.value}' for member '${each.key}'. Valid roles: member, admin."
+    }
+  }
 }
 
 # Organization-level Actions permissions
