@@ -61,3 +61,32 @@ output "duplicate_key_warnings" {
     } : null
   } : null
 }
+
+output "managed_teams" {
+  description = "Map of managed team slugs to their IDs"
+  value = merge(
+    {
+      for slug, team in module.teams_root : slug => {
+        id   = team.team_id
+        slug = team.team_slug
+      }
+    },
+    {
+      for slug, team in module.teams_level_1 : slug => {
+        id   = team.team_id
+        slug = team.team_slug
+      }
+    },
+    {
+      for slug, team in module.teams_level_2 : slug => {
+        id   = team.team_id
+        slug = team.team_slug
+      }
+    }
+  )
+}
+
+output "team_count" {
+  description = "Total number of managed teams"
+  value       = length(local.all_teams)
+}
