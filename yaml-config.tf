@@ -324,10 +324,15 @@ locals {
   ) ? local.membership_config : {}
 
   # 1.1 Organization-level settings configuration
-  # Parses optional `settings:` block from config.yml
-  # Defaults to null if not specified (no org settings resource created)
-  # Only applicable for organizations, not personal accounts
-  org_settings_raw = local.is_organization ? lookup(local.common_config, "settings", null) : null
+  # Parses optional `settings:` block from config.yml.
+  # Returns null when: is_organization=false, block absent, or value is not a map.
+  # The try() guard prevents hard errors when `settings:` is accidentally set to a scalar.
+  org_settings_raw = local.is_organization ? (
+    lookup(local.common_config, "settings", null) != null ? try(
+      { for k, v in local.common_config.settings : k => v },
+      null
+    ) : null
+  ) : null
 
   # 1.3 GHAS (GitHub Advanced Security) features require Enterprise subscription
   ghas_settings_enabled = local.subscription == "enterprise"
@@ -349,14 +354,24 @@ locals {
     key if contains(keys(local.org_settings_raw), key)
   ] : []
 
-  # 1.2 / 1.4 Effective org settings: filter out enterprise-only keys on non-enterprise tiers
-  # Result is null when is_organization=false (raw is already null) or when settings: block is absent
-  org_settings_config = local.org_settings_raw != null ? (
+  # 1.4 Apply enterprise-key filtering to the raw map
+  org_settings_effective = local.org_settings_raw != null ? (
     local.ghas_settings_enabled ? local.org_settings_raw : {
       for k, v in local.org_settings_raw : k => v
       if !contains(local.enterprise_only_keys, k)
     }
   ) : null
+
+  # 1.2 Final effective config used to gate resource creation.
+  # Null when:
+  #   - raw is null (is_organization=false, settings absent, or not a map)
+  #   - filtering left an empty map (only enterprise-only keys set on non-enterprise tier)
+  #   - billing_email is absent (required by provider; validation script enforces this)
+  org_settings_config = (
+    local.org_settings_effective != null &&
+    length(local.org_settings_effective) > 0 &&
+    contains(keys(local.org_settings_effective), "billing_email")
+  ) ? local.org_settings_effective : null
 
   # Subscription tier feature availability
   # - free: Rulesets only work on public repositories
