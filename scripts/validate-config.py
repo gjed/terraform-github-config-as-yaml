@@ -17,6 +17,7 @@ CONFIG_DIR = Path(__file__).parent.parent / "config"
 GROUP_DIR = CONFIG_DIR / "group"
 REPOSITORY_DIR = CONFIG_DIR / "repository"
 RULESET_DIR = CONFIG_DIR / "ruleset"
+TEAM_DIR = CONFIG_DIR / "team"
 
 VALID_VISIBILITIES = ["public", "private", "internal"]
 VALID_PERMISSIONS = ["pull", "triage", "push", "maintain", "admin"]
@@ -35,6 +36,9 @@ VALID_RULE_TYPES = [
     "commit_author_email_pattern",
     "committer_email_pattern",
 ]
+
+VALID_TEAM_PRIVACIES = ["closed", "secret"]
+VALID_DELEGATION_ALGORITHMS = ["round_robin", "load_balance"]
 
 
 def load_yaml(filepath: Path) -> dict:
@@ -204,6 +208,127 @@ def validate_rulesets(rulesets: dict) -> list[str]:
     return errors
 
 
+def flatten_teams(teams: dict, depth: int = 0, parent: str = None) -> list[dict]:
+    """Recursively flatten nested team definitions."""
+    result = []
+    for slug, config in teams.items():
+        if not isinstance(config, dict):
+            continue
+        result.append(
+            {
+                "slug": slug,
+                "config": config,
+                "depth": depth,
+                "parent": parent,
+            }
+        )
+        # Recurse into nested teams
+        nested = config.get("teams", {})
+        if isinstance(nested, dict) and nested:
+            result.extend(flatten_teams(nested, depth + 1, slug))
+    return result
+
+
+def validate_teams(teams: dict) -> tuple[list[str], list[str]]:
+    """Validate teams configuration. Returns (errors, warnings)."""
+    errors = []
+    warnings = []
+
+    if not teams:
+        return errors, warnings
+
+    flat = flatten_teams(teams)
+
+    # Check for duplicate slugs
+    slugs = [t["slug"] for t in flat]
+    seen = set()
+    for slug in slugs:
+        if slug in seen:
+            errors.append(f"teams: Duplicate team slug '{slug}' found across hierarchy")
+        seen.add(slug)
+
+    # Check max nesting depth
+    for team in flat:
+        if team["depth"] > 2:
+            errors.append(
+                f"teams: Team '{team['slug']}' exceeds maximum nesting depth of 3 levels "
+                f"(depth {team['depth'] + 1})"
+            )
+
+    # Validate each team's fields
+    for team in flat:
+        slug = team["slug"]
+        config = team["config"]
+
+        if "description" not in config:
+            errors.append(f"teams: Team '{slug}' missing required field 'description'")
+
+        privacy = config.get("privacy")
+        if privacy and privacy not in VALID_TEAM_PRIVACIES:
+            errors.append(
+                f"teams: Team '{slug}' has invalid privacy '{privacy}'. "
+                f"Valid values: {', '.join(VALID_TEAM_PRIVACIES)}"
+            )
+
+        # Validate no overlap between members and maintainers
+        members = set(config.get("members", []))
+        maintainers = set(config.get("maintainers", []))
+        overlap = members & maintainers
+        if overlap:
+            errors.append(
+                f"teams: Team '{slug}' has users in both members and maintainers: "
+                f"{', '.join(sorted(overlap))}"
+            )
+
+        # Validate review_request_delegation
+        delegation = config.get("review_request_delegation")
+        if isinstance(delegation, dict):
+            if "enabled" not in delegation:
+                errors.append(
+                    f"teams: Team '{slug}' review_request_delegation missing "
+                    f"required field 'enabled'"
+                )
+            algorithm = delegation.get("algorithm")
+            if algorithm and algorithm not in VALID_DELEGATION_ALGORITHMS:
+                errors.append(
+                    f"teams: Team '{slug}' has invalid delegation algorithm '{algorithm}'. "
+                    f"Valid values: {', '.join(VALID_DELEGATION_ALGORITHMS)}"
+                )
+
+    return errors, warnings
+
+
+def check_team_cross_references(
+    repos: dict, groups: dict, managed_team_slugs: set
+) -> list[str]:
+    """Warn when repos/groups reference team slugs not in config/team/."""
+    warnings = []
+
+    if not managed_team_slugs:
+        return warnings
+
+    # Collect all referenced team slugs from repos and groups
+    referenced = set()
+    for repo_name, repo_config in repos.items():
+        if isinstance(repo_config, dict):
+            for slug in repo_config.get("teams", {}).keys():
+                referenced.add((slug, f"repository '{repo_name}'"))
+
+    for group_name, group_config in groups.items():
+        if isinstance(group_config, dict):
+            for slug in group_config.get("teams", {}).keys():
+                referenced.add((slug, f"group '{group_name}'"))
+
+    for slug, source in referenced:
+        if slug not in managed_team_slugs:
+            warnings.append(
+                f"teams: {source} references team '{slug}' which is not defined in "
+                f"config/team/ (may be managed externally)"
+            )
+
+    return warnings
+
+
 def main():
     """Main validation entry point."""
     strict = "--strict" in sys.argv
@@ -257,6 +382,12 @@ def main():
             rulesets = load_yaml_directory(RULESET_DIR)
         else:
             rulesets = load_yaml(CONFIG_DIR / "rulesets.yml")
+
+        # Load teams (optional directory)
+        if TEAM_DIR.exists():
+            teams = load_yaml_directory(TEAM_DIR)
+        else:
+            teams = {}
     except ValueError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
@@ -266,6 +397,16 @@ def main():
     all_errors.extend(validate_groups(groups))
     all_errors.extend(validate_rulesets(rulesets))
     all_errors.extend(validate_repositories(repos, groups, rulesets))
+
+    team_errors, team_warnings = validate_teams(teams)
+    all_errors.extend(team_errors)
+
+    # Cross-reference check for team slugs (warnings only)
+    team_xref_warnings = []
+    if teams:
+        flat_teams = flatten_teams(teams)
+        managed_slugs = {t["slug"] for t in flat_teams}
+        team_xref_warnings = check_team_cross_references(repos, groups, managed_slugs)
 
     # Report results
     if all_errors:
@@ -284,6 +425,18 @@ def main():
         print(f"  - Groups: {len(groups)}")
         print(f"  - Repositories: {len(repos)}")
         print(f"  - Rulesets: {len(rulesets)}")
+        print(f"  - Teams: {len(flatten_teams(teams)) if teams else 0}")
+
+        # Print warnings (non-fatal)
+        all_warnings = team_warnings
+        if teams:
+            all_warnings.extend(team_xref_warnings)
+        if all_warnings:
+            print()
+            print("Warnings:")
+            for warning in all_warnings:
+                print(f"  - {warning}")
+
         sys.exit(0)
 
 
