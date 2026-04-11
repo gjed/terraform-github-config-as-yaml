@@ -28,6 +28,7 @@ There is no mechanism to scope a plan to a subset of repositories. Users must re
 **Decision:** Partitions are subdirectories under `config/repository/`. A `repository_partitions` variable selects which subdirectories to load.
 
 **Alternatives considered:**
+
 - Glob patterns on repo names (e.g., `repository_filter = ["infra-*"]`): Requires loading all YAML first, then filtering. Doesn't reduce file I/O at plan time. Also fragile — repo renaming breaks filters.
 - Group-based filtering: Overloads the existing group concept which is about configuration inheritance, not operational partitioning.
 

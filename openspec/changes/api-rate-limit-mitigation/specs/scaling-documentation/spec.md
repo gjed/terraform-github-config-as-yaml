@@ -25,7 +25,7 @@ The documentation SHALL include recommended `read_delay_ms` and `write_delay_ms`
 #### Scenario: Tuning recommendations by org size
 
 - **WHEN** a user reads the scaling documentation
-- **THEN** it SHALL contain specific provider configuration examples for small (<100 repos), medium (100-500), and large (500+) organizations
+- **THEN** it SHALL contain specific provider configuration examples for small (\<100 repos), medium (100-500), and large (500+) organizations
 
 ### Requirement: Partitioning strategy documentation
 

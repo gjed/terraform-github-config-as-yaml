@@ -16,7 +16,7 @@
 
 - [x] 3.1 Create `scripts/detect-partitions.sh` with git diff range argument parsing
 - [x] 3.2 Implement shared config detection (group/, ruleset/, webhook/, config.yml → all partitions)
-- [x] 3.3 Implement top-level repo file detection (config/repository/*.yml → no partitions)
+- [x] 3.3 Implement top-level repo file detection (config/repository/\*.yml → no partitions)
 - [x] 3.4 Implement partition-specific detection (config/repository/<partition>/ → those partitions only)
 - [x] 3.5 Implement escalation logic (shared config overrides partition-specific)
 - [x] 3.6 Add `--tfvar` flag for JSON array output format

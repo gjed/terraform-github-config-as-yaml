@@ -9,39 +9,40 @@ this module.
 Each `terraform plan` (or `apply`) triggers a read refresh for every repository
 in scope. The following resources are read per repository:
 
-| Resource | API calls | Notes |
-|---|---|---|
-| `github_repository` | 1 | Core repository data |
-| `github_team_repository` | 1 per team | Varies by team count per repo |
-| `github_repository_collaborator` | 1 per collaborator | Varies by collaborator count |
-| `github_repository_ruleset` | 1 per ruleset | Varies by ruleset count |
-| `github_actions_repository_permissions` | 1 | Only when actions config is set |
-| `github_repository_webhook` | 1 per webhook | Varies by webhook count |
+| Resource                                | API calls          | Notes                           |
+| --------------------------------------- | ------------------ | ------------------------------- |
+| `github_repository`                     | 1                  | Core repository data            |
+| `github_team_repository`                | 1 per team         | Varies by team count per repo   |
+| `github_repository_collaborator`        | 1 per collaborator | Varies by collaborator count    |
+| `github_repository_ruleset`             | 1 per ruleset      | Varies by ruleset count         |
+| `github_actions_repository_permissions` | 1                  | Only when actions config is set |
+| `github_repository_webhook`             | 1 per webhook      | Varies by webhook count         |
 
 **Typical baseline:** ~7 API calls per repository (1 repo + 2 teams + 1 collaborator
-+ 1 ruleset + 1 actions + 1 webhook). Repos with no teams, rulesets, or webhooks
-cost as few as 1–2 calls.
+
+- 1 ruleset + 1 actions + 1 webhook). Repos with no teams, rulesets, or webhooks
+  cost as few as 1–2 calls.
 
 ## Rate Limit Thresholds
 
 GitHub enforces per-hour rate limits on authenticated API requests:
 
-| Auth method | Limit |
-|---|---|
-| Personal Access Token (PAT) | 5,000 requests / hour |
+| Auth method                   | Limit                  |
+| ----------------------------- | ---------------------- |
+| Personal Access Token (PAT)   | 5,000 requests / hour  |
 | GitHub App installation token | 15,000 requests / hour |
 
 Estimated total API calls for a single `terraform plan` at various org sizes
 (assuming ~7 calls per repo):
 
 | Repositories | Estimated calls | Within PAT limit | Within App limit |
-|---|---|---|---|
-| 100 | ~700 | ✅ Yes | ✅ Yes |
-| 500 | ~3,500 | ✅ Yes | ✅ Yes |
-| 700 | ~4,900 | ⚠️ Near limit | ✅ Yes |
-| 1,000 | ~7,000 | ❌ Exceeds | ✅ Yes |
-| 2,000 | ~14,000 | ❌ Exceeds | ⚠️ Near limit |
-| 2,500+ | ~17,500+ | ❌ Exceeds | ❌ Exceeds |
+| ------------ | --------------- | ---------------- | ---------------- |
+| 100          | ~700            | ✅ Yes           | ✅ Yes           |
+| 500          | ~3,500          | ✅ Yes           | ✅ Yes           |
+| 700          | ~4,900          | ⚠️ Near limit    | ✅ Yes           |
+| 1,000        | ~7,000          | ❌ Exceeds       | ✅ Yes           |
+| 2,000        | ~14,000         | ❌ Exceeds       | ⚠️ Near limit    |
+| 2,500+       | ~17,500+        | ❌ Exceeds       | ❌ Exceeds       |
 
 **Recommendation:** Use a GitHub App token for organisations with 500+ repositories.
 For 2,000+ repositories, combine App tokens with repository partitioning.
@@ -191,15 +192,15 @@ jobs:
 
 **Escalation rules:**
 
-| Changed files | Partitions planned |
-|---|---|
-| `config/group/*.yml` | All partitions |
-| `config/ruleset/*.yml` | All partitions |
-| `config/webhook/*.yml` | All partitions |
-| `config/config.yml` | All partitions |
+| Changed files                         | Partitions planned          |
+| ------------------------------------- | --------------------------- |
+| `config/group/*.yml`                  | All partitions              |
+| `config/ruleset/*.yml`                | All partitions              |
+| `config/webhook/*.yml`                | All partitions              |
+| `config/config.yml`                   | All partitions              |
 | `config/repository/<partition>/*.yml` | Only the changed partitions |
-| `config/repository/*.yml` (top-level) | None (always loaded) |
-| Non-config files only | None |
+| `config/repository/*.yml` (top-level) | None (always loaded)        |
+| Non-config files only                 | None                        |
 
 Shared config (groups, rulesets, webhooks, `config.yml`) can affect any
 repository, so changes there require planning all partitions.

@@ -221,6 +221,7 @@ conflict and cause unpredictable membership changes.
    ```
 
 1. Run `terraform plan` — carefully review any removals before applying
+
 1. Run `terraform apply`
 
 **Removing a member:** Delete their username from the YAML. On the next apply, Terraform will
@@ -231,6 +232,7 @@ Only effective for organizations (`is_organization: true` in `config/config.yml`
 Has no effect on personal accounts.
 If you configure org rulesets on a free or pro tier, they will be
 automatically skipped (listed in the `skipped_org_rulesets` output).
+
 ### Configuring organization webhooks
 
 Organization webhooks fire for events across **all** repositories in the organization — unlike
@@ -283,7 +285,9 @@ repositories. Requires Team or Enterprise subscription.
    ```
 
 1. Ensure `subscription` is set to `team` or `enterprise` in `config/config.yml`
+
 1. Teams must already exist — this module does not create teams
+
 1. Run `terraform plan` to preview, then `terraform apply`
 
 **Subscription tier limitations:**

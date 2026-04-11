@@ -15,29 +15,30 @@ module invocations in `main.tf` (`teams_root`, `teams_level_1`, `teams_level_2`)
 
 **Tech Stack:** Terraform >= 1.0, GitHub Provider ~> 6.0, Python 3.x (validation script)
 
----
+______________________________________________________________________
 
 ## File Structure
 
-| File | Action | Responsibility |
-| --- | --- | --- |
-| `modules/team/main.tf` | Create | `github_team`, `github_team_membership`, `github_team_settings` resources |
-| `modules/team/variables.tf` | Create | Input variables for team module |
-| `modules/team/outputs.tf` | Create | Team ID and slug outputs |
-| `yaml-config.tf` | Modify | Team config loading, nested flattening, tier classification, validation |
-| `main.tf` | Modify | Three tiered team module invocations |
-| `outputs.tf` | Modify | Team-related outputs |
-| `config/team/.gitkeep` | Create | Empty team directory placeholder for template |
-| `examples/consumer/config/team/.gitkeep` | Create | Empty team directory placeholder for consumer example |
-| `scripts/validate-config.py` | Modify | Team schema validation, cross-reference warnings |
+| File                                     | Action | Responsibility                                                            |
+| ---------------------------------------- | ------ | ------------------------------------------------------------------------- |
+| `modules/team/main.tf`                   | Create | `github_team`, `github_team_membership`, `github_team_settings` resources |
+| `modules/team/variables.tf`              | Create | Input variables for team module                                           |
+| `modules/team/outputs.tf`                | Create | Team ID and slug outputs                                                  |
+| `yaml-config.tf`                         | Modify | Team config loading, nested flattening, tier classification, validation   |
+| `main.tf`                                | Modify | Three tiered team module invocations                                      |
+| `outputs.tf`                             | Modify | Team-related outputs                                                      |
+| `config/team/.gitkeep`                   | Create | Empty team directory placeholder for template                             |
+| `examples/consumer/config/team/.gitkeep` | Create | Empty team directory placeholder for consumer example                     |
+| `scripts/validate-config.py`             | Modify | Team schema validation, cross-reference warnings                          |
 
----
+______________________________________________________________________
 
 ### Task 1: Create the Team Submodule — Variables and Outputs
 
 **Files:**
 
 - Create: `modules/team/variables.tf`
+
 - Create: `modules/team/outputs.tf`
 
 - [x] **Step 1: Create `modules/team/variables.tf`**
@@ -120,7 +121,7 @@ git add modules/team/variables.tf modules/team/outputs.tf
 git commit -m "feat(team): add team submodule variables and outputs"
 ```
 
----
+______________________________________________________________________
 
 ### Task 2: Create the Team Submodule — Resources
 
@@ -207,7 +208,7 @@ Implements github_team, github_team_membership, and
 github_team_settings resources in modules/team/."
 ```
 
----
+______________________________________________________________________
 
 ### Task 3: Add Team Config Loading to `yaml-config.tf`
 
@@ -215,6 +216,7 @@ github_team_settings resources in modules/team/."
 
 - Modify: `yaml-config.tf` (add team config loading and flattening logic at the end of the
   `locals` block, before the `check` blocks)
+
 - Create: `config/team/.gitkeep`
 
 - [x] **Step 1: Create the empty team config directory**
@@ -371,7 +373,7 @@ Loads team YAML from config/team/, flattens nested hierarchy into
 three tiers, and validates slug uniqueness and nesting depth."
 ```
 
----
+______________________________________________________________________
 
 ### Task 4: Wire Team Modules in `main.tf`
 
@@ -451,7 +453,7 @@ teams_level_2) with dependency ordering for parent-child teams.
 Guarded by is_organization flag."
 ```
 
----
+______________________________________________________________________
 
 ### Task 5: Add Team Outputs
 
@@ -507,7 +509,7 @@ git add outputs.tf
 git commit -m "feat(team): add managed_teams and team_count outputs"
 ```
 
----
+______________________________________________________________________
 
 ### Task 6: Update Validation Script
 
@@ -726,7 +728,7 @@ Validates team schema, nesting depth, duplicate slugs, membership
 overlap, delegation settings, and cross-reference warnings."
 ```
 
----
+______________________________________________________________________
 
 ### Task 7: Add Consumer Example Placeholder
 
@@ -747,7 +749,7 @@ git add examples/consumer/config/team/.gitkeep
 git commit -m "chore(example): add empty team config directory to consumer example"
 ```
 
----
+______________________________________________________________________
 
 ### Task 8: Run Full Validation
 
@@ -785,7 +787,7 @@ git add -A
 git commit -m "style: fix formatting from pre-commit hooks"
 ```
 
----
+______________________________________________________________________
 
 ### Task 9: Commit OpenSpec Artifacts
 
