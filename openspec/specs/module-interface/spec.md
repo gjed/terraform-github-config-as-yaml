@@ -21,7 +21,7 @@ constraints.
 - **WHEN** a consumer calls the module with `config_path = "${path.root}/config"`
 - **THEN** the module reads all YAML files from the consumer's `config/` directory
 - **AND** the directory structure under that path matches the expected layout (`config.yml`,
-  `group/*.yml`, `repository/*.yml`, `ruleset/*.yml`, `webhook/*.yml`)
+  `group/*.yml`, `repository/*.yml`, `ruleset/*.yml`, `webhook/*.yml`, `membership/*.yml`)
 
 #### Scenario: Static path required
 
@@ -63,6 +63,51 @@ inject webhook secret values at runtime without hardcoding them in configuration
 
 ______________________________________________________________________
 
+### Requirement: Membership Management Variable
+
+The module SHALL accept a `membership_management_enabled` variable of type `bool` that defaults to
+`false`. When set to `true`, the module manages organization membership from YAML files in the
+`membership/` subdirectory of `config_path`.
+
+#### Scenario: Consumer enables membership management
+
+- **WHEN** a consumer calls the module with `membership_management_enabled = true`
+- **THEN** the module reads membership YAML files from `config_path/membership/*.yml`
+- **AND** manages organization membership resources accordingly
+
+#### Scenario: Consumer does not set membership variable
+
+- **WHEN** a consumer does not set `membership_management_enabled`
+- **THEN** the variable defaults to `false`
+- **AND** the module does not create or manage any membership resources
+
+______________________________________________________________________
+
+### Requirement: Repository Partitions Variable
+
+The module SHALL accept a `repository_partitions` variable of type `list(string)` that defaults to
+`[]`. This variable allows consumers to limit which repositories are managed in a given Terraform
+run, mitigating GitHub API rate limits for large organizations.
+
+#### Scenario: Default value preserves backward compatibility
+
+- **WHEN** a consumer does not set `repository_partitions`
+- **THEN** the variable defaults to `[]`
+- **AND** the module manages all repositories defined in the configuration
+
+#### Scenario: Consumer sets specific partitions
+
+- **WHEN** a consumer passes `repository_partitions = ["a-m"]`
+- **THEN** the module only manages repositories that match the specified partitions
+- **AND** repositories outside the partitions are not included in the Terraform plan
+
+#### Scenario: Variable is documented
+
+- **WHEN** a consumer reads the module documentation
+- **THEN** the `repository_partitions` variable is described with its type, default, and purpose
+
+______________________________________________________________________
+
 ### Requirement: Module Outputs
 
 The module SHALL expose the following outputs so consumers can reference managed resource details
@@ -74,6 +119,9 @@ without reading internal state directly:
 - `subscription_tier` — GitHub subscription tier derived from `config.yml`
 - `subscription_warnings` — warnings about features skipped due to tier limitations
 - `duplicate_key_warnings` — warnings about duplicate keys across split config files
+- `managed_members` — map of managed organization members with username and role
+- `managed_member_count` — total number of managed organization members
+- `org_webhooks` — map of managed organization webhooks with URL and events
 
 #### Scenario: Consumer reads organization output
 
@@ -85,3 +133,26 @@ without reading internal state directly:
 - **WHEN** `terraform apply` completes
 - **THEN** `module.github_org.repositories` contains an entry for each managed repo
 - **AND** each entry includes `url`, `ssh_url`, and `visibility`
+
+#### Scenario: Consumer reads membership output
+
+- **WHEN** `terraform apply` completes with `membership_management_enabled = true`
+- **THEN** `module.github_org.managed_members` contains an entry for each managed member
+- **AND** each entry includes the username and role
+
+#### Scenario: Membership output when disabled
+
+- **WHEN** `membership_management_enabled` is `false` or unset
+- **THEN** `module.github_org.managed_members` is an empty map
+- **AND** `module.github_org.managed_member_count` is `0`
+
+#### Scenario: Consumer reads org webhook output
+
+- **WHEN** `terraform apply` completes with organization webhooks configured
+- **THEN** `module.github_org.org_webhooks` contains an entry for each managed org webhook
+- **AND** each entry includes the webhook URL and events
+
+#### Scenario: Consumer reads org webhook output with no org webhooks
+
+- **WHEN** no organization webhooks are configured
+- **THEN** `module.github_org.org_webhooks` is an empty map
