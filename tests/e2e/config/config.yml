@@ -1,0 +1,40 @@
+organization: REPLACE_WITH_YOUR_TEST_ORG
+subscription: free
+is_organization: true
+
+settings:
+  billing_email: billing@example.com
+  company: E2E Test Org
+  blog: https://example.com
+  email: admin@example.com
+  location: Test City
+  description: Throwaway org for e2e testing of terraform-github-config-as-yaml
+  default_repository_permission: read
+  members_can_create_repositories: true
+  members_can_create_public_repositories: true
+  members_can_create_private_repositories: true
+  members_can_fork_private_repositories: false
+  web_commit_signoff_required: false
+  dependabot_alerts_enabled_for_new_repositories: true
+  dependabot_security_updates_enabled_for_new_repositories: true
+  dependency_graph_enabled_for_new_repositories: true
+
+actions:
+  enabled_repositories: all
+  allowed_actions: selected
+  allowed_actions_config:
+    github_owned_allowed: true
+    verified_allowed: true
+    patterns_allowed:
+      - "actions/checkout@*"
+      - "actions/setup-node@*"
+  default_workflow_permissions: read
+  can_approve_pull_request_reviews: false
+
+org_webhooks:
+  - e2e-org-webhook
+
+# Uncomment and set subscription: team or enterprise to test security manager teams
+# security:
+#   security_manager_teams:
+#     - e2e-platform

@@ -1,0 +1,52 @@
+base:
+  # Minimal base group — acts as a no-op foundation other groups build on.
+  # All scalar fields intentionally unset so later groups set the values.
+  teams: {}
+
+oss-e2e:
+  visibility: public
+  has_issues: true
+  has_wiki: true
+  has_discussions: true
+  allow_merge_commit: true
+  allow_squash_merge: true
+  allow_rebase_merge: true
+  allow_auto_merge: false
+  allow_update_branch: true
+  delete_branch_on_merge: true
+  web_commit_signoff_required: true
+  vulnerability_alerts: true
+  topics:
+    - e2e
+    - oss-e2e
+  rulesets:
+    - e2e-oss-protection
+  webhooks:
+    - e2e-webhook
+
+internal-e2e:
+  visibility: private
+  has_issues: true
+  has_wiki: false
+  has_discussions: false
+  allow_merge_commit: true
+  allow_squash_merge: true
+  allow_rebase_merge: false
+  delete_branch_on_merge: true
+  vulnerability_alerts: true
+  topics:
+    - e2e
+    - internal-e2e
+  rulesets:
+    - e2e-internal-protection
+  branch_protections:
+    - e2e-main-bp
+
+restricted-actions-e2e:
+  actions:
+    allowed_actions: selected
+    github_owned_allowed: true
+    verified_allowed: false
+    patterns_allowed:
+      - "actions/checkout@*"
+      - "actions/setup-node@*"

@@ -1,0 +1,136 @@
+e2e-oss-protection:
+  target: branch
+  enforcement: active
+  conditions:
+    ref_name:
+      include:
+        - "~DEFAULT_BRANCH"
+      exclude: []
+  rules:
+    - type: deletion
+    - type: non_fast_forward
+    - type: required_linear_history
+    - type: pull_request
+      parameters:
+        required_approving_review_count: 1
+        dismiss_stale_reviews_on_push: true
+        require_code_owner_review: false
+        require_last_push_approval: false
+        required_review_thread_resolution: true
+
+e2e-internal-protection:
+  target: branch
+  enforcement: active
+  conditions:
+    ref_name:
+      include:
+        - "~DEFAULT_BRANCH"
+      exclude: []
+  rules:
+    - type: deletion
+    - type: non_fast_forward
+    - type: required_signatures
+
+e2e-require-ci:
+  target: branch
+  enforcement: active
+  conditions:
+    ref_name:
+      include:
+        - "~DEFAULT_BRANCH"
+      exclude: []
+  rules:
+    - type: required_status_checks
+      parameters:
+        required_status_checks:
+          - context: ci/build
+          - context: ci/test
+        strict_required_status_checks_policy: true
+
+e2e-commit-convention:
+  target: branch
+  enforcement: evaluate
+  conditions:
+    ref_name:
+      include:
+        - "~DEFAULT_BRANCH"
+      exclude: []
+  rules:
+    - type: commit_message_pattern
+      parameters:
+        name: Conventional Commits
+        negate: false
+        operator: regex
+        pattern: "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore)(\\(.+\\))?!?: .+"
+
+e2e-tag-protection:
+  target: tag
+  enforcement: active
+  conditions:
+    ref_name:
+      include:
+        - "refs/tags/v*"
+      exclude: []
+  bypass_actors:
+    - actor_id: 5
+      actor_type: RepositoryRole
+      bypass_mode: always
+  rules:
+    - type: deletion
+    - type: update
+
+e2e-branch-naming:
+  target: branch
+  enforcement: active
+  conditions:
+    ref_name:
+      include:
+        - "refs/heads/*"
+      exclude:
+        - "refs/heads/main"
+        - "refs/heads/devel"
+  rules:
+    - type: branch_name_pattern
+      parameters:
+        name: Branch naming convention
+        negate: false
+        operator: regex
+        pattern: "^(feat|fix|docs|chore|refactor|test|ci|build)/.+"
+
+e2e-strict-template:
+  target: branch
+  enforcement: active
+  conditions:
+    ref_name:
+      include:
+        - "~DEFAULT_BRANCH"
+      exclude: []
+  rules:
+    - type: deletion
+    - type: non_fast_forward
+    - type: required_linear_history
+    - type: pull_request
+      parameters:
+        required_approving_review_count: 2
+        dismiss_stale_reviews_on_push: true
+        require_code_owner_review: true
+        require_last_push_approval: false
+        required_review_thread_resolution: false
+
+e2e-org-protection:
+  scope: organization
+  target: branch
+  enforcement: active
+  conditions:
+    ref_name:
+      include:
+        - "~DEFAULT_BRANCH"
+      exclude: []
+    repository_name:
+      include:
+        - "e2e-*"
+      exclude:
+        - "e2e-sandbox-*"
+  rules:
+    - type: deletion
+    - type: non_fast_forward

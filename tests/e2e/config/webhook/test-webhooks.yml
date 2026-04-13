@@ -1,0 +1,20 @@
+e2e-webhook:
+  url: https://webhook.site/00000000-0000-0000-0000-000000000001
+  content_type: json
+  secret: env:E2E_WEBHOOK_SECRET
+  events:
+    - push
+    - pull_request
+    - create
+    - delete
+  active: true
+  insecure_ssl: false
+
+e2e-org-webhook:
+  url: https://webhook.site/00000000-0000-0000-0000-000000000002
+  content_type: json
+  events:
+    - repository
+    - member
+    - organization
+  active: true

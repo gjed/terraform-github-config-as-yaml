@@ -1,0 +1,23 @@
+e2e-platform:
+  description: "E2E test root platform team (tier 0)"
+  privacy: closed
+  members: []
+  maintainers: []
+  review_request_delegation: null
+  children:
+    e2e-backend:
+      description: "E2E test backend sub-team (tier 1)"
+      privacy: closed
+      members: []
+      maintainers: []
+      review_request_delegation:
+        algorithm: ROUND_ROBIN
+        member_count: 0
+        notify: false
+      children:
+        e2e-api:
+          description: "E2E test API team (tier 2, secret)"
+          privacy: secret
+          members: []
+          maintainers: []
+          review_request_delegation: null

@@ -1,4 +1,5 @@
-.PHONY: help init plan plan-repo plan-show plan-pr apply apply-repo destroy validate fmt clean
+.PHONY: help init plan plan-repo plan-show plan-pr apply apply-repo destroy validate fmt clean \
+        e2e-init e2e-validate e2e-plan e2e-apply e2e-verify e2e-destroy
 
 # Plan file location
 PLAN_FILE := tfplan
@@ -114,3 +115,25 @@ clean:
 	rm -f .terraform.lock.hcl
 	rm -f $(PLAN_FILE)
 	@echo "Note: State files (*.tfstate) are preserved for safety"
+
+# ── E2E test fixture targets ─────────────────────────────────────────────────
+# Delegates to tests/e2e/Makefile.  Requires GITHUB_TOKEN and terraform.tfvars
+# in tests/e2e/ (see tests/e2e/terraform.tfvars.example).
+
+e2e-init:
+	$(MAKE) -C tests/e2e init
+
+e2e-validate:
+	$(MAKE) -C tests/e2e validate
+
+e2e-plan:
+	$(MAKE) -C tests/e2e plan
+
+e2e-apply:
+	$(MAKE) -C tests/e2e apply
+
+e2e-verify:
+	$(MAKE) -C tests/e2e verify
+
+e2e-destroy:
+	$(MAKE) -C tests/e2e destroy
