@@ -93,4 +93,4 @@
 - [x] 13.1 Validate all YAML files parse cleanly: `for f in $(find tests/e2e/config -name '*.yml'); do python3 -c "import yaml; yaml.safe_load(open('$f'))" || echo "FAILED: $f"; done`
 - [x] 13.2 Run `terraform validate` in `tests/e2e/`: `cd tests/e2e && terraform init -backend=false && TF_VAR_github_org=placeholder terraform validate`
 - [x] 13.3 Run `python3 -m py_compile tests/verify_e2e.py`
-- [ ] 13.4 Commit all new and modified files: `git add tests/ Makefile && git commit -m "feat(test): add e2e test fixture covering all module features"`
+- [x] 13.4 Commit all new and modified files: `git add tests/ Makefile && git commit -m "feat(test): add e2e test fixture covering all module features"`
