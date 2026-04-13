@@ -1,0 +1,24 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit real credentials.
+
+# Required: GitHub organization to provision e2e test resources into.
+# Use a dedicated throwaway org (e.g., my-username-e2e-test).
+# WARNING: Terraform will create/modify/delete repositories and teams in this org.
+github_org = "REPLACE_WITH_YOUR_TEST_ORG"
+
+# Optional: Your GitHub username for team membership assertions.
+# If set, verify_e2e.py will check that this user exists in provisioned teams.
+# Leave empty to skip team membership checks.
+test_user = ""
+
+# Optional: Webhook secret for the e2e-webhook.
+# Any string works — webhook.site ignores secrets.
+# Defaults to "e2e-test-secret" if not set.
+webhook_secret = "e2e-test-secret"
+
+# Safety flag: enable organization membership management.
+# DANGER: Setting true allows Terraform to ADD and REMOVE org members.
+# Removing a user from config/membership/ ejects them from the org,
+# revoking all private repo access and destroying their private forks.
+# Only enable if you understand the risks and have reviewed plan output.
+membership_management_enabled = false

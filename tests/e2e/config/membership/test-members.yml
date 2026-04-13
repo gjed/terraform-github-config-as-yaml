@@ -1,0 +1,12 @@
+# Organization membership is DISABLED by default (membership_management_enabled = false).
+#
+# WARNING: Enabling membership management is HIGH RISK. Removing a username from
+# this file will REMOVE them from the organization, revoking all private repo
+# access and destroying private forks. Always review `terraform plan` carefully.
+#
+# To test membership management:
+#   1. Uncomment a line below (use a real GitHub username)
+#   2. Set membership_management_enabled = true in terraform.tfvars
+#   3. Run terraform plan to preview changes before applying
+#
+# YOUR_GITHUB_USERNAME: member

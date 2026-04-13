@@ -1,0 +1,78 @@
+e2e-oss-public:
+  description: "E2E test public OSS repository"
+  groups:
+    - base
+    - oss-e2e
+  homepage_url: https://example.com/e2e-oss-public
+  license_template: mit
+  topics:
+    - terraform
+
+e2e-internal-private:
+  description: "E2E test private internal repository (exercises subscription_warnings on free tier)"
+  groups:
+    - base
+    - internal-e2e
+
+e2e-multi-group:
+  description: "E2E test repository inheriting from multiple groups"
+  groups:
+    - base
+    - internal-e2e
+    - restricted-actions-e2e
+
+e2e-full-featured:
+  description: "E2E test repository exercising every per-repo override"
+  groups:
+    - base
+    - oss-e2e
+  has_discussions: false
+  allow_merge_commit: false
+  web_commit_signoff_required: false
+  topics:
+    - full-featured
+  rulesets:
+    - e2e-require-ci
+    - e2e-commit-convention
+    - template: e2e-strict-template
+    - template: e2e-strict-template
+      rules:
+        - type: pull_request
+          parameters:
+            required_approving_review_count: 1
+            dismiss_stale_reviews_on_push: false
+  branch_protections:
+    - e2e-strict-bp
+  webhooks:
+    e2e-inline-webhook:
+      url: https://webhook.site/00000000-0000-0000-0000-000000000003
+      events:
+        - push
+        - pull_request
+      active: true
+
+e2e-actions-restricted:
+  description: "E2E test repository with restricted GitHub Actions"
+  groups:
+    - base
+    - oss-e2e
+    - restricted-actions-e2e
+  actions:
+    patterns_allowed:
+      - "e2e-test-org/custom-action@*"
+
+e2e-private-override:
+  description: "E2E test repository that overrides group visibility (public→private)"
+  groups:
+    - base
+    - oss-e2e
+  visibility: private
+
+e2e-with-tag-ruleset:
+  description: "E2E test repository with tag and branch naming rulesets"
+  groups:
+    - base
+    - oss-e2e
+  rulesets:
+    - e2e-tag-protection
+    - e2e-branch-naming

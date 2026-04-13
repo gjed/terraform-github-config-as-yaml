@@ -1,0 +1,7 @@
+e2e-partitioned-repo:
+  description: "E2E test repository loaded from a partition subdirectory"
+  groups:
+    - base
+    - oss-e2e
+  topics:
+    - partitioned
