@@ -97,26 +97,6 @@ e2e-branch-naming:
         operator: regex
         pattern: "^(feat|fix|docs|chore|refactor|test|ci|build)/.+"
 
-e2e-strict-template:
-  target: branch
-  enforcement: active
-  conditions:
-    ref_name:
-      include:
-        - "~DEFAULT_BRANCH"
-      exclude: []
-  rules:
-    - type: deletion
-    - type: non_fast_forward
-    - type: required_linear_history
-    - type: pull_request
-      parameters:
-        required_approving_review_count: 2
-        dismiss_stale_reviews_on_push: true
-        require_code_owner_review: true
-        require_last_push_approval: false
-        required_review_thread_resolution: false
-
 e2e-org-protection:
   scope: organization
   target: branch

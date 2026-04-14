@@ -45,8 +45,9 @@ internal-e2e:
 restricted-actions-e2e:
   actions:
     allowed_actions: selected
-    github_owned_allowed: true
-    verified_allowed: false
-    patterns_allowed:
-      - "actions/checkout@*"
-      - "actions/setup-node@*"
+    allowed_actions_config:
+      github_owned_allowed: true
+      verified_allowed: false
+      patterns_allowed:
+        - "actions/checkout@*"
+        - "actions/setup-node@*"
