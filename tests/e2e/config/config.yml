@@ -1,3 +1,5 @@
+# IMPORTANT: Must match github_org in terraform.tfvars — the module reads this
+# value to configure org-scoped resources (settings, actions, webhooks).
 organization: REPLACE_WITH_YOUR_TEST_ORG
 subscription: free
 is_organization: true

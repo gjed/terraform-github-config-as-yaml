@@ -3,12 +3,6 @@ variable "github_org" {
   type        = string
 }
 
-variable "test_user" {
-  description = "GitHub username to add as a team member during e2e testing (optional). Leave empty to skip team membership assertions."
-  type        = string
-  default     = ""
-}
-
 variable "webhook_secret" {
   description = "Secret value for the e2e-webhook. Can be any string; webhook.site ignores secrets."
   type        = string

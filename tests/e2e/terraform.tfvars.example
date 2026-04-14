@@ -4,12 +4,9 @@
 # Required: GitHub organization to provision e2e test resources into.
 # Use a dedicated throwaway org (e.g., my-username-e2e-test).
 # WARNING: Terraform will create/modify/delete repositories and teams in this org.
+# NOTE: You must also update tests/e2e/config/config.yml (organization: field)
+#       to the same org name — the module reads that value separately.
 github_org = "REPLACE_WITH_YOUR_TEST_ORG"
-
-# Optional: Your GitHub username for team membership assertions.
-# If set, verify_e2e.py will check that this user exists in provisioned teams.
-# Leave empty to skip team membership checks.
-test_user = ""
 
 # Optional: Webhook secret for the e2e-webhook.
 # Any string works — webhook.site ignores secrets.

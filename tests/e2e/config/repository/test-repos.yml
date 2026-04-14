@@ -44,8 +44,9 @@ e2e-full-featured:
   branch_protections:
     - e2e-strict-bp
   webhooks:
-    e2e-inline-webhook:
+    - name: e2e-inline-webhook
       url: https://webhook.site/00000000-0000-0000-0000-000000000003
+      content_type: json
       events:
         - push
         - pull_request
@@ -58,8 +59,9 @@ e2e-actions-restricted:
     - oss-e2e
     - restricted-actions-e2e
   actions:
-    patterns_allowed:
-      - "e2e-test-org/custom-action@*"
+    allowed_actions_config:
+      patterns_allowed:
+        - "e2e-test-org/custom-action@*"
 
 e2e-private-override:
   description: "E2E test repository that overrides group visibility (public→private)"

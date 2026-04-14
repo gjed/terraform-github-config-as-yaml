@@ -4,7 +4,7 @@ e2e-platform:
   members: []
   maintainers: []
   review_request_delegation: null
-  children:
+  teams:
     e2e-backend:
       description: "E2E test backend sub-team (tier 1)"
       privacy: closed
@@ -14,7 +14,7 @@ e2e-platform:
         algorithm: ROUND_ROBIN
         member_count: 0
         notify: false
-      children:
+      teams:
         e2e-api:
           description: "E2E test API team (tier 2, secret)"
           privacy: secret

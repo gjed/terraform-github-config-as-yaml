@@ -48,11 +48,18 @@ pip install PyGithub
 
 ### Step 1 — Configure
 
+The org name must be set in **two places**:
+
 ```bash
 cd tests/e2e
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars: set github_org to your test org name
+# Edit config/config.yml: set organization: to the same org name
 ```
+
+Both values must match. `terraform.tfvars` configures the GitHub provider (which
+org the API calls target). `config/config.yml` is read by the module to configure
+org-scoped resources (settings, Actions permissions, webhooks).
 
 ### Step 2 — Initialize
 
