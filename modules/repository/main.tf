@@ -27,7 +27,6 @@ resource "github_repository" "this" {
   allow_update_branch         = var.allow_update_branch
   delete_branch_on_merge      = var.delete_branch_on_merge
   web_commit_signoff_required = var.web_commit_signoff_required
-  vulnerability_alerts        = var.vulnerability_alerts
 
   topics = var.topics
 
@@ -39,6 +38,12 @@ resource "github_repository" "this" {
     prevent_destroy = false
     ignore_changes  = [auto_init]
   }
+}
+
+# Manage Dependabot vulnerability alerts via the dedicated resource.
+resource "github_repository_vulnerability_alerts" "this" {
+  repository = github_repository.this.name
+  enabled    = var.vulnerability_alerts
 }
 
 # Manage team access to the repository
