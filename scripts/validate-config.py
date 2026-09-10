@@ -23,6 +23,7 @@ RULESET_DIR = CONFIG_DIR / "ruleset"
 TEAM_DIR = CONFIG_DIR / "team"
 MEMBERSHIP_DIR = CONFIG_DIR / "membership"
 WEBHOOK_DIR = CONFIG_DIR / "webhook"
+BRANCH_PROTECTION_DIR = CONFIG_DIR / "branch-protection"
 
 VALID_VISIBILITIES = ["public", "private", "internal"]
 VALID_MEMBERSHIP_ROLES = ["member", "admin"]
@@ -720,9 +721,186 @@ def validate_membership(members: dict) -> list[str]:
     return errors
 
 
+# Boolean fields on branch protection definitions
+_BRANCH_PROTECTION_BOOL_FIELDS = [
+    "enforce_admins",
+    "allows_deletions",
+    "allows_force_pushes",
+    "lock_branch",
+    "require_conversation_resolution",
+    "require_signed_commits",
+    "required_linear_history",
+]
+
+# Boolean fields inside required_pull_request_reviews
+_PR_REVIEW_BOOL_FIELDS = [
+    "dismiss_stale_reviews",
+    "require_code_owner_reviews",
+    "require_last_push_approval",
+    "restrict_dismissals",
+]
+
+
+def validate_branch_protections(branch_protections: dict) -> list[str]:
+    """Validate branch protection definitions from config/branch-protection/.
+
+    Returns a list of error messages.
+    """
+    errors: list[str] = []
+
+    for name, config in branch_protections.items():
+        if not isinstance(config, dict):
+            errors.append(
+                f"branch-protection: '{name}' must be a mapping, "
+                f"got {type(config).__name__}"
+            )
+            continue
+
+        # pattern is the only required field
+        pattern = config.get("pattern")
+        if pattern is None:
+            errors.append(
+                f"branch-protection: '{name}' missing required field 'pattern'"
+            )
+        elif not isinstance(pattern, str):
+            errors.append(
+                f"branch-protection: '{name}' field 'pattern' must be a string, "
+                f"got {type(pattern).__name__}"
+            )
+
+        # Validate boolean fields
+        for field in _BRANCH_PROTECTION_BOOL_FIELDS:
+            value = config.get(field)
+            if value is not None and not isinstance(value, bool):
+                errors.append(
+                    f"branch-protection: '{name}' field '{field}' must be a boolean, "
+                    f"got {type(value).__name__}"
+                )
+
+        # Validate required_pull_request_reviews sub-block
+        pr_reviews = config.get("required_pull_request_reviews")
+        if pr_reviews is not None:
+            if not isinstance(pr_reviews, dict):
+                errors.append(
+                    f"branch-protection: '{name}' field 'required_pull_request_reviews' "
+                    f"must be a mapping, got {type(pr_reviews).__name__}"
+                )
+            else:
+                count = pr_reviews.get("required_approving_review_count")
+                if count is not None:
+                    if not isinstance(count, int) or isinstance(count, bool):
+                        errors.append(
+                            f"branch-protection: '{name}' field "
+                            f"'required_pull_request_reviews.required_approving_review_count' "
+                            f"must be an integer"
+                        )
+                    elif count < 0:
+                        errors.append(
+                            f"branch-protection: '{name}' field "
+                            f"'required_pull_request_reviews.required_approving_review_count' "
+                            f"must be non-negative"
+                        )
+                for field in _PR_REVIEW_BOOL_FIELDS:
+                    value = pr_reviews.get(field)
+                    if value is not None and not isinstance(value, bool):
+                        errors.append(
+                            f"branch-protection: '{name}' field "
+                            f"'required_pull_request_reviews.{field}' must be a boolean, "
+                            f"got {type(value).__name__}"
+                        )
+
+        # Validate required_status_checks sub-block
+        status_checks = config.get("required_status_checks")
+        if status_checks is not None:
+            if not isinstance(status_checks, dict):
+                errors.append(
+                    f"branch-protection: '{name}' field 'required_status_checks' "
+                    f"must be a mapping, got {type(status_checks).__name__}"
+                )
+            else:
+                strict = status_checks.get("strict")
+                if strict is not None and not isinstance(strict, bool):
+                    errors.append(
+                        f"branch-protection: '{name}' field "
+                        f"'required_status_checks.strict' must be a boolean, "
+                        f"got {type(strict).__name__}"
+                    )
+                contexts = status_checks.get("contexts")
+                if contexts is not None and not isinstance(contexts, list):
+                    errors.append(
+                        f"branch-protection: '{name}' field "
+                        f"'required_status_checks.contexts' must be a list, "
+                        f"got {type(contexts).__name__}"
+                    )
+
+        # Validate restrict_pushes sub-block
+        restrict_pushes = config.get("restrict_pushes")
+        if restrict_pushes is not None:
+            if not isinstance(restrict_pushes, dict):
+                errors.append(
+                    f"branch-protection: '{name}' field 'restrict_pushes' "
+                    f"must be a mapping, got {type(restrict_pushes).__name__}"
+                )
+            else:
+                blocks = restrict_pushes.get("blocks_creations")
+                if blocks is not None and not isinstance(blocks, bool):
+                    errors.append(
+                        f"branch-protection: '{name}' field "
+                        f"'restrict_pushes.blocks_creations' must be a boolean, "
+                        f"got {type(blocks).__name__}"
+                    )
+
+    return errors
+
+
+def validate_branch_protection_references(
+    repos: dict, groups: dict, branch_protections: dict
+) -> list[str]:
+    """Validate that branch_protections: references in groups and repos resolve.
+
+    Returns a list of error messages.
+    """
+    errors: list[str] = []
+
+    # Check group references
+    for group_name, group_config in groups.items():
+        if not isinstance(group_config, dict):
+            continue
+        for ref in group_config.get("branch_protections", []):
+            if not isinstance(ref, str):
+                errors.append(
+                    f"groups: Group '{group_name}' has invalid branch_protections entry "
+                    f"'{ref}' (must be a string)"
+                )
+            elif ref not in branch_protections:
+                errors.append(
+                    f"groups: Group '{group_name}' references unknown branch protection "
+                    f"'{ref}' — not defined in config/branch-protection/"
+                )
+
+    # Check repo references
+    for repo_name, repo_config in repos.items():
+        if not isinstance(repo_config, dict):
+            continue
+        for ref in repo_config.get("branch_protections", []):
+            if not isinstance(ref, str):
+                errors.append(
+                    f"repositories: Repository '{repo_name}' has invalid branch_protections "
+                    f"entry '{ref}' (must be a string)"
+                )
+            elif ref not in branch_protections:
+                errors.append(
+                    f"repositories: Repository '{repo_name}' references unknown branch "
+                    f"protection '{ref}' — not defined in config/branch-protection/"
+                )
+
+    return errors
+
+
 def main():
     """Main validation entry point."""
     strict = "--strict" in sys.argv
+
     all_errors = []
     all_warnings: list[str] = []
 
@@ -790,6 +968,12 @@ def main():
             ) from e
         # Load webhook definitions (optional directory)
         webhooks = load_yaml_directory(WEBHOOK_DIR) if WEBHOOK_DIR.exists() else {}
+        # Load branch protection definitions (optional directory)
+        branch_protections = (
+            load_yaml_directory(BRANCH_PROTECTION_DIR)
+            if BRANCH_PROTECTION_DIR.exists()
+            else {}
+        )
     except ValueError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
@@ -808,6 +992,10 @@ def main():
     all_errors.extend(validate_groups(groups, org_ruleset_names))
     all_errors.extend(validate_rulesets(rulesets))
     all_errors.extend(validate_membership(members))
+    all_errors.extend(validate_branch_protections(branch_protections))
+    all_errors.extend(
+        validate_branch_protection_references(repos, groups, branch_protections)
+    )
 
     # Print SCIM/SSO reminder when membership config is present
     if members:
@@ -880,6 +1068,7 @@ def main():
         print(f"  - Groups: {len(groups)}")
         print(f"  - Repositories: {len(repos)}")
         print(f"  - Rulesets: {len(rulesets)}")
+        print(f"  - Branch protections: {len(branch_protections)}")
         print(f"  - Teams: {len(flat_teams)}")
         org_webhooks = config.get("org_webhooks", [])
         if org_webhooks:
