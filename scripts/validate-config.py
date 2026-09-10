@@ -897,9 +897,60 @@ def validate_branch_protection_references(
     return errors
 
 
+def validate_partitions(
+    repository_dir: Path, requested_partitions: list[str]
+) -> tuple[list[str], list[str]]:
+    """Validate that requested partition names correspond to existing subdirectories.
+
+    Returns (errors, warnings).
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    if not requested_partitions:
+        return errors, warnings
+
+    # Discover available partition directories
+    available = (
+        sorted(d.name for d in repository_dir.iterdir() if d.is_dir())
+        if repository_dir.exists()
+        else []
+    )
+
+    invalid = [p for p in requested_partitions if p not in available]
+    if invalid:
+        available_str = ", ".join(available) if available else "(none)"
+        errors.append(
+            f"partitions: Invalid partition name(s): {', '.join(invalid)}. "
+            f"Available partitions: {available_str}. "
+            f"Check config/repository/ for valid subdirectory names."
+        )
+
+    # Warn about empty partition directories (valid but useless)
+    for partition in requested_partitions:
+        partition_path = repository_dir / partition
+        if partition_path.is_dir():
+            yml_files = list(partition_path.glob("*.yml"))
+            if not yml_files:
+                warnings.append(
+                    f"partitions: Partition '{partition}' directory exists but contains "
+                    f"no YAML files — it will contribute zero repositories"
+                )
+
+    return errors, warnings
+
+
 def main():
     """Main validation entry point."""
     strict = "--strict" in sys.argv
+
+    # Parse --partitions=name1,name2 argument (optional)
+    requested_partitions: list[str] = []
+    for arg in sys.argv[1:]:
+        if arg.startswith("--partitions="):
+            requested_partitions = [
+                p.strip() for p in arg.split("=", 1)[1].split(",") if p.strip()
+            ]
 
     all_errors = []
     all_warnings: list[str] = []
@@ -1021,6 +1072,14 @@ def main():
     all_errors.extend(
         validate_repositories(repos, groups, repo_rulesets, org_ruleset_names)
     )
+
+    # Validate partition names when --partitions is provided
+    if requested_partitions:
+        partition_errors, partition_warnings = validate_partitions(
+            REPOSITORY_DIR, requested_partitions
+        )
+        all_errors.extend(partition_errors)
+        all_warnings.extend(partition_warnings)
 
     # Warn about subscription tier and org rulesets
     subscription = config.get("subscription", "free")
