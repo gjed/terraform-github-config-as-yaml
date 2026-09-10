@@ -228,6 +228,20 @@ corresponding validation for tag-specific rules.
 1. Once approved, a maintainer will merge the PR
 1. Your contribution will be included in the next release
 
+### Releasing
+
+Releases are fully automated via [semantic-release](https://semantic-release.gitbook.io/) and
+require no manual tagging. On every merge to `main`, the release workflow inspects commit
+messages since the last release and, if warranted, publishes a new version:
+
+- `fix:` / `perf:` → patch release
+- `feat:` → minor release
+- `feat!:`, `fix!:`, or a `BREAKING CHANGE:` footer → major release
+- `docs:`, `style:`, `refactor:`, `test:`, `ci:`, `build:`, `chore:` → no release
+
+This is why commit message accuracy matters: **the type you choose determines the version
+number**, not just the changelog wording. Release tags are `v`-prefixed (`v1.2.3`).
+
 ## Project Structure
 
 ```text
