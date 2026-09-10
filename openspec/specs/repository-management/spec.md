@@ -337,6 +337,15 @@ based on repository name patterns, using `github_organization_ruleset`.
 
 See the `org-ruleset-management` spec for full scenarios.
 
+#### Scenario: Organization-scoped rulesets are separated from repository rulesets
+
+- **GIVEN** `<config_path>/ruleset/` contains definitions both with and without `scope: organization`
+- **WHEN** Terraform parses the configuration
+- **THEN** definitions carrying `scope: organization` are applied as `github_organization_ruleset`
+  resources filtered by their own `repository_name` conditions
+- **AND** those definitions are excluded from the repository-scoped rulesets map, so they cannot be
+  assigned by name via `rulesets:` in a group or repository
+
 ______________________________________________________________________
 
 ### Requirement: Organization Configuration
