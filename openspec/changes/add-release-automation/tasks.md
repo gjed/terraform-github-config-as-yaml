@@ -41,9 +41,10 @@
 
 ## 6. First release
 
-- [ ] 6.1 Merge this change to `main` (this merge itself, being `chore(spec)`, will not trigger a
-      release — the first release fires on the next `feat`/`fix`/`perf`/breaking commit after
-      merge, or immediately if this PR is merged squashed with a `feat`/`fix` type)
+- [ ] 6.1 Merge this change to `main`. **This merge publishes `v1.1.0` immediately.** The workflow
+      analyzes every commit since the last release (`v1.0.1`), and those 74 commits already
+      include `feat:` entries — so a release fires on the first run regardless of this PR's own
+      commit type. It is not deferred to some later `feat`/`fix` merge.
 - [ ] 6.2 Confirm the resulting `v1.1.0` tag appears on `origin`
 - [ ] 6.3 Confirm the Terraform Registry lists the new version at
       `registry.terraform.io/modules/gjed/config-as-yaml/github`
