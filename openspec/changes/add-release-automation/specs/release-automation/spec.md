@@ -17,28 +17,34 @@ This repository's `CONTRIBUTING.md` documents `!` as a valid breaking-change mar
 `release-notes-generator` SHALL be explicitly configured with `preset: "conventionalcommits"`
 rather than left on their `angular` default.
 
+Throughout these scenarios, a *version* is unprefixed (`1.1.0`) and the *tag* carrying it is
+prefixed (`v1.1.0`). semantic-release reports the computed version without the prefix and applies
+`tagFormat` only when creating the ref.
+
 #### Scenario: Feature merge produces a minor release
 
-- **GIVEN** the last release is `1.0.1`
+- **GIVEN** the last release tag is `v1.0.1`
 - **AND** a commit `feat(webhooks): add organization webhook support` is merged to `main`
 - **WHEN** the release workflow runs
 - **THEN** version `1.1.0` is computed
-- **AND** the tag `1.1.0` is created
+- **AND** the tag `v1.1.0` is created
 - **AND** a GitHub Release is published with generated notes
 
 #### Scenario: Fix merge produces a patch release
 
-- **GIVEN** the last release is `1.1.0`
+- **GIVEN** the last release tag is `v1.1.0`
 - **AND** a commit `fix(config): correct visibility handling` is merged to `main`
 - **WHEN** the release workflow runs
 - **THEN** version `1.1.1` is computed
+- **AND** the tag `v1.1.1` is created
 
 #### Scenario: Breaking change produces a major release
 
-- **GIVEN** the last release is `1.1.1`
+- **GIVEN** the last release tag is `v1.1.1`
 - **AND** a commit is merged whose type carries `!` or whose body contains a `BREAKING CHANGE:` footer
 - **WHEN** the release workflow runs
 - **THEN** version `2.0.0` is computed
+- **AND** the tag `v2.0.0` is created
 
 #### Scenario: `!` marker is honored despite not being the plugin's built-in default
 
@@ -94,6 +100,32 @@ destructive to consumers pinning it.
 - **THEN** no prior release is found
 - **AND** an initial `v1.0.0` would be published instead of `v1.1.0`
 
+### Requirement: Conventional Commits Preset Dependency
+
+The `conventionalcommits` preset SHALL be installed as an explicit runtime dependency of the
+release job. Neither `@semantic-release/commit-analyzer` nor `@semantic-release/release-notes-generator`
+bundles it — both depend only on `conventional-changelog-angular`. Configuring the preset without
+installing it aborts the run with `MODULE_NOT_FOUND` before any tag is created.
+
+The preset SHALL be pinned to the major version compatible with the `conventional-changelog-writer`
+that semantic-release resolves. semantic-release 25 resolves writer `^8`; preset `10.x` requires
+writer `>= 9` and fails during note generation with a `Missing helper` error. Preset `9.x` is
+therefore required.
+
+#### Scenario: Preset is installed alongside the action
+
+- **GIVEN** both analyzer plugins are configured with `preset: "conventionalcommits"`
+- **WHEN** the release job runs
+- **THEN** `conventional-changelog-conventionalcommits` is installed via the action's `extra_plugins`
+- **AND** the plugins load without `MODULE_NOT_FOUND`
+
+#### Scenario: Incompatible preset major is rejected
+
+- **GIVEN** semantic-release resolves `conventional-changelog-writer` at major 8
+- **WHEN** the preset is installed at major 10
+- **THEN** note generation fails with a `Missing helper` error
+- **AND** the pinned major 9 is required instead
+
 ### Requirement: No Commits to the Default Branch
 
 The release process SHALL NOT push commits to the default branch.
@@ -142,6 +174,30 @@ last release from a shallow clone.
 - **WHEN** the release workflow checks out the repository
 - **THEN** the full commit history and all tags are fetched
 - **AND** the last release can be determined
+
+### Requirement: Serialized Release Runs
+
+Release runs SHALL NOT execute concurrently. Two runs triggered by closely spaced pushes would
+each resolve the same prior tag, compute the same next version, and race to publish it — one run
+then fails outright or publishes against an unintended commit boundary.
+
+The workflow SHALL declare a concurrency group without cancellation, so a queued run observes the
+tag created by its predecessor. Cancellation SHALL NOT be used: a cancelled run would silently
+skip releasing the commits it was triggered for.
+
+#### Scenario: Second push queues behind the first
+
+- **GIVEN** a release run is in progress
+- **WHEN** another push to `main` triggers the workflow
+- **THEN** the second run waits for the first to complete
+- **AND** it resolves the last release from the tag the first run created
+
+#### Scenario: Queued run is not cancelled
+
+- **GIVEN** a release run is queued behind an in-progress run
+- **WHEN** the in-progress run completes
+- **THEN** the queued run executes rather than being cancelled
+- **AND** the commits that triggered it are still released
 
 ### Requirement: Terraform Registry Publication
 
