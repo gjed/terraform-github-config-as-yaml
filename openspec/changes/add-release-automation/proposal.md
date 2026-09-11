@@ -67,9 +67,10 @@ Two properties of this repository dictate the design and are not negotiable:
 
 ## First-Run Consideration
 
-The first automated run will evaluate all 74 commits since `1.0.1`. Those include `feat:` commits
-but no commit marked `!` or carrying a `BREAKING CHANGE:` footer, so semantic-release will compute
-**`1.1.0`**.
+The first automated run evaluates every commit since `v1.0.1`. Verified by dry-run against the
+real remote: **77 commits analyzed, minor release, next version `1.1.0`** (tag `v1.1.0`). That
+count is the 74 commits already on `main` plus this change's own three. No commit carries `!` or a
+`BREAKING CHANGE:` footer.
 
 That deserves an explicit decision before the first run. Commit `9aec9a4` migrated
 `vulnerability_alerts` from a `github_repository` argument to a standalone
@@ -77,5 +78,16 @@ That deserves an explicit decision before the first run. Commit `9aec9a4` migrat
 change on next apply, not a no-op — arguably a major bump. It was committed as `fix:`, so
 automation will not treat it as breaking.
 
-**Decision: accept `v1.1.0`.** The state change is called out in the release notes rather than
-escalated to a major bump.
+**Decision: accept `v1.1.0`.**
+
+The state-change warning is **not** something this automation can produce. Release notes are
+generated from commit text, and `9aec9a4`'s subject only says it migrates a deprecated argument —
+it never states the consumer-visible impact. The dry-run confirms it renders as a plain
+`fix(repository):` bullet under "Bug Fixes" with no warning.
+
+Adding a one-time note mechanism to the workflow would mean carrying permanent machinery for a
+single historical commit. Instead this is recorded as an explicit **manual post-release step**
+(tasks.md 6.3): after `v1.1.0` publishes, edit the GitHub Release body to prepend an upgrade note
+covering the `vulnerability_alerts` state change. Subsequent releases need no such step — commits
+authored from here on state their own impact, and a genuinely breaking change gets `!` and a major
+bump.

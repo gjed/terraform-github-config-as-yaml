@@ -58,6 +58,23 @@ a valid marker. Left on defaults, a commit written exactly as the repo's own doc
 silently release as a minor bump instead of major. Both plugins are configured with
 `preset: "conventionalcommits"` to close that gap.
 
+### Decision 3b: the preset must be installed, and pinned to 9.x
+
+Configuring `preset: "conventionalcommits"` is not sufficient — it must also be installed.
+Verified by running semantic-release directly: neither `@semantic-release/commit-analyzer` nor
+`@semantic-release/release-notes-generator` depends on
+`conventional-changelog-conventionalcommits`. Both declare only `conventional-changelog-angular`.
+With the preset configured but absent, the run aborts at `analyzeCommits` with
+`MODULE_NOT_FOUND` — before any tag is created. It is installed through the action's
+`extra_plugins` input.
+
+The major version is not free choice. Preset `10.x` requires
+`conventional-changelog-writer >= 9`, but semantic-release 25's plugins resolve writer `^8`;
+with `10.x` the run gets past commit analysis and then dies in note generation with
+`Missing helper: "conventional-changelog-conventionalcommits requires
+conventional-changelog-writer@9 or newer"`. Preset `9.x` resolves to 9.3.1 against writer 8.4.0
+and works end to end. Both failure modes were reproduced locally, not inferred from docs.
+
 ### Decision 4: trigger on `push: branches: [main]`, not `on: release` or tag push
 
 The tag is an output of the release, not a trigger for it — there is no prior tag to react to
@@ -85,6 +102,16 @@ proposal existed and won't be reclassified retroactively.
 This is a human call, made once, outside the scope of automation: accept `1.1.0` with the state
 change called out in release notes, or hand-tag `2.0.0` before turning the workflow on. Recorded
 in tasks.md as an explicit step rather than decided here.
+
+### Decision 6: serialize release runs, queue rather than cancel
+
+Two pushes landing close together would each start a release run, resolve the same prior tag,
+compute the same next version, and race to publish it. A `concurrency` group prevents the overlap.
+
+`cancel-in-progress` is deliberately `false`. The usual CI default — cancel the older run — is
+wrong here: a release run is not redundant work that a newer run supersedes. Cancelling it would
+drop the commits it was triggered for from any release. Queuing means the second run starts after
+the first has tagged, so it sees the new tag and computes from the correct baseline.
 
 ## Risks
 
