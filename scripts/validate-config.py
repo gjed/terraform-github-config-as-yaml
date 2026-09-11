@@ -897,6 +897,62 @@ def validate_branch_protection_references(
     return errors
 
 
+def resolve_effective_visibility(repo_config: dict, groups: dict) -> str:
+    """Resolve a repository's effective visibility after group inheritance.
+
+    Mirrors the Terraform merge order in local.merged_configs: groups are applied in
+    order with later groups overriding earlier ones, then the repo-level key wins.
+    Defaults to 'private', matching local.repo_visibility.
+    """
+    visibility = "private"
+
+    for group_name in repo_config.get("groups", []) or []:
+        group_config = groups.get(group_name)
+        if isinstance(group_config, dict) and group_config.get("visibility"):
+            visibility = group_config["visibility"]
+
+    if repo_config.get("visibility"):
+        visibility = repo_config["visibility"]
+
+    return visibility
+
+
+def validate_branch_protection_tier(
+    repos: dict, groups: dict, subscription: str
+) -> list[str]:
+    """Warn when branch protections are configured for private repos on the free tier.
+
+    GitHub offers protected branches on private repositories only for paid plans, so
+    Terraform skips them on free. Surfacing this before plan avoids a silent no-op.
+
+    Returns a list of warning messages.
+    """
+    if subscription != "free":
+        return []
+
+    warnings: list[str] = []
+
+    for repo_name, repo_config in repos.items():
+        if not isinstance(repo_config, dict):
+            continue
+
+        has_protections = bool(repo_config.get("branch_protections")) or any(
+            isinstance(groups.get(g), dict) and groups[g].get("branch_protections")
+            for g in repo_config.get("groups", []) or []
+        )
+        if not has_protections:
+            continue
+
+        if resolve_effective_visibility(repo_config, groups) != "public":
+            warnings.append(
+                f"repositories: Repository '{repo_name}' is private and has branch "
+                f"protections, but protected branches require a paid GitHub plan on "
+                f"private repositories — they will be skipped by Terraform"
+            )
+
+    return warnings
+
+
 def validate_partitions(
     repository_dir: Path, requested_partitions: list[str]
 ) -> tuple[list[str], list[str]]:
@@ -1046,6 +1102,11 @@ def main():
     all_errors.extend(validate_branch_protections(branch_protections))
     all_errors.extend(
         validate_branch_protection_references(repos, groups, branch_protections)
+    )
+    all_warnings.extend(
+        validate_branch_protection_tier(
+            repos, groups, config.get("subscription", "free")
+        )
     )
 
     # Print SCIM/SSO reminder when membership config is present

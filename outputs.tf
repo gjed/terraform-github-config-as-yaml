@@ -53,6 +53,16 @@ output "managed_member_count" {
   value       = length(github_membership.this)
 }
 
+# Output warning when branch protections are skipped due to subscription tier
+output "skipped_branch_protections" {
+  description = "Repositories whose branch protections were skipped because protected branches are unavailable on private repos at the current subscription tier"
+  value = length(local.repos_with_skipped_branch_protections) > 0 ? {
+    message = "Branch protections skipped for ${length(local.repos_with_skipped_branch_protections)} private repo(s) - protected branches require a paid GitHub plan on private repositories"
+    repos   = local.repos_with_skipped_branch_protections
+    tier    = local.subscription
+  } : null
+}
+
 # Output warning when org rulesets are skipped due to subscription tier
 output "skipped_org_rulesets" {
   description = "Org rulesets skipped because the subscription tier (free/pro) does not support them"

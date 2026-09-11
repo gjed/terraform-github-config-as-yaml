@@ -276,3 +276,177 @@ class TestBranchProtectionReferences:
         )
         assert len(errors) == 1
         assert "must be a string" in errors[0]
+
+
+class TestResolveEffectiveVisibility:
+    """Test resolve_effective_visibility()."""
+
+    def test_defaults_to_private(self):
+        resolve = validate_config.resolve_effective_visibility
+        assert resolve({"groups": []}, {}) == "private"
+
+    def test_inherits_from_group(self):
+        resolve = validate_config.resolve_effective_visibility
+        assert resolve({"groups": ["oss"]}, {"oss": {"visibility": "public"}}) == "public"
+
+    def test_later_group_overrides_earlier(self):
+        """Mirrors Terraform merge order: groups applied in order, later wins."""
+        resolve = validate_config.resolve_effective_visibility
+        groups = {
+            "oss": {"visibility": "public"},
+            "internal": {"visibility": "private"},
+        }
+        assert resolve({"groups": ["oss", "internal"]}, groups) == "private"
+
+    def test_repo_level_overrides_group(self):
+        resolve = validate_config.resolve_effective_visibility
+        repo = {"groups": ["oss"], "visibility": "private"}
+        assert resolve(repo, {"oss": {"visibility": "public"}}) == "private"
+
+    def test_unknown_group_is_ignored(self):
+        resolve = validate_config.resolve_effective_visibility
+        assert resolve({"groups": ["missing"]}, {}) == "private"
+
+    def test_missing_groups_key(self):
+        resolve = validate_config.resolve_effective_visibility
+        assert resolve({}, {}) == "private"
+
+
+class TestValidateBranchProtectionTier:
+    """Test validate_branch_protection_tier()."""
+
+    def test_free_tier_private_repo_warns(self):
+        validate_tier = validate_config.validate_branch_protection_tier
+        warnings = validate_tier(
+            repos={
+                "my-repo": {
+                    "description": "test",
+                    "groups": ["internal"],
+                    "branch_protections": ["main-protection"],
+                },
+            },
+            groups={"internal": {"visibility": "private"}},
+            subscription="free",
+        )
+        assert len(warnings) == 1
+        assert "my-repo" in warnings[0]
+
+    def test_free_tier_public_repo_no_warning(self):
+        validate_tier = validate_config.validate_branch_protection_tier
+        warnings = validate_tier(
+            repos={
+                "my-repo": {
+                    "description": "test",
+                    "groups": ["oss"],
+                    "branch_protections": ["main-protection"],
+                },
+            },
+            groups={"oss": {"visibility": "public"}},
+            subscription="free",
+        )
+        assert warnings == []
+
+    def test_paid_tier_private_repo_no_warning(self):
+        validate_tier = validate_config.validate_branch_protection_tier
+        for tier in ("pro", "team", "enterprise"):
+            warnings = validate_tier(
+                repos={
+                    "my-repo": {
+                        "description": "test",
+                        "groups": ["internal"],
+                        "branch_protections": ["main-protection"],
+                    },
+                },
+                groups={"internal": {"visibility": "private"}},
+                subscription=tier,
+            )
+            assert warnings == [], f"tier {tier} should not warn"
+
+    def test_protections_inherited_from_group_are_detected(self):
+        """Repo has no branch_protections of its own; the group supplies them."""
+        validate_tier = validate_config.validate_branch_protection_tier
+        warnings = validate_tier(
+            repos={
+                "my-repo": {"description": "test", "groups": ["internal"]},
+            },
+            groups={
+                "internal": {
+                    "visibility": "private",
+                    "branch_protections": ["main-protection"],
+                }
+            },
+            subscription="free",
+        )
+        assert len(warnings) == 1
+        assert "my-repo" in warnings[0]
+
+    def test_private_repo_without_protections_no_warning(self):
+        validate_tier = validate_config.validate_branch_protection_tier
+        warnings = validate_tier(
+            repos={"my-repo": {"description": "test", "groups": ["internal"]}},
+            groups={"internal": {"visibility": "private"}},
+            subscription="free",
+        )
+        assert warnings == []
+
+    def test_visibility_defaults_to_private_when_unset(self):
+        """No visibility anywhere means private, which warns on free."""
+        validate_tier = validate_config.validate_branch_protection_tier
+        warnings = validate_tier(
+            repos={
+                "my-repo": {
+                    "description": "test",
+                    "groups": ["base"],
+                    "branch_protections": ["main-protection"],
+                },
+            },
+            groups={"base": {}},
+            subscription="free",
+        )
+        assert len(warnings) == 1
+
+    def test_repo_override_to_public_suppresses_warning(self):
+        """Group says private, repo overrides to public — no warning."""
+        validate_tier = validate_config.validate_branch_protection_tier
+        warnings = validate_tier(
+            repos={
+                "my-repo": {
+                    "description": "test",
+                    "groups": ["internal"],
+                    "visibility": "public",
+                    "branch_protections": ["main-protection"],
+                },
+            },
+            groups={"internal": {"visibility": "private"}},
+            subscription="free",
+        )
+        assert warnings == []
+
+    def test_non_dict_repo_config_is_skipped(self):
+        validate_tier = validate_config.validate_branch_protection_tier
+        warnings = validate_tier(
+            repos={"my-repo": "not-a-dict"},
+            groups={},
+            subscription="free",
+        )
+        assert warnings == []
+
+    def test_multiple_private_repos_each_warn(self):
+        validate_tier = validate_config.validate_branch_protection_tier
+        warnings = validate_tier(
+            repos={
+                "repo-a": {
+                    "description": "a",
+                    "groups": ["internal"],
+                    "branch_protections": ["bp"],
+                },
+                "repo-b": {
+                    "description": "b",
+                    "groups": ["internal"],
+                    "branch_protections": ["bp"],
+                },
+            },
+            groups={"internal": {"visibility": "private"}},
+            subscription="free",
+        )
+        assert len(warnings) == 2
