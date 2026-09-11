@@ -471,6 +471,12 @@ locals {
   # - team/enterprise: Full ruleset support including push rulesets
   rulesets_require_paid_for_private = contains(["free"], local.subscription)
 
+  # Branch protections (protected branches) are only available on private repositories for paid
+  # plans. On free, GitHub offers them on public repositories only, so applying them to a private
+  # repo fails at the API rather than being silently ignored.
+  # https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches
+  branch_protections_require_paid_for_private = contains(["free"], local.subscription)
+
   # Organization rulesets require organization mode and team/enterprise subscription
   # On free or pro plans, or when not in organization mode, all org rulesets are skipped
   org_rulesets_require_paid = local.is_organization && contains(["free", "pro"], local.subscription)
@@ -796,7 +802,7 @@ locals {
   }
   # Merge branch protections from all groups for each repository
   # Collected from groups in order, repo-specific appended, deduplicated by name (last wins)
-  # No subscription tier filtering - branch protection works on all tiers including free-tier private repos
+  # Subscription tier filtering is applied later in effective_branch_protections
   merged_branch_protections = {
     for repo_name, repo_config in local.repos_yaml : repo_name => merge({}, [
       for entry in flatten(concat(
@@ -868,6 +874,19 @@ locals {
   repos_with_skipped_rulesets = [
     for repo_name, rulesets in local.merged_rulesets : repo_name
     if length(rulesets) > 0 && length(local.effective_rulesets[repo_name]) == 0
+  ]
+
+  # Filter branch protections based on subscription tier and repository visibility
+  # On free tier, protected branches are not available for private repositories
+  effective_branch_protections = {
+    for repo_name, protections in local.merged_branch_protections : repo_name =>
+    (local.branch_protections_require_paid_for_private && local.repo_visibility[repo_name] != "public") ? tomap({}) : protections
+  }
+
+  # Track which repos have branch protections skipped due to subscription limitations
+  repos_with_skipped_branch_protections = [
+    for repo_name, protections in local.merged_branch_protections : repo_name
+    if length(protections) > 0 && length(local.effective_branch_protections[repo_name]) == 0
   ]
 
   # Merge webhooks from groups and repo for each repository
@@ -1015,7 +1034,8 @@ locals {
       webhooks = local.merged_webhooks[repo_name]
 
       # Branch protections: merge from all groups + repo-specific (repo overrides group by name)
-      branch_protections = local.merged_branch_protections[repo_name]
+      # Note: effective_branch_protections filters based on subscription tier
+      branch_protections = local.effective_branch_protections[repo_name]
 
     }
   }
