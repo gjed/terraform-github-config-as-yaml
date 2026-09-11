@@ -9,6 +9,13 @@ permissions:
   issues: write
   pull-requests: write
 
+# Releases must not overlap. Two runs from closely spaced pushes would resolve
+# the same prior tag and race to publish the same version. Queue instead of
+# cancelling: a cancelled run would skip releasing its commits entirely.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -20,5 +27,17 @@ jobs:
 
       - name: Release
         uses: cycjimmy/semantic-release-action@v6
+        with:
+          # Neither commit-analyzer nor release-notes-generator bundles the
+          # conventionalcommits preset - both depend only on
+          # conventional-changelog-angular. Without this the run aborts with
+          # MODULE_NOT_FOUND before creating a tag.
+          #
+          # Pinned to 9.x deliberately. Preset 10.x requires
+          # conventional-changelog-writer >= 9, but semantic-release 25 resolves
+          # writer ^8, so 10.x fails at note generation with
+          # 'Missing helper'. Verified by dry-run: 9.3.1 + writer 8.4.0 works.
+          extra_plugins: |
+            conventional-changelog-conventionalcommits@9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
