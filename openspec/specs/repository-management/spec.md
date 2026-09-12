@@ -275,7 +275,8 @@ ______________________________________________________________________
 
 ### Requirement: Subscription Tier Awareness
 
-The system SHALL respect GitHub subscription tier limitations when applying rulesets.
+The system SHALL respect GitHub subscription tier limitations when applying rulesets and branch
+protections.
 
 The system SHALL skip organization-level rulesets (`scope: organization`) on `free` and `pro`
 plans, and SHALL emit a `skipped_org_rulesets` output listing the names of skipped org rulesets.
@@ -283,6 +284,20 @@ Organization rulesets require a `team` or `enterprise` subscription.
 
 The existing behaviour for repository-level rulesets on private repos is unchanged: on `free`
 plans, rulesets are skipped for private repos and listed in `subscription_warnings`.
+
+The system SHALL skip branch protections for private repositories on the `free` plan, because
+GitHub does not offer protected branches on private repositories at that tier. Skipped
+repositories SHALL be listed in a `skipped_branch_protections` output. Branch protections on
+public repositories are unaffected at every tier, and branch protections on private repositories
+are applied normally on `pro`, `team`, and `enterprise`.
+
+Effective visibility for this decision SHALL be resolved after group inheritance, so a repository
+that inherits `visibility: private` from a group is treated the same as one that declares it
+directly.
+
+`subscription_warnings` SHALL retain its existing ruleset-only meaning and shape. Branch
+protection skips are reported through the separate `skipped_branch_protections` output so that
+consumers reading `subscription_warnings` are not broken.
 
 #### Scenario: Free tier private repository
 
@@ -327,6 +342,48 @@ plans, rulesets are skipped for private repos and listed in `subscription_warnin
 - **GIVEN** `subscription: enterprise` is configured
 - **WHEN** `terraform apply` is executed
 - **THEN** all org rulesets are created without restriction
+
+#### Scenario: Free tier — branch protections skipped on private repository
+
+- **GIVEN** `subscription: free` is configured
+- **AND** a private repository has `branch_protections` defined
+- **WHEN** `terraform plan` is executed
+- **THEN** no `github_branch_protection` resources are planned for that repository
+- **AND** the `skipped_branch_protections` output lists the repository
+
+#### Scenario: Free tier — branch protections applied on public repository
+
+- **GIVEN** `subscription: free` is configured
+- **AND** a public repository has `branch_protections` defined
+- **WHEN** `terraform plan` is executed
+- **THEN** the branch protections are planned normally
+- **AND** the repository is absent from `skipped_branch_protections`
+
+#### Scenario: Paid tier — branch protections applied on private repository
+
+- **GIVEN** `subscription: pro` is configured
+- **AND** a private repository has `branch_protections` defined
+- **WHEN** `terraform plan` is executed
+- **THEN** the branch protections are planned normally
+- **AND** the `skipped_branch_protections` output is null
+
+#### Scenario: Free tier — visibility inherited from group
+
+- **GIVEN** `subscription: free` is configured
+- **AND** a group sets `visibility: private`
+- **AND** a repository belongs to that group without declaring its own visibility
+- **AND** the repository has `branch_protections` defined
+- **WHEN** `terraform plan` is executed
+- **THEN** the branch protections are skipped for that repository
+- **AND** the repository is listed in `skipped_branch_protections`
+
+#### Scenario: Validation warns before plan
+
+- **GIVEN** `subscription: free` is configured
+- **AND** a private repository has `branch_protections` defined
+- **WHEN** `scripts/validate-config.py` is run
+- **THEN** a warning reports that branch protections will be skipped for that repository
+- **AND** the warning names the repository
 
 ______________________________________________________________________
 
@@ -1279,3 +1336,59 @@ configurations, and resolved templates are merged into the same ruleset map as d
 - **WHEN** a repository or group references it by bare name in `rulesets:`
 - **THEN** the reference does not resolve to a repository ruleset
 - **AND** the organization ruleset is applied only through its own `repository_name` conditions
+
+______________________________________________________________________
+
+### Requirement: Comment-Only Configuration Files
+
+The system SHALL treat a YAML configuration file that contains only comments and/or blank lines
+as contributing no configuration, rather than failing to parse.
+
+This applies to every split configuration directory: `<config_path>/repository/`,
+`<config_path>/group/`, `<config_path>/ruleset/`, `<config_path>/membership/`, and
+`<config_path>/branch-protection/`.
+
+`<config_path>/config.yml` is exempt. It is required and must define `organization`, so an empty
+document there is a configuration error regardless.
+
+Detection SHALL strip whole-line comments and blank lines only. A `#` appearing inside a quoted
+value SHALL NOT be treated as a comment, and such a file SHALL be decoded normally.
+
+A file that contains any YAML content SHALL still be passed to `yamldecode()`, so malformed YAML
+continues to fail at plan time with its original parse error. The system SHALL NOT suppress
+parse errors by wrapping the decode in `try()`.
+
+#### Scenario: Comment-only file in a configuration directory
+
+- **GIVEN** `<config_path>/membership/` contains a file consisting only of comment lines
+- **WHEN** Terraform is initialized and planned
+- **THEN** the plan succeeds
+- **AND** the file contributes no entries to the merged membership configuration
+
+#### Scenario: Empty file in a configuration directory
+
+- **GIVEN** `<config_path>/repository/` contains a zero-byte `.yml` file
+- **WHEN** Terraform is initialized and planned
+- **THEN** the plan succeeds
+- **AND** the file contributes no entries to the merged repository configuration
+
+#### Scenario: Comment-only file alongside real configuration
+
+- **GIVEN** `<config_path>/repository/` contains `a-real.yml` defining `real-repo`
+- **AND** the same directory contains `z-commented.yml` consisting only of comments
+- **WHEN** Terraform is initialized and planned
+- **THEN** the merged repository configuration contains exactly `real-repo`
+
+#### Scenario: Malformed YAML still fails
+
+- **GIVEN** a configuration file contains syntactically invalid YAML
+- **WHEN** Terraform is initialized and planned
+- **THEN** the plan fails with the underlying `yamldecode` parse error
+- **AND** the error names the file and the line at which parsing failed
+
+#### Scenario: Hash inside a quoted value is not a comment
+
+- **GIVEN** a repository configuration contains `description: "value # not a comment"`
+- **WHEN** Terraform is initialized and planned
+- **THEN** the file is decoded normally
+- **AND** the description retains the literal text `value # not a comment`
