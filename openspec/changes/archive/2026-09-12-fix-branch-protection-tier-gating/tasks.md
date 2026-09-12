@@ -42,9 +42,11 @@ Confirmed against the real e2e fixture (`tests/e2e/config`, `subscription: free`
 
 ## 7. Follow-up (out of scope, filed separately)
 
-- [ ] 7.1 `yamldecode` fails on comment-only YAML files with "missing start of document".
+- [x] 7.1 `yamldecode` fails on comment-only YAML files with "missing start of document".
       Affects `config/membership/example-members.yml` (the module's own shipped template) and
       `tests/e2e/config/membership/test-members.yml`. `local.membership_config` at
       `yaml-config.tf:300` explicitly expects null for comment-only files, but `yamldecode`
       errors before the null check is reached, so `terraform plan` aborts. Pre-existing on
       `origin/main`; blocks the e2e fixture independently of branch protection gating.
+      Resolved separately by change `fix-yamldecode-comment-only-yaml` (PR #60, released
+      in v1.3.0).
