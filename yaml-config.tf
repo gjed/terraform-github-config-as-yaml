@@ -7,7 +7,18 @@ locals {
   ruleset_config_path    = "${local.config_base_path}/ruleset"
   membership_config_path = "${local.config_base_path}/membership"
 
+  # A YAML file holding only comments and/or blank lines has no document to parse.
+  # yamldecode() rejects those with "missing start of document" instead of returning null,
+  # which aborts the plan on files users are expected to leave commented out (the shipped
+  # config/membership/ template is exactly this). Content is therefore checked before
+  # decoding. Genuinely invalid YAML still reaches yamldecode() and fails loudly.
+  # The pattern strips whole-line comments and blank lines only, so a '#' inside a quoted
+  # value is left intact and the file is still decoded.
+  yaml_blank_pattern = "/(?m)^[ \t]*(#.*)?$/"
+
   # Read common config (single file - not splittable)
+  # Not guarded for comment-only content: config.yml is required and must define at least
+  # `organization`, so an empty document is a configuration error either way.
   common_config = yamldecode(file("${local.config_base_path}/config.yml"))
 
   # Discover partition subdirectories under config/repository/
@@ -40,22 +51,42 @@ locals {
     toset([])
   )
 
-  # Load individual YAML files (for duplicate detection)
-  repository_configs_by_file = {
+  # Raw file contents, read once per file and reused for both decoding and the
+  # comment-only check below.
+  repository_files_raw = {
     for f in sort(tolist(local.repository_files)) :
-    f => yamldecode(file("${local.repository_config_path}/${f}"))
+    f => file("${local.repository_config_path}/${f}")
+  }
+  group_files_raw = {
+    for f in sort(tolist(local.group_files)) :
+    f => file("${local.group_config_path}/${f}")
+  }
+  ruleset_files_raw = {
+    for f in sort(tolist(local.ruleset_files)) :
+    f => file("${local.ruleset_config_path}/${f}")
+  }
+  membership_files_raw = {
+    for f in sort(tolist(local.membership_files)) :
+    f => file("${local.membership_config_path}/${f}")
+  }
+
+  # Load individual YAML files (for duplicate detection)
+  # Comment-only and empty files decode to null; downstream consumers already guard on null.
+  repository_configs_by_file = {
+    for f, raw in local.repository_files_raw :
+    f => trimspace(replace(raw, local.yaml_blank_pattern, "")) == "" ? null : yamldecode(raw)
   }
   group_configs_by_file = {
-    for f in sort(tolist(local.group_files)) :
-    f => yamldecode(file("${local.group_config_path}/${f}"))
+    for f, raw in local.group_files_raw :
+    f => trimspace(replace(raw, local.yaml_blank_pattern, "")) == "" ? null : yamldecode(raw)
   }
   ruleset_configs_by_file = {
-    for f in sort(tolist(local.ruleset_files)) :
-    f => yamldecode(file("${local.ruleset_config_path}/${f}"))
+    for f, raw in local.ruleset_files_raw :
+    f => trimspace(replace(raw, local.yaml_blank_pattern, "")) == "" ? null : yamldecode(raw)
   }
   membership_configs_by_file = {
-    for f in sort(tolist(local.membership_files)) :
-    f => yamldecode(file("${local.membership_config_path}/${f}"))
+    for f, raw in local.membership_files_raw :
+    f => trimspace(replace(raw, local.yaml_blank_pattern, "")) == "" ? null : yamldecode(raw)
   }
 
   # Detect duplicate keys across files
@@ -132,23 +163,25 @@ locals {
   }
 
   # Load and merge repository configs from config/repository/ directory
-  repos_config = merge([
-    for f in sort(tolist(local.repository_files)) :
-    yamldecode(file("${local.repository_config_path}/${f}"))
+  # Derived from repository_configs_by_file to avoid re-reading files.
+  # Null entries (comment-only files) contribute nothing to the merge.
+  repos_config = merge({}, [
+    for f, config in local.repository_configs_by_file :
+    config if config != null
   ]...)
 
   # Load and merge group configs from config/group/ directory
-  groups_config = merge([
-    for f in sort(tolist(local.group_files)) :
-    yamldecode(file("${local.group_config_path}/${f}"))
+  groups_config = merge({}, [
+    for f, config in local.group_configs_by_file :
+    config if config != null
   ]...)
 
   # Load and merge ruleset configs from config/ruleset/ directory
   # Note: templates.yml is loaded separately and not merged with rulesets_config
-  rulesets_config = merge([
-    for f in sort(tolist(local.ruleset_files)) :
-    yamldecode(file("${local.ruleset_config_path}/${f}"))
-    if f != "templates.yml" # Exclude templates from regular rulesets
+  rulesets_config = merge({}, [
+    for f, config in local.ruleset_configs_by_file :
+    config
+    if config != null && f != "templates.yml" # Exclude templates from regular rulesets
   ]...)
 
   # Separate rulesets by scope
@@ -300,9 +333,10 @@ locals {
   # Derived from membership_configs_by_file to avoid re-reading files.
   # Null entries (comment-only files) are excluded explicitly rather than via try(),
   # so that genuinely invalid YAML still fails loudly at plan time.
-  membership_config = merge([
+  # Seeded with {} so merge() is never called with zero arguments when the directory is empty.
+  membership_config = merge({}, [
     for f, config in local.membership_configs_by_file :
-    config != null ? config : {}
+    config if config != null
   ]...)
 
   # Load branch protection definitions from config/branch-protection/ directory
@@ -313,10 +347,16 @@ locals {
     toset([])
   )
 
-  # Load individual YAML files (for duplicate detection)
-  branch_protection_configs_by_file = {
+  branch_protection_files_raw = {
     for f in sort(tolist(local.branch_protection_files)) :
-    f => yamldecode(file("${local.branch_protection_config_path}/${f}"))
+    f => file("${local.branch_protection_config_path}/${f}")
+  }
+
+  # Load individual YAML files (for duplicate detection)
+  # Comment-only and empty files decode to null; downstream consumers already guard on null.
+  branch_protection_configs_by_file = {
+    for f, raw in local.branch_protection_files_raw :
+    f => trimspace(replace(raw, local.yaml_blank_pattern, "")) == "" ? null : yamldecode(raw)
   }
 
   # Detect duplicate branch protection keys across files
@@ -337,10 +377,11 @@ locals {
   }
 
   # Merge all branch protection definitions into a single map (alphabetical file order)
+  # Derived from branch_protection_configs_by_file to avoid re-reading files.
   # Seeded with {} so merge() is never called with zero arguments when the directory is empty
   branch_protections_config = merge({}, [
-    for f in sort(tolist(local.branch_protection_files)) :
-    yamldecode(file("${local.branch_protection_config_path}/${f}"))
+    for f, config in local.branch_protection_configs_by_file :
+    config if config != null
   ]...)
 
   # Extract values from YAML
