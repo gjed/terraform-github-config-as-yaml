@@ -128,6 +128,107 @@ def verify_subscription_warnings(result: CheckResult, outputs: dict) -> None:
         )
 
 
+def verify_skipped_branch_protections(result: CheckResult, outputs: dict) -> None:
+    """Assert branch protections are skipped for private repos on the free tier.
+
+    GitHub does not offer protected branches on private repositories at the free
+    tier, so the module filters them out and reports the affected repositories.
+    """
+    print("\n## Skipped branch protections check")
+    tier = outputs.get("subscription_tier", {}).get("value")
+    skipped = outputs.get("skipped_branch_protections", {}).get("value")
+
+    if tier != "free":
+        result.assert_is_none(
+            f"skipped_branch_protections on {tier!r} tier", skipped
+        )
+        return
+
+    result.assert_not_none("skipped_branch_protections", skipped)
+    if skipped is None:
+        return
+
+    repos = skipped.get("repos", [])
+    # Both inherit branch_protections from the private internal-e2e group.
+    for expected in ("e2e-internal-private", "e2e-multi-group"):
+        result.assert_contains(
+            f"skipped_branch_protections.repos contains {expected}", repos, expected
+        )
+    # e2e-full-featured is public, so its protections are applied, not skipped.
+    if "e2e-full-featured" in repos:
+        result.fail(
+            "skipped_branch_protections.repos contains e2e-full-featured, "
+            "but it is public and its protections should be applied"
+        )
+    else:
+        result.ok("skipped_branch_protections excludes public e2e-full-featured")
+
+
+def verify_branch_protection_state(result: CheckResult, outputs: dict, gh_org) -> None:
+    """Assert live branch protection state matches the tier gating decision.
+
+    The public repo must actually carry its protection on GitHub; the private
+    repos listed as skipped must not.
+    """
+    print("\n## Branch protection state check")
+    tier = outputs.get("subscription_tier", {}).get("value")
+    skipped_output = outputs.get("skipped_branch_protections", {}).get("value") or {}
+    skipped_repos = set(skipped_output.get("repos", []))
+
+    def protection_state(repo_name: str) -> str | None:
+        """Return 'protected', 'unprotected', 'no-branch', or None on API error."""
+        try:
+            gh_repo = gh_org.get_repo(repo_name)
+        except GithubException as e:
+            result.fail(f"repo {repo_name}: GitHub API error — {e}")
+            return None
+        try:
+            branch = gh_repo.get_branch("main")
+        except GithubException:
+            # An empty repository has no default branch yet, so there is nothing
+            # to protect. Not a failure of the gating logic.
+            return "no-branch"
+        return "protected" if branch.protected else "unprotected"
+
+    # Public repo with branch_protections: must be protected on a free-tier org.
+    state = protection_state("e2e-full-featured")
+    if state == "no-branch":
+        result.ok("e2e-full-featured: no default branch yet — protection not asserted")
+    elif state is not None:
+        result.assert_eq("e2e-full-featured branch 'main'", "protected", state)
+
+    # Private repos reported as skipped must not be protected.
+    for repo_name in sorted(skipped_repos):
+        state = protection_state(repo_name)
+        if state == "no-branch":
+            result.ok(f"{repo_name}: no default branch yet — skip confirmed vacuously")
+        elif state is not None:
+            result.assert_eq(
+                f"{repo_name} branch 'main' (skipped on {tier!r} tier)",
+                "unprotected",
+                state,
+            )
+
+
+def verify_vulnerability_alerts(result: CheckResult, outputs: dict, gh_org) -> None:
+    """Assert Dependabot vulnerability alerts are enabled where configured.
+
+    Covers github_repository_vulnerability_alerts, which replaced the deprecated
+    inline argument and is otherwise unverified by this fixture.
+    """
+    print("\n## Vulnerability alerts check")
+    repos = outputs.get("repositories", {}).get("value", {})
+    # Every e2e repo inherits vulnerability_alerts: true from oss-e2e or internal-e2e.
+    for repo_name in sorted(repos):
+        try:
+            gh_repo = gh_org.get_repo(repo_name)
+            enabled = gh_repo.get_vulnerability_alert()
+        except GithubException as e:
+            result.fail(f"repo {repo_name} vulnerability alerts: GitHub API error — {e}")
+            continue
+        result.assert_eq(f"{repo_name} vulnerability alerts", True, enabled)
+
+
 def verify_skipped_org_rulesets(result: CheckResult, outputs: dict) -> None:
     """Assert skipped_org_rulesets is non-null on free/pro tier."""
     print("\n## Skipped org rulesets check")
@@ -194,7 +295,10 @@ def main() -> None:
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
         print("ERROR: GITHUB_TOKEN environment variable is required.")
-        print("Set it to a token with admin:org + repo + delete_repo scopes.")
+        print(
+            "Set it to a fine-grained PAT scoped to the test org. See "
+            "tests/e2e/README.md for the exact permission set."
+        )
         sys.exit(1)
 
     # Determine org name from outputs
@@ -220,6 +324,9 @@ def main() -> None:
     verify_repositories(result, outputs, gh_org)
     verify_teams(result, outputs, gh_org)
     verify_subscription_warnings(result, outputs)
+    verify_skipped_branch_protections(result, outputs)
+    verify_branch_protection_state(result, outputs, gh_org)
+    verify_vulnerability_alerts(result, outputs, gh_org)
     verify_skipped_org_rulesets(result, outputs)
     verify_org_webhooks(result, outputs)
     verify_no_duplicate_warnings(result, outputs)

@@ -1,0 +1,5 @@
+# Dependencies for the e2e verification script (tests/verify_e2e.py).
+# Kept separate from the repository root requirements.txt: PyGithub is only
+# needed to run the e2e fixture against a live organization, not for
+# pre-commit or the unit test suite.
+PyGithub>=2.0.0

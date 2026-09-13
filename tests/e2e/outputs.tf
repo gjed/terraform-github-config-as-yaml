@@ -23,6 +23,11 @@ output "subscription_warnings" {
   value       = module.github_org.subscription_warnings
 }
 
+output "skipped_branch_protections" {
+  description = "Repositories whose branch protections were skipped because protected branches are unavailable on private repos at the current subscription tier"
+  value       = module.github_org.skipped_branch_protections
+}
+
 output "skipped_org_rulesets" {
   description = "Org rulesets skipped because the subscription tier does not support them"
   value       = module.github_org.skipped_org_rulesets
