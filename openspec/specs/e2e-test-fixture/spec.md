@@ -1,4 +1,13 @@
-## ADDED Requirements
+# e2e-test-fixture Specification
+
+## Purpose
+
+Define the end-to-end test fixture that provisions a complete GitHub organization using every
+feature of this module, then verifies the result against the live GitHub API. This spec covers
+the fixture's Terraform root module, its feature coverage, the post-apply verification script,
+the Makefile entry points, isolation and teardown, and the setup documentation.
+
+## Requirements
 
 ### Requirement: E2E fixture Terraform root module exists
 
