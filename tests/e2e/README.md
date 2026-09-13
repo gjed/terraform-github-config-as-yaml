@@ -10,24 +10,46 @@ via the GitHub API.
 
 ### 1. Dedicated test organization
 
-Create a **throwaway** GitHub organization (e.g., `my-username-e2e-test`). Do **not** use
-a real org — this fixture creates, modifies, and deletes repositories and teams.
+This repository uses [`gjed-io`](https://github.com/gjed-io) as its test organization. If you
+have forked this repo, create your own **throwaway** organization and update both
+`terraform.tfvars` and `config/config.yml` (see Step 1 below).
 
-Free-tier orgs work out of the box. To test Team-tier features (org rulesets, security
-managers), upgrade the org to Team (or use an existing Team org).
+Do **not** point this fixture at a real org — it creates, modifies, and deletes repositories
+and teams, and nothing it touches should be anything you would miss.
+
+Free-tier orgs work out of the box, with two features skipped by design:
+
+- Org rulesets require Team or Enterprise — reported in `skipped_org_rulesets`
+- Branch protections on **private** repos require a paid plan — reported in
+  `skipped_branch_protections`
+
+The verification script asserts both skips on free tier, so a free org is a valid run. To
+exercise those features for real, upgrade the org to Team and set `subscription: team` in
+`config/config.yml`.
 
 ### 2. GitHub token
 
-Create a **classic** personal access token with these scopes:
+Create a **fine-grained** personal access token scoped to the test organization only. Classic
+tokens also work, but they grant access to every org you belong to — avoid them here, since
+this token can delete repositories.
 
-- `admin:org` — manage org settings, webhooks, teams, members
-- `repo` — create and manage repositories (includes private repos)
-- `delete_repo` — destroy repositories on `terraform destroy`
+Organization permissions:
+
+- **Administration** — read and write (org settings, rulesets, Actions permissions)
+- **Members** — read and write (teams, membership)
+- **Webhooks** — read and write (org webhooks)
+
+Repository permissions:
+
+- **Administration** — read and write (repo creation, deletion, branch protection)
+- **Contents** — read and write
+- **Webhooks** — read and write
+- **Dependabot alerts** — read (verification only)
 
 Set the token in your environment:
 
 ```bash
-export GITHUB_TOKEN=ghp_your_token_here
+export GITHUB_TOKEN=github_pat_your_token_here
 ```
 
 ### 3. webhook.site URLs (optional)
@@ -39,7 +61,7 @@ do **not** block `terraform apply`. If you want live delivery, replace the URLs 
 ### 4. PyGithub (for verify step only)
 
 ```bash
-pip install PyGithub
+pip install -r requirements.txt
 ```
 
 ---
@@ -48,13 +70,13 @@ pip install PyGithub
 
 ### Step 1 — Configure
 
-The org name must be set in **two places**:
+The org name must be set in **two places**, and both already point at `gjed-io`:
 
 ```bash
 cd tests/e2e
 cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars: set github_org to your test org name
-# Edit config/config.yml: set organization: to the same org name
+# Forked this repo? Edit terraform.tfvars: set github_org to your test org name
+# and config/config.yml: set organization: to the same org name
 ```
 
 Both values must match. `terraform.tfvars` configures the GitHub provider (which
@@ -135,6 +157,8 @@ make destroy
 | Org ruleset (`scope: organization`) | `config/ruleset/test-rulesets.yml` | `e2e-org-protection` |
 | `subscription_warnings` output (free tier) | `config/config.yml` | `e2e-internal-private` |
 | `skipped_org_rulesets` output (free tier) | `config/ruleset/test-rulesets.yml` | `e2e-org-protection` |
+| `skipped_branch_protections` output (free tier) | `config/group/test-groups.yml` | `e2e-internal-private`, `e2e-multi-group` |
+| Vulnerability alerts enabled | `config/group/test-groups.yml` | all repos |
 | Branch protection (basic) | `config/branch-protection/test-branch-protections.yml` | `e2e-main-bp` |
 | Branch protection (strict, all fields) | `config/branch-protection/test-branch-protections.yml` | `e2e-strict-bp` |
 | Team tier 0 (root) | `config/team/test-teams.yml` | `e2e-platform` |

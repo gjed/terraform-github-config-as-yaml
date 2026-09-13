@@ -1,6 +1,10 @@
 # IMPORTANT: Must match github_org in terraform.tfvars — the module reads this
 # value to configure org-scoped resources (settings, actions, webhooks).
-organization: REPLACE_WITH_YOUR_TEST_ORG
+#
+# This is the dedicated test organization for this repository's CI. If you have
+# forked this repo, change both this value and github_org in terraform.tfvars to
+# your own throwaway org before running the fixture.
+organization: gjed-io
 subscription: free
 is_organization: true
 
