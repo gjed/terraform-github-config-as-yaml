@@ -1,0 +1,106 @@
+name: E2E
+
+# Never runs on pull_request. This fixture creates and deletes real repositories
+# and teams in a live organization, so it needs a token that can delete repos.
+# Fork PRs cannot read secrets, and exposing that token to arbitrary workflow
+# changes on a public repository is not acceptable. Manual dispatch and a nightly
+# schedule on main only.
+on:
+  workflow_dispatch:
+    inputs:
+      skip_destroy:
+        description: "Leave resources in place after the run (for debugging)"
+        type: boolean
+        default: false
+  schedule:
+    # 04:00 UTC daily
+    - cron: "0 4 * * *"
+
+permissions:
+  contents: read
+
+# The fixture owns the whole test organization. Two concurrent runs would fight
+# over the same repositories, and a cancelled run would leave debris behind.
+concurrency:
+  group: e2e
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Gates the token behind an environment so it can carry protection rules and
+    # is not readable by every workflow in the repository.
+    environment: e2e
+    env:
+      GITHUB_TOKEN: ${{ secrets.E2E_GITHUB_TOKEN }}
+      GITHUB_OWNER: ${{ vars.E2E_GITHUB_ORG }}
+      TF_VAR_github_org: ${{ vars.E2E_GITHUB_ORG }}
+      TF_IN_AUTOMATION: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Fail fast on missing configuration
+        run: |
+          missing=0
+          if [ -z "${GITHUB_TOKEN}" ]; then
+            echo "::error::secrets.E2E_GITHUB_TOKEN is not set on the 'e2e' environment."
+            missing=1
+          fi
+          if [ -z "${GITHUB_OWNER}" ]; then
+            echo "::error::vars.E2E_GITHUB_ORG is not set on the 'e2e' environment."
+            missing=1
+          fi
+          [ "$missing" -eq 0 ] || exit 1
+          echo "Target organization: ${GITHUB_OWNER}"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tests/e2e/requirements.txt
+
+      - name: Install verification dependencies
+        run: pip install -r tests/e2e/requirements.txt
+
+      - name: Terraform init
+        working-directory: tests/e2e
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        working-directory: tests/e2e
+        run: terraform validate
+
+      - name: Terraform plan
+        working-directory: tests/e2e
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform apply
+        working-directory: tests/e2e
+        run: terraform apply -input=false tfplan
+
+      - name: Verify against the GitHub API
+        working-directory: tests/e2e
+        run: |
+          terraform output -json > /tmp/e2e_outputs.json
+          python3 ../verify_e2e.py /tmp/e2e_outputs.json
+
+      # Runs even when apply or verify fails, so a broken run does not leave
+      # repositories and teams behind in the organization.
+      - name: Terraform destroy
+        if: always() && inputs.skip_destroy != true
+        working-directory: tests/e2e
+        run: terraform destroy -input=false -auto-approve
+
+      - name: Warn when resources were intentionally left behind
+        if: always() && inputs.skip_destroy == true
+        run: |
+          echo "::warning::skip_destroy was set — e2e resources remain in ${GITHUB_OWNER}. Destroy them manually."
