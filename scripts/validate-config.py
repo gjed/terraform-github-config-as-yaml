@@ -104,6 +104,32 @@ def load_yaml_directory(directory: Path) -> dict:
     return merged
 
 
+def load_repository_config(directory: Path, requested_partitions: list[str]) -> dict:
+    """Load repository definitions, including partition subdirectories.
+
+    Mirrors the partition-aware file collection in yaml-config.tf:
+    top-level *.yml files are always loaded, plus *.yml from each active
+    partition subdirectory. An empty `requested_partitions` means all
+    discovered partitions are active.
+    """
+    if not directory.exists():
+        return {}
+
+    merged = load_yaml_directory(directory)
+
+    available = sorted(d.name for d in directory.iterdir() if d.is_dir())
+    active = (
+        available
+        if not requested_partitions
+        else [p for p in available if p in requested_partitions]
+    )
+
+    for partition in active:
+        merged.update(load_yaml_directory(directory / partition))
+
+    return merged
+
+
 def split_rulesets_by_scope(rulesets: dict) -> tuple[dict, dict]:
     """Split rulesets into repo-scoped and org-scoped maps.
 
@@ -1051,7 +1077,7 @@ def main():
             groups = load_yaml(CONFIG_DIR / "groups.yml")
 
         if REPOSITORY_DIR.exists():
-            repos = load_yaml_directory(REPOSITORY_DIR)
+            repos = load_repository_config(REPOSITORY_DIR, requested_partitions)
         else:
             repos = load_yaml(CONFIG_DIR / "repositories.yml")
 
