@@ -28,7 +28,10 @@ concurrency:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Generous job budget. Individual steps carry their own timeouts so a hung
+    # apply cannot consume the whole budget — a job-level timeout kills every
+    # remaining step, including the always() destroy.
+    timeout-minutes: 45
     # Gates the token behind an environment so it can carry protection rules and
     # is not readable by every workflow in the repository.
     environment: e2e
@@ -71,7 +74,70 @@ jobs:
       - name: Install verification dependencies
         run: pip install -r tests/e2e/requirements.txt
 
+      # State is local to the runner and dies with it. If a previous run was
+      # cancelled, timed out, or used skip_destroy, its resources still exist in
+      # the org with no state to describe them, and apply would fail forever with
+      # 422 name-already-exists. The org is the state: every fixture resource is
+      # e2e- prefixed, so removing them makes the run idempotent from any
+      # starting condition.
+      #
+      # Hard-scoped to the e2e- prefix and to vars.E2E_GITHUB_ORG. Anything not
+      # matching that prefix is never touched.
+      - name: Sweep leftover fixture resources
+        timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ secrets.E2E_GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+
+          echo "Sweeping stale e2e-* resources from ${GITHUB_OWNER}"
+          swept=0
+
+          while read -r repo; do
+            [ -n "$repo" ] || continue
+            case "$repo" in
+              e2e-*) ;;
+              *) echo "  skip $repo (not e2e- prefixed)"; continue ;;
+            esac
+            echo "  deleting repo $repo"
+            gh api -X DELETE "repos/${GITHUB_OWNER}/${repo}" --silent || {
+              echo "::error::Failed to delete repo ${repo}. The token needs repository Administration (write)."
+              exit 1
+            }
+            swept=$((swept + 1))
+          done < <(gh api --paginate "orgs/${GITHUB_OWNER}/repos" -q '.[].name')
+
+          while read -r slug; do
+            [ -n "$slug" ] || continue
+            case "$slug" in
+              e2e-*) ;;
+              *) echo "  skip team $slug (not e2e- prefixed)"; continue ;;
+            esac
+            echo "  deleting team $slug"
+            gh api -X DELETE "orgs/${GITHUB_OWNER}/teams/${slug}" --silent || {
+              echo "::error::Failed to delete team ${slug}. The token needs organization Members (write)."
+              exit 1
+            }
+            swept=$((swept + 1))
+          done < <(gh api --paginate "orgs/${GITHUB_OWNER}/teams" -q '.[].slug')
+
+          # Org webhooks carry no name to prefix-match on, and this fixture is
+          # the only thing that creates them in the test org.
+          while read -r hook_id; do
+            [ -n "$hook_id" ] || continue
+            echo "  deleting org webhook $hook_id"
+            gh api -X DELETE "orgs/${GITHUB_OWNER}/hooks/${hook_id}" --silent || {
+              echo "::error::Failed to delete org webhook ${hook_id}. The token needs organization Webhooks (write)."
+              exit 1
+            }
+            swept=$((swept + 1))
+          done < <(gh api --paginate "orgs/${GITHUB_OWNER}/hooks" -q '.[].id')
+
+          echo "Swept ${swept} leftover resource(s)."
+
       - name: Terraform init
+        id: init
+        timeout-minutes: 5
         working-directory: tests/e2e
         run: terraform init -input=false
 
@@ -80,27 +146,35 @@ jobs:
         run: terraform validate
 
       - name: Terraform plan
+        timeout-minutes: 10
         working-directory: tests/e2e
         run: terraform plan -input=false -out=tfplan
 
       - name: Terraform apply
+        timeout-minutes: 15
         working-directory: tests/e2e
         run: terraform apply -input=false tfplan
 
       - name: Verify against the GitHub API
+        timeout-minutes: 5
         working-directory: tests/e2e
         run: |
           terraform output -json > /tmp/e2e_outputs.json
           python3 ../verify_e2e.py /tmp/e2e_outputs.json
 
       # Runs even when apply or verify fails, so a broken run does not leave
-      # repositories and teams behind in the organization.
+      # repositories and teams behind. Gated on init having succeeded: without
+      # that, a failure before setup-terraform makes this step fail again with
+      # 'terraform: command not found', burying the real error.
+      #
+      # Anything this misses is recovered by the sweep on the next run.
       - name: Terraform destroy
-        if: always() && inputs.skip_destroy != true
+        if: always() && steps.init.outcome == 'success' && inputs.skip_destroy != true
+        timeout-minutes: 15
         working-directory: tests/e2e
         run: terraform destroy -input=false -auto-approve
 
       - name: Warn when resources were intentionally left behind
-        if: always() && inputs.skip_destroy == true
+        if: always() && steps.init.outcome == 'success' && inputs.skip_destroy == true
         run: |
-          echo "::warning::skip_destroy was set — e2e resources remain in ${GITHUB_OWNER}. Destroy them manually."
+          echo "::warning::skip_destroy was set — e2e resources remain in ${GITHUB_OWNER}. They will be swept on the next run."
