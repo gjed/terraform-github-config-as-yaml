@@ -132,7 +132,9 @@ resource "github_repository_ruleset" "this" {
       for_each = [for rule in each.value.rules : rule if rule.type == "required_status_checks"]
       content {
         dynamic "required_check" {
-          for_each = lookup(required_status_checks.value.parameters, "required_checks", [])
+          # coalesce guards against `required_checks:` written with no value in
+          # YAML, which decodes to null and cannot be used in for_each.
+          for_each = coalesce(lookup(required_status_checks.value.parameters, "required_checks", []), [])
           content {
             context        = required_check.value.context
             integration_id = lookup(required_check.value, "integration_id", null)

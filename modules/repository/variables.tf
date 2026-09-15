@@ -153,10 +153,15 @@ variable "rulesets" {
         require_code_owner_review         = optional(bool)
         require_last_push_approval        = optional(bool)
         required_review_thread_resolution = optional(bool)
+        # Defaults to [] rather than being left unset. Inside a typed object the
+        # attribute always exists, so lookup(parameters, "required_checks", [])
+        # returns null instead of its fallback, and a null cannot be used in
+        # for_each — any ruleset declaring required_status_checks without listing
+        # checks would fail at plan time.
         required_checks = optional(list(object({
           context        = string
           integration_id = optional(number)
-        })))
+        })), [])
         strict_required_status_checks_policy = optional(bool)
         update_allows_fetch_and_merge        = optional(bool)
         required_deployment_environments     = optional(list(string))
