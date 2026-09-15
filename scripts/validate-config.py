@@ -5,6 +5,7 @@ Validate YAML configuration files for GitHub organization management.
 Usage:
     python scripts/validate-config.py
     python scripts/validate-config.py --strict
+    python scripts/validate-config.py --config-dir=tests/e2e/config
 """
 
 from __future__ import annotations
@@ -14,7 +15,9 @@ import sys
 import yaml
 from pathlib import Path
 
-CONFIG_DIR = Path(__file__).parent.parent / "config"
+DEFAULT_CONFIG_DIR = Path(__file__).parent.parent / "config"
+
+CONFIG_DIR = DEFAULT_CONFIG_DIR
 
 # New directory structure paths
 GROUP_DIR = CONFIG_DIR / "group"
@@ -24,6 +27,26 @@ TEAM_DIR = CONFIG_DIR / "team"
 MEMBERSHIP_DIR = CONFIG_DIR / "membership"
 WEBHOOK_DIR = CONFIG_DIR / "webhook"
 BRANCH_PROTECTION_DIR = CONFIG_DIR / "branch-protection"
+
+
+def set_config_dir(config_dir: Path) -> None:
+    """Point every directory constant at `config_dir`.
+
+    The constants are read throughout main(), so rebinding them here is what
+    makes --config-dir take effect. Without it the script always validated the
+    repository's own config/ regardless of the path it was given.
+    """
+    global CONFIG_DIR, GROUP_DIR, REPOSITORY_DIR, RULESET_DIR
+    global TEAM_DIR, MEMBERSHIP_DIR, WEBHOOK_DIR, BRANCH_PROTECTION_DIR
+
+    CONFIG_DIR = config_dir
+    GROUP_DIR = CONFIG_DIR / "group"
+    REPOSITORY_DIR = CONFIG_DIR / "repository"
+    RULESET_DIR = CONFIG_DIR / "ruleset"
+    TEAM_DIR = CONFIG_DIR / "team"
+    MEMBERSHIP_DIR = CONFIG_DIR / "membership"
+    WEBHOOK_DIR = CONFIG_DIR / "webhook"
+    BRANCH_PROTECTION_DIR = CONFIG_DIR / "branch-protection"
 
 VALID_VISIBILITIES = ["public", "private", "internal"]
 VALID_MEMBERSHIP_ROLES = ["member", "admin"]
@@ -1036,6 +1059,17 @@ def main():
             requested_partitions = [
                 p.strip() for p in arg.split("=", 1)[1].split(",") if p.strip()
             ]
+
+    # Parse --config-dir=path argument (optional). Without it the script only
+    # ever validated the repository's own config/, so alternate config trees —
+    # the e2e fixture, a consumer repository — were never checked.
+    for arg in sys.argv[1:]:
+        if arg.startswith("--config-dir="):
+            target = Path(arg.split("=", 1)[1]).expanduser()
+            if not target.is_dir():
+                print(f"ERROR: --config-dir path is not a directory: {target}")
+                sys.exit(1)
+            set_config_dir(target)
 
     all_errors = []
     all_warnings: list[str] = []
