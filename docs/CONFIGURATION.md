@@ -57,7 +57,7 @@ existing organization settings are left untouched.
 > Enable this only after verifying that all members have 2FA configured.
 
 *Note: `two_factor_requirement` is not currently exposed as a Terraform
-attribute by the GitHub provider (`integrations/github ~> 6.0`). Manage it
+attribute by the GitHub provider (`integrations/github >= 6.12.0`). Manage it
 via the GitHub organization security settings UI.*
 
 ### Dependabot and dependency graph

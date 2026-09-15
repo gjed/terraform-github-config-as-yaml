@@ -47,7 +47,7 @@ documentation.
 | Name            | Version |
 | --------------- | ------- |
 | Terraform       | >= 1.0  |
-| github provider | ~> 6.0  |
+| github provider | >= 6.12.0 |
 
 A GitHub Personal Access Token with `repo` and `admin:org` scopes is required.
 
