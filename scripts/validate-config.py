@@ -79,7 +79,10 @@ VALID_RULE_TYPES = [
 VALID_SCOPES = ["organization", "repository"]
 
 VALID_TEAM_PRIVACIES = ["closed", "secret"]
-VALID_DELEGATION_ALGORITHMS = ["round_robin", "load_balance"]
+# The GitHub provider only accepts these two values and rejects any other
+# casing. Compared case-insensitively so existing lowercase configurations,
+# which the module normalises, are not reported as errors.
+VALID_DELEGATION_ALGORITHMS = ["ROUND_ROBIN", "LOAD_BALANCE"]
 
 
 def load_yaml(filepath: Path) -> dict:
@@ -660,7 +663,7 @@ def validate_teams(
                             f"teams: Team '{slug}' field "
                             f"'review_request_delegation.algorithm' must be a string"
                         )
-                    elif algorithm not in VALID_DELEGATION_ALGORITHMS:
+                    elif algorithm.upper() not in VALID_DELEGATION_ALGORITHMS:
                         errors.append(
                             f"teams: Team '{slug}' has invalid delegation algorithm "
                             f"'{algorithm}'. Valid values: "

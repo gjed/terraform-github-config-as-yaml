@@ -48,7 +48,8 @@ resource "github_team_settings" "this" {
   review_request_delegation {
     # coalesce(try(...)) guards against fields explicitly set to null in YAML,
     # which bypasses optional() defaults and would fail at plan/apply time.
-    algorithm    = coalesce(try(var.review_request_delegation.algorithm, null), "round_robin")
+    # Upper-cased because the provider only accepts ROUND_ROBIN / LOAD_BALANCE.
+    algorithm    = upper(coalesce(try(var.review_request_delegation.algorithm, null), "ROUND_ROBIN"))
     member_count = coalesce(try(var.review_request_delegation.member_count, null), 1)
     notify       = coalesce(try(var.review_request_delegation.notify, null), true)
   }

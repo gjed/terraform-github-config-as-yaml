@@ -47,9 +47,13 @@ variable "review_request_delegation" {
   })
   default = null
 
+  # The provider only accepts ROUND_ROBIN and LOAD_BALANCE and rejects anything
+  # else outright ("expected algorithm to be one of [ROUND_ROBIN LOAD_BALANCE]").
+  # Both casings are accepted here and normalised in main.tf, so configurations
+  # written against the previous lowercase documentation keep working.
   validation {
-    condition     = var.review_request_delegation == null || contains(["round_robin", "load_balance"], coalesce(var.review_request_delegation.algorithm, "round_robin"))
-    error_message = "Algorithm must be 'round_robin' or 'load_balance'."
+    condition     = var.review_request_delegation == null || contains(["ROUND_ROBIN", "LOAD_BALANCE"], upper(coalesce(var.review_request_delegation.algorithm, "ROUND_ROBIN")))
+    error_message = "Algorithm must be 'ROUND_ROBIN' or 'LOAD_BALANCE' (case-insensitive)."
   }
 
   validation {

@@ -20,7 +20,7 @@ engineering:
     - dev2
   review_request_delegation:
     enabled: true
-    algorithm: round_robin
+    algorithm: ROUND_ROBIN
     member_count: 2
     notify: true
   teams:
