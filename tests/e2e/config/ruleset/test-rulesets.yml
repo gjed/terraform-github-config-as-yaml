@@ -42,7 +42,7 @@ e2e-require-ci:
   rules:
     - type: required_status_checks
       parameters:
-        required_status_checks:
+        required_checks:
           - context: ci/build
           - context: ci/test
         strict_required_status_checks_policy: true
