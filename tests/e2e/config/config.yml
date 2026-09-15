@@ -25,15 +25,17 @@ settings:
   dependabot_security_updates_enabled_for_new_repositories: true
   dependency_graph_enabled_for_new_repositories: true
 
+# allowed_actions is intentionally "all", not "selected", at the org level. GitHub
+# unconditionally rejects (409) any repository-level actions/permissions/selected-actions
+# request once the org itself uses "selected" — verified empirically against the live
+# API, not inferred from docs. Repo-level restriction (restricted-actions-e2e group,
+# e2e-actions-restricted repo below) exercises the module's more complex merge logic and
+# is the higher-value path to cover in this fixture, so the org stays "all" to leave it
+# unblocked. This still exercises github_actions_organization_permissions and the
+# workflow-permissions resource below.
 actions:
   enabled_repositories: all
-  allowed_actions: selected
-  allowed_actions_config:
-    github_owned_allowed: true
-    verified_allowed: true
-    patterns_allowed:
-      - "actions/checkout@*"
-      - "actions/setup-node@*"
+  allowed_actions: all
   default_workflow_permissions: read
   can_approve_pull_request_reviews: false
 

@@ -1005,6 +1005,66 @@ def validate_branch_protection_tier(
     return warnings
 
 
+def _repo_actions_config(repo_config: dict, groups: dict) -> dict | None:
+    """Resolve a repository's own actions config after group inheritance.
+
+    Mirrors the Terraform merge order: later groups override earlier ones,
+    then the repo-level key wins. Returns None if no actions config applies.
+    """
+    actions_config: dict | None = None
+
+    for group_name in repo_config.get("groups", []) or []:
+        group_config = groups.get(group_name)
+        if isinstance(group_config, dict) and group_config.get("actions"):
+            actions_config = group_config["actions"]
+
+    if repo_config.get("actions"):
+        actions_config = repo_config["actions"]
+
+    return actions_config
+
+
+def validate_actions_tier_conflict(
+    repos: dict, groups: dict, org_actions: dict | None
+) -> list[str]:
+    """Detect a guaranteed-fail combination: org allowed_actions=selected plus any
+    repo-level allowed_actions config.
+
+    Verified empirically against the live GitHub API (not inferred from docs):
+    once an organization sets allowed_actions=selected, GitHub rejects every
+    repository-level PUT to actions/permissions/selected-actions with an
+    unconditional 409 Conflict — even when the repo's requested config is
+    byte-identical to the org's. This holds regardless of what allowed_actions
+    value the repo requests (all/local_only/selected); only omitting a
+    repo-level actions block entirely avoids the 409, in which case the repo
+    silently inherits the org's selected list. This is an apply-time hard
+    failure, not a silent skip, so it is reported as an error.
+
+    Returns a list of error messages.
+    """
+    if not org_actions or org_actions.get("allowed_actions") != "selected":
+        return []
+
+    errors: list[str] = []
+
+    for repo_name, repo_config in repos.items():
+        if not isinstance(repo_config, dict):
+            continue
+
+        repo_actions = _repo_actions_config(repo_config, groups)
+        if repo_actions:
+            errors.append(
+                f"repositories: Repository '{repo_name}' has a repository-level "
+                f"'actions:' config, but the organization sets allowed_actions=selected "
+                f"in config.yml. GitHub unconditionally rejects repo-level actions "
+                f"permissions with a 409 Conflict once the org uses 'selected' — remove "
+                f"the repo/group-level 'actions:' block; the repository will inherit the "
+                f"organization's allowed list automatically."
+            )
+
+    return errors
+
+
 def validate_partitions(
     repository_dir: Path, requested_partitions: list[str]
 ) -> tuple[list[str], list[str]]:
@@ -1170,6 +1230,9 @@ def main():
         validate_branch_protection_tier(
             repos, groups, config.get("subscription", "free")
         )
+    )
+    all_errors.extend(
+        validate_actions_tier_conflict(repos, groups, config.get("actions"))
     )
 
     # Print SCIM/SSO reminder when membership config is present

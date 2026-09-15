@@ -16,8 +16,8 @@ e2e-platform:
         notify: false
       teams:
         e2e-api:
-          description: "E2E test API team (tier 2, secret)"
-          privacy: secret
+          description: "E2E test API team (tier 2, nested — must be closed, not secret)"
+          privacy: closed
           members: []
           maintainers: []
           review_request_delegation: null
