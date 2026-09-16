@@ -263,8 +263,8 @@ def verify_no_duplicate_warnings(result: CheckResult, outputs: dict) -> None:
 
 
 def verify_partitioned_repo_loaded(result: CheckResult, outputs: dict) -> None:
-    """Assert e2e-partitioned-repo is present in repositories output."""
-    print("\n## Partitioned repo check")
+    """Assert the subdirectory-defined e2e-partitioned-repo is loaded."""
+    print("\n## Subdirectory loading check")
     repos = outputs.get("repositories", {}).get("value", {})
     result.assert_contains(
         "repositories contains e2e-partitioned-repo",

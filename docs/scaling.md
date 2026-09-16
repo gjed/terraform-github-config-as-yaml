@@ -1,8 +1,7 @@
 # Scaling Guide
 
-This guide covers API rate limit considerations, provider tuning, and the
-repository partitioning feature for managing large GitHub organisations with
-this module.
+This guide covers API rate limit considerations, provider tuning, and plan-cost
+reduction for managing large GitHub organisations with this module.
 
 ## API Cost Per Repository
 
@@ -45,7 +44,7 @@ Estimated total API calls for a single `terraform plan` at various org sizes
 | 2,500+       | ~17,500+        | ❌ Exceeds       | ❌ Exceeds       |
 
 **Recommendation:** Use a GitHub App token for organisations with 500+ repositories.
-For 2,000+ repositories, combine App tokens with repository partitioning.
+For 2,000+ repositories, combine App tokens with `-refresh=false` on routine plans.
 
 ## Provider Tuning
 
@@ -125,176 +124,26 @@ jobs:
           terraform plan
 ```
 
-**Recommendation:** Try `-refresh=false` on PR plans first. It eliminates most API cost
-without any architectural changes. Move to repository partitioning only if even a
-scheduled full-refresh plan exceeds your API limits (roughly 2,000+ repositories).
+**Recommendation:** Use `-refresh=false` on PR plans. It eliminates most API cost
+without any architectural changes. If even a scheduled full-refresh plan exceeds your
+API limits, switch to a GitHub App installation token (15,000 requests/hour) and
+increase `read_delay_ms` to spread the refresh over time.
 
-## Repository Partitioning
+## Organizing repository files
 
-Repository partitioning is a **static state-sharding mechanism** for very large organizations
-(2,000+ repositories) where even a scheduled full-refresh plan exceeds GitHub's API limits.
-It requires a separate Terraform state per partition, not a dynamic selection within a single state.
-
-### Directory Layout
-
-Organise your repository config files into subdirectories under `config/repository/`.
-Each subdirectory is a named partition:
+Repository YAML files can be organized into one level of subdirectories under
+`config/repository/` for readability. All files are always loaded — subdirectories
+carry no selection semantics:
 
 ```text
 config/repository/
-├── common.yml          # Always loaded (not a partition)
+├── common.yml          # Loaded
 ├── infra/
-│   ├── ci-tooling.yml
-│   └── platform-services.yml
-├── product/
-│   ├── frontend.yml
-│   └── backend.yml
-└── legacy/
-    └── old-services.yml
+│   ├── ci-tooling.yml  # Loaded
+│   └── platform.yml    # Loaded
+└── product/
+    └── frontend.yml    # Loaded
 ```
 
-Top-level `*.yml` files (like `common.yml`) are **always** loaded regardless of
-which partitions are selected.
-
-### Selecting Partitions
-
-**CRITICAL:** `repository_partitions` must be paired with a **dedicated Terraform state per partition**.
-Each root module in each state selects exactly one partition value and keeps it constant.
-
-```hcl
-# infra-root/main.tf — manages only infra partition, in its own state
-module "github_org" {
-  source  = "gjed/config-as-yaml/github"
-  version = "~> 1.0"
-
-  config_path = "${path.root}/../config"
-
-  # Set ONCE at bootstrap, never vary dynamically between plans in this state
-  repository_partitions = ["infra"]
-}
-```
-
-```hcl
-# product-root/main.tf — manages only product partition, in its own state
-module "github_org" {
-  source  = "gjed/config-as-yaml/github"
-  version = "~> 1.0"
-
-  config_path = "${path.root}/../config"
-
-  # Different state, different partition value
-  repository_partitions = ["product"]
-}
-```
-
-Each root module has its own backend (e.g., S3 bucket prefix, or separate Terraform Cloud workspace):
-
-```hcl
-# infra-root/backend.tf
-terraform {
-  cloud {
-    organization = "my-org"
-    workspaces {
-      name = "github-infra-partition"
-    }
-  }
-}
-```
-
-```hcl
-# product-root/backend.tf
-terraform {
-  cloud {
-    organization = "my-org"
-    workspaces {
-      name = "github-product-partition"
-    }
-  }
-}
-```
-
-Setting `repository_partitions = []` (or omitting it) loads everything and is appropriate for
-small to medium organizations where a single shared state is sufficient.
-
-#### ⚠️ Warning — Narrowing against a shared state causes repository destruction
-
-Changing `repository_partitions` from `[]` to `["infra"]` in a Terraform state that has
-ever managed repositories outside `infra` will plan destruction of every other repository.
-Terraform has no mechanism to leave an orphaned `for_each` instance untouched.
-
-This is not preventable inside Terraform — the module emits a warning whenever you narrow
-to a strict subset, but legitimate dedicated-per-partition states also trip this warning.
-**The safe path is structural:** use dedicated per-partition root modules with constant
-partition values, never vary `repository_partitions` dynamically against a shared state.
-See docs/scaling.md "Repository Partitioning" and AGENTS.md for the state-sharding contract.
-
-### CI Integration with `detect-partitions.sh`
-
-The `scripts/detect-partitions.sh` helper maps git changes to the affected partitions.
-Use its output to **select which per-partition root module directories to run**,
-not to dynamically select partitions within a single state.
-
-**Basic usage:**
-
-```bash
-# Show which partitions changed between main and the current branch
-./scripts/detect-partitions.sh main...HEAD
-
-# Output as a JSON array for use in CI matrices
-./scripts/detect-partitions.sh --tfvar main...HEAD
-```
-
-**GitHub Actions example (multi-root per-partition model):**
-
-```yaml
-jobs:
-  detect:
-    runs-on: ubuntu-latest
-    outputs:
-      partitions: ${{ steps.detect.outputs.partitions }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Required for git diff across branches
-
-      - name: Detect affected partitions
-        id: detect
-        run: |
-          partitions=$(./scripts/detect-partitions.sh --tfvar main...HEAD)
-          echo "partitions=$partitions" >> "$GITHUB_OUTPUT"
-
-  plan:
-    needs: detect
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        partition: ${{ fromJson(needs.detect.outputs.partitions) }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Terraform plan (${{ matrix.partition }} partition)
-        working-directory: ${{ matrix.partition }}-root
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          terraform init
-          terraform plan
-```
-
-Each `${{ matrix.partition }}-root` directory (`infra-root/`, `product-root/`, etc.)
-is an independent root module with its own `backend.tf` and constant `repository_partitions` value.
-
-**Escalation rules:**
-
-| Changed files                         | Partitions affected            |
-| ------------------------------------- | ------------------------------ |
-| `config/group/*.yml`                  | All partitions                 |
-| `config/ruleset/*.yml`                | All partitions                 |
-| `config/webhook/*.yml`                | All partitions                 |
-| `config/config.yml`                   | All partitions                 |
-| `config/repository/<partition>/*.yml` | Only the changed partitions    |
-| `config/repository/*.yml` (top-level) | All partitions (always loaded) |
-| Non-config files only                 | None                           |
-
-Shared config (groups, rulesets, webhooks, `config.yml`) can affect any
-repository, so changes there require planning all partitions.
+Duplicate repository names are detected across all loaded files, regardless of
+which directory defines them.

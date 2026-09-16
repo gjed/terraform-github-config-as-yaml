@@ -5,32 +5,6 @@ variable "config_path" {
   type        = string
 }
 
-variable "repository_partitions" {
-  description = <<-EOT
-    List of partition names (subdirectories under config/repository/) to load.
-    Type and default are unchanged: list(string), default [].
-
-    **Empty list (default):** Loads all partitions and all top-level *.yml files in config/repository/.
-    This is the normal mode for single-state consumers and carries zero destroy risk.
-
-    **Non-empty list:** Selects specific partitions. This is a STATIC STATE-SHARDING mechanism only:
-    each non-empty value MUST be paired with a dedicated Terraform state (its own root module and
-    backend), set once at bootstrap and never varied between plans against that same state.
-
-    **CRITICAL — Never narrow against a shared state:** Changing repository_partitions from [] to
-    a subset in a Terraform state that has ever managed repositories outside the new selection
-    causes Terraform to plan their destruction. Terraform has no mechanism to leave an orphaned
-    for_each instance untouched: it is either present in the desired config (refreshed) or absent
-    (destroyed). Narrowing against a shared state is unsupported and will destroy every repository
-    outside the new selection.
-
-    For safe alternatives that work on a single state with zero destroy risk, see docs/scaling.md
-    section "Reducing plan cost with -refresh=false" and the module's partition-detection script.
-  EOT
-  type        = list(string)
-  default     = []
-}
-
 variable "webhook_secrets" {
   description = "Map of webhook secret names to their values. Keys should match the VAR_NAME in env:VAR_NAME patterns used in webhook configurations."
   type        = map(string)

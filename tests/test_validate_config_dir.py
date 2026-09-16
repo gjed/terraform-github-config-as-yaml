@@ -80,12 +80,12 @@ class TestFixtureConfigIsValidated:
 
         set_config_dir(DEFAULT_CONFIG_DIR)
         template_repos = validate_config.load_repository_config(
-            validate_config.REPOSITORY_DIR, []
+            validate_config.REPOSITORY_DIR
         )
 
         set_config_dir(fixture)
         fixture_repos = validate_config.load_repository_config(
-            validate_config.REPOSITORY_DIR, []
+            validate_config.REPOSITORY_DIR
         )
 
         assert fixture_repos != template_repos
