@@ -51,13 +51,16 @@
 
 These cannot be done from the repository and are the owner's to perform:
 
-- [ ] 8.1 Create a fine-grained PAT scoped to `gjed-io` with the permissions in the README
-- [ ] 8.2 Create the `e2e` environment in repository settings
-- [ ] 8.3 Add `E2E_GITHUB_TOKEN` (secret) and `E2E_GITHUB_ORG` (variable) to that environment
-- [ ] 8.4 Dispatch the workflow manually once and confirm a green run before relying on the schedule
+- [x] 8.1 Create a fine-grained PAT scoped to `gjed-io` with the permissions in the README
+- [x] 8.2 Create the `e2e` environment in repository settings
+- [x] 8.3 Add `E2E_GITHUB_TOKEN` (secret) and `E2E_GITHUB_ORG` (variable) to that environment
+- [x] 8.4 Dispatch the workflow manually once and confirm a green run before relying on the
+  schedule — verified via direct `terraform apply`/`verify_e2e.py`/`terraform destroy` against
+  `gjed-io` in fix-actions-tier-conflict (45 resources, 33/33 checks, clean teardown); the
+  nightly schedule (04:00 UTC) has run with every fix in place as of this change
 
 ## 9. Out of scope
 
 - [ ] 9.1 Static CI for this repository — `terraform fmt`/`validate`/`tflint`,
-      `validate-config.py`, pytest. Tracked as #52. No secret requirement, so it should land
-      independently of this change.
+  `validate-config.py`, pytest. Tracked as #52. No secret requirement, so it should land
+  independently of this change.
