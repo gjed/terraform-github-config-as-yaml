@@ -19,7 +19,8 @@ instance untouched.
 #### Scenario: Specific partitions restrict loading
 
 - **WHEN** `repository_partitions = ["infra", "platform"]`
-- **THEN** the module SHALL load only files from `config/repository/infra/` and `config/repository/platform/`, plus top-level files
+- **THEN** the module SHALL load only files from `config/repository/infra/` and
+  `config/repository/platform/`, plus top-level files
 - **THEN** files in other subdirectories (e.g., `config/repository/legacy/`) SHALL NOT be loaded
 
 #### Scenario: Specific partitions restrict loading in a dedicated state
