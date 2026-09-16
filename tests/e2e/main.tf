@@ -1,4 +1,6 @@
 terraform {
+  required_version = ">= 1.5"
+
   required_providers {
     github = {
       source  = "integrations/github"
@@ -15,8 +17,6 @@ module "github_org" {
   source = "../../"
 
   config_path = "${path.module}/config"
-
-  repository_partitions = ["partitioned"]
 
   webhook_secrets = {
     E2E_WEBHOOK_SECRET = var.webhook_secret

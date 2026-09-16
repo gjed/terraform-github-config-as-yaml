@@ -130,28 +130,20 @@ def load_yaml_directory(directory: Path) -> dict:
     return merged
 
 
-def load_repository_config(directory: Path, requested_partitions: list[str]) -> dict:
-    """Load repository definitions, including partition subdirectories.
+def load_repository_config(directory: Path) -> dict:
+    """Load repository definitions, including one-level subdirectories.
 
-    Mirrors the partition-aware file collection in yaml-config.tf:
-    top-level *.yml files are always loaded, plus *.yml from each active
-    partition subdirectory. An empty `requested_partitions` means all
-    discovered partitions are active.
+    Mirrors the file collection in yaml-config.tf: top-level *.yml files
+    plus *.yml files from each immediate subdirectory. Subdirectories are
+    purely organizational and are always loaded.
     """
     if not directory.exists():
         return {}
 
     merged = load_yaml_directory(directory)
 
-    available = sorted(d.name for d in directory.iterdir() if d.is_dir())
-    active = (
-        available
-        if not requested_partitions
-        else [p for p in available if p in requested_partitions]
-    )
-
-    for partition in active:
-        merged.update(load_yaml_directory(directory / partition))
+    for subdir in sorted(d.name for d in directory.iterdir() if d.is_dir()):
+        merged.update(load_yaml_directory(directory / subdir))
 
     return merged
 
@@ -1065,60 +1057,9 @@ def validate_actions_tier_conflict(
     return errors
 
 
-def validate_partitions(
-    repository_dir: Path, requested_partitions: list[str]
-) -> tuple[list[str], list[str]]:
-    """Validate that requested partition names correspond to existing subdirectories.
-
-    Returns (errors, warnings).
-    """
-    errors: list[str] = []
-    warnings: list[str] = []
-
-    if not requested_partitions:
-        return errors, warnings
-
-    # Discover available partition directories
-    available = (
-        sorted(d.name for d in repository_dir.iterdir() if d.is_dir())
-        if repository_dir.exists()
-        else []
-    )
-
-    invalid = [p for p in requested_partitions if p not in available]
-    if invalid:
-        available_str = ", ".join(available) if available else "(none)"
-        errors.append(
-            f"partitions: Invalid partition name(s): {', '.join(invalid)}. "
-            f"Available partitions: {available_str}. "
-            f"Check config/repository/ for valid subdirectory names."
-        )
-
-    # Warn about empty partition directories (valid but useless)
-    for partition in requested_partitions:
-        partition_path = repository_dir / partition
-        if partition_path.is_dir():
-            yml_files = list(partition_path.glob("*.yml"))
-            if not yml_files:
-                warnings.append(
-                    f"partitions: Partition '{partition}' directory exists but contains "
-                    f"no YAML files — it will contribute zero repositories"
-                )
-
-    return errors, warnings
-
-
 def main():
     """Main validation entry point."""
     strict = "--strict" in sys.argv
-
-    # Parse --partitions=name1,name2 argument (optional)
-    requested_partitions: list[str] = []
-    for arg in sys.argv[1:]:
-        if arg.startswith("--partitions="):
-            requested_partitions = [
-                p.strip() for p in arg.split("=", 1)[1].split(",") if p.strip()
-            ]
 
     # Parse --config-dir=path argument (optional). Without it the script only
     # ever validated the repository's own config/, so alternate config trees —
@@ -1174,7 +1115,7 @@ def main():
             groups = load_yaml(CONFIG_DIR / "groups.yml")
 
         if REPOSITORY_DIR.exists():
-            repos = load_repository_config(REPOSITORY_DIR, requested_partitions)
+            repos = load_repository_config(REPOSITORY_DIR)
         else:
             repos = load_yaml(CONFIG_DIR / "repositories.yml")
 
@@ -1259,14 +1200,6 @@ def main():
     all_errors.extend(
         validate_repositories(repos, groups, repo_rulesets, org_ruleset_names)
     )
-
-    # Validate partition names when --partitions is provided
-    if requested_partitions:
-        partition_errors, partition_warnings = validate_partitions(
-            REPOSITORY_DIR, requested_partitions
-        )
-        all_errors.extend(partition_errors)
-        all_warnings.extend(partition_warnings)
 
     # Warn about subscription tier and org rulesets
     subscription = config.get("subscription", "free")

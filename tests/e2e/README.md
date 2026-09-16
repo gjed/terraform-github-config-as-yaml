@@ -142,7 +142,7 @@ make destroy
 | Per-repo scalar overrides | `config/repository/test-repos.yml` | `e2e-full-featured` |
 | `homepage_url`, `license_template` | `config/repository/test-repos.yml` | `e2e-oss-public` |
 | Topics merge across groups | `config/group/test-groups.yml` | all repos |
-| Repository partition loading | `config/repository/partitioned/` | `e2e-partitioned-repo` |
+| Repository subdirectory loading | `config/repository/partitioned/` | `e2e-partitioned-repo` |
 | Group: base | `config/group/test-groups.yml` | `base` |
 | Group: oss-e2e (public, rulesets, webhook) | `config/group/test-groups.yml` | `oss-e2e` |
 | Group: internal-e2e (private, branch prot.) | `config/group/test-groups.yml` | `internal-e2e` |

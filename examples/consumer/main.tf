@@ -39,33 +39,14 @@ module "github_org" {
   # Must be a static string — computed values are not supported.
   config_path = "${path.root}/config"
 
-  # Optional: scope the plan to specific repository partitions (subdirectories
-  # under config/repository/). This is a STATIC STATE-SHARDING mechanism: each
-  # non-empty partition list MUST be paired with a dedicated Terraform state
-  # (its own root module and backend), set once at bootstrap and never varied
-  # dynamically between plans in that state.
-  #
-  # Example directory layout:
+  # Repository YAML files can be organized into one level of subdirectories
+  # under config/repository/ for readability. All files are always loaded:
   #   config/repository/
-  #   ├── common.yml          # Always loaded (top-level, not a partition)
-  #   ├── infra/              # Partition "infra"
-  #   │   └── services.yml
-  #   └── product/            # Partition "product"
-  #       └── apps.yml
-  #
-  # For single-state consumers (common case), omit repository_partitions or set
-  # it to []. For multi-state sharding, create separate root modules:
-  #   infra-root/main.tf:   repository_partitions = ["infra"]
-  #   product-root/main.tf: repository_partitions = ["product"]
-  # Each gets its own Terraform backend (separate state).
-  #
-  # ⚠️  CRITICAL: Never narrow repository_partitions dynamically against a shared
-  # state. Narrowing causes repositories outside the new selection to vanish from
-  # the for_each key set while remaining in state, triggering destroy plans.
-  # This is unsupported and will destroy every repository outside the partition.
-  # See docs/scaling.md "Repository Partitioning" for the per-partition-state contract.
-  #
-  # repository_partitions = []  # default: all partitions (recommended for single-state)
+  #   ├── common.yml          # Loaded
+  #   ├── infra/
+  #   │   └── services.yml    # Loaded
+  #   └── product/
+  #       └── apps.yml        # Loaded
 
   # Optional: pass webhook secrets via environment variables or a secrets manager.
   # Used for both repository-level and organization-level webhooks that use

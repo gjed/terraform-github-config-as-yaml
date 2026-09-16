@@ -21,25 +21,13 @@ locals {
   # `organization`, so an empty document is a configuration error either way.
   common_config = yamldecode(file("${local.config_base_path}/config.yml"))
 
-  # Discover partition subdirectories under config/repository/
-  # Each immediate subdirectory is a named partition
-  repository_partition_dirs = toset([
-    for f in fileset(local.repository_config_path, "*/*.yml") :
-    split("/", f)[0]
-  ])
-
-  # Resolve active partitions: empty list means all discovered partitions
-  active_partitions = length(var.repository_partitions) == 0 ? local.repository_partition_dirs : toset(var.repository_partitions)
-
-  # Partition-aware repository file collection:
-  # - Top-level *.yml files are always loaded (no path prefix)
-  # - Active partition files are loaded with "<partition>/" prefix so file paths are unique
+  # Repository file collection:
+  # - Top-level *.yml files directly under config/repository/
+  # - *.yml files in immediate subdirectories (one level; purely organizational,
+  #   always loaded, prefixed with "<subdir>/" so file paths are unique)
   repository_files = toset(concat(
     tolist(fileset(local.repository_config_path, "*.yml")),
-    flatten([
-      for partition in setintersection(local.active_partitions, local.repository_partition_dirs) :
-      [for f in fileset("${local.repository_config_path}/${partition}", "*.yml") : "${partition}/${f}"]
-    ])
+    tolist(fileset(local.repository_config_path, "*/*.yml"))
   ))
 
   group_files   = fileset(local.group_config_path, "*.yml")
@@ -123,12 +111,6 @@ locals {
       file if config != null && contains(keys(config), key)
     ]
   }
-
-  # Validate requested partition names against discovered directories
-  invalid_partition_names = [
-    for p in var.repository_partitions :
-    p if !contains(tolist(local.repository_partition_dirs), p)
-  ]
 
   # Filter to only duplicates (appearing in more than one file)
   duplicate_repository_keys = {
@@ -1141,33 +1123,6 @@ check "team_nesting_depth" {
       ])
     ])) == 0
     error_message = "Team nesting exceeds maximum depth of 3 levels. Reorganize your team hierarchy."
-  }
-}
-
-# Validate that all requested partition names correspond to existing subdirectories
-check "valid_partitions" {
-  assert {
-    condition     = length(local.invalid_partition_names) == 0
-    error_message = "Invalid partition name(s): ${join(", ", local.invalid_partition_names)}. Available partitions: ${join(", ", sort(tolist(local.repository_partition_dirs)))}. Check config/repository/ for valid subdirectory names."
-  }
-}
-
-# Warn when partition selection is narrowed to a strict subset of discovered partitions.
-# This is the only in-Terraform signal for the unsupported "narrow against shared state" trap,
-# since Terraform config cannot inspect its own state. Legitimate dedicated per-partition
-# states will also trip this condition on every plan (it warns, not errors, to avoid blocking them).
-check "partition_narrowing" {
-  assert {
-    condition     = !(length(var.repository_partitions) > 0 && length(toset(var.repository_partitions)) < length(local.repository_partition_dirs))
-    error_message = <<-EOT
-      WARNING: repository_partitions selects a strict subset of discovered partitions.
-      This is only safe with a dedicated per-partition Terraform state (its own root module
-      and backend). Never use a narrowed repository_partitions value dynamically against a
-      shared Terraform state, because narrowing removes repositories from the for_each key set
-      while they remain in state, causing Terraform to plan their destruction.
-
-      For details, see docs/scaling.md and openspec/changes/fix-partition-narrowing-destroy/specs/repository-partitioning/spec.md.
-    EOT
   }
 }
 
