@@ -1158,7 +1158,7 @@ check "valid_partitions" {
 # states will also trip this condition on every plan (it warns, not errors, to avoid blocking them).
 check "partition_narrowing" {
   assert {
-    condition     = !(length(var.repository_partitions) > 0 && length(var.repository_partitions) < length(local.repository_partition_dirs))
+    condition     = !(length(var.repository_partitions) > 0 && length(toset(var.repository_partitions)) < length(local.repository_partition_dirs))
     error_message = <<-EOT
       WARNING: repository_partitions selects a strict subset of discovered partitions.
       This is only safe with a dedicated per-partition Terraform state (its own root module
