@@ -7,13 +7,11 @@ switching partitions causes repos to drop out of Terraform's view, triggering de
 
 ## What Changes
 
-- **BREAKING**: Set `prevent_destroy = true` on `github_repository.this` in the repository submodule.
-  Terraform will refuse to destroy repositories and error out instead. Users who need to decommission a
-  repo must `terraform state rm` the resource first, then manually delete via GitHub UI/API.
-- Add `archive_on_destroy` as a global default setting in `config/config.yml`, defaulting to `true`.
-  This is a secondary safety net: if a repository is somehow removed from Terraform state without the
-  `prevent_destroy` guard (e.g., via `terraform state rm`), the GitHub provider archives the repo
-  instead of deleting it.
+- Add `archive_on_destroy` as a global default setting in `config/config.yml`, defaulting to `false`
+  (preserving current behavior in this release). This is a safety net: if a repository is somehow
+  removed from Terraform state, the GitHub provider archives the repo instead of deleting it.
+  A future major version may flip the default to `true`; this isolated, explicit behavior change
+  will ship with a loud changelog entry.
 - Document the safe repository decommissioning process.
 - Add validation warning when `archive_on_destroy` is explicitly set to `false`.
 

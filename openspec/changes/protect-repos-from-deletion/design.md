@@ -10,6 +10,7 @@ repositories to drop out of Terraform's view, triggering destroy plans for repos
 and are still wanted.
 
 Current state:
+
 - `modules/repository/main.tf` line 38-41: `lifecycle { prevent_destroy = false }`
 - No `archive_on_destroy` argument on the `github_repository` resource
 - No YAML configuration option for deletion protection
@@ -33,36 +34,54 @@ Current state:
 
 ## Decisions
 
-### Decision 1: Hardcode `prevent_destroy = true`
+### Decision 1: Drop `prevent_destroy = true` entirely
 
-**Choice:** Set `prevent_destroy = true` as a hardcoded literal in the lifecycle block.
+**Choice:** Do not set `prevent_destroy` on the `github_repository` resource. Rely on `archive_on_destroy`
+as the sole protection mechanism.
 
-**Alternatives considered:**
-- *Make it configurable via variable:* Not possible. Terraform requires `prevent_destroy` to be a
-  literal boolean — variables, locals, and expressions are not allowed.
-- *Use a separate module variant:* Would require duplicating the entire repository module with the
-  only difference being the lifecycle block. Maintenance burden outweighs benefit.
-- *Skip `prevent_destroy`, rely only on `archive_on_destroy`:* Weaker protection. Archived repos
-  can still be permanently deleted via the API. `prevent_destroy` is a hard stop at the Terraform
-  level.
+**Rationale:** `prevent_destroy = true` conflicts with the fixed partition narrowing pattern
+and independently breaks the module's normal repository decommissioning workflow:
 
-**Rationale:** This is the strongest protection available. The trade-off (breaking change for
-`terraform destroy` workflows) is correct — safety over convenience for an irreversible operation.
-
-### Decision 2: Default `archive_on_destroy = true` at global level only
-
-**Choice:** Add `archive_on_destroy` to `config/config.yml` defaults, defaulting to `true`. Pass
-through to the `github_repository` resource. No group-level or repo-level override.
+- **Partition narrowing conflict:** When `repository_partitions` narrows, targeted repos drop out
+  of the `for_each` key set but the resource block remains in config. `prevent_destroy` fires on
+  orphaned `for_each` instances whenever the block exists in config, so every out-of-partition repo
+  causes a permanent plan error — not a safety net, but a deadlock preventing any partition-scoped
+  plan from succeeding.
+- **Normal decommissioning breakage:** Removing a repository from YAML config is standard `for_each`
+  key removal. With `prevent_destroy = true`, this becomes a plan error, forcing every legitimate
+  removal through manual `terraform state rm` surgery. It also makes `archive_on_destroy` unreachable
+  at apply time because no destroy can reach it while the block is present and protected.
 
 **Alternatives considered:**
+
+- *Keep `prevent_destroy = true`, only fix partitioning.* Rejected: the conflict with partitioning
+  is real, but independent of that, breaking the normal decommission path (delete YAML entry) into
+  permanent plan errors is hostile UX unrelated to partition narrowing.
+- *Make `prevent_destroy` configurable via variable:* Not possible. Terraform requires it to be a
+  literal boolean — variables, locals, and expressions are not allowed at parse time.
+
+This change fixes the module's contract: normal YAML-entry deletion now applies cleanly without
+manual state surgery, and partition narrowing is no longer deadlocked. `archive_on_destroy` remains
+as the secondary safety net for edge cases (e.g., after `terraform state rm`).
+
+### Decision 2: Default `archive_on_destroy = false` at global level only
+
+**Choice:** Add `archive_on_destroy` to `config/config.yml` defaults, defaulting to `false`
+(preserving current behavior). Pass through to the `github_repository` resource. No group-level
+or repo-level override.
+
+**Rationale:** This preserves existing behavior for all consumers — no surprise destroy-behavior
+changes in this release. The default-to-`true` flip is explicit, isolated future work (next major
+version) and will ship with a dedicated, prominent changelog entry rather than being silently
+bundled. `archive_on_destroy` remains a secondary safety net for edge cases (e.g., after manual
+`terraform state rm`). Global-only scope is sufficient; if per-repo override is needed later,
+the inheritance machinery already exists and can be extended.
+
+**Alternatives considered:**
+
+- *Ship `archive_on_destroy` default `true` now:* Deferred per explicit decision — not this change.
 - *Full inheritance chain (global > group > repo):* Adds complexity for a setting that should
   rarely vary. Global-only keeps it simple.
-- *No `archive_on_destroy` at all:* Misses the secondary safety net for edge cases where state
-  gets out of sync.
-
-**Rationale:** `archive_on_destroy` is a safety net, not a per-repo policy decision. Global
-default is sufficient. If per-repo override is needed later, the inheritance machinery already
-exists and can be extended.
 
 ### Decision 3: Read from `defaults` block, not a top-level key
 
@@ -91,7 +110,7 @@ GitHub UI/API.
 operation. **Mitigation:** Document the exact command with examples. Consider adding a helper
 script (`scripts/offboard-repos.sh`) that automates the state rm + optional manual delete.
 
-**[`archive_on_destroy` is not perfect protection]** Archived repos can still be permanently
+**\[`archive_on_destroy` is not perfect protection\]** Archived repos can still be permanently
 deleted via the GitHub API. **Mitigation:** It's a secondary net, not a primary one.
 `prevent_destroy` is the primary guard. `archive_on_destroy` catches edge cases.
 
