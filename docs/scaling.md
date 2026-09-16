@@ -85,10 +85,55 @@ provider "github" {
 > of 50 ms with 1,000 repositories adds ~50 seconds to every plan. Balance delay
 > against your CI timeout budget.
 
+## Reducing plan cost with `-refresh=false`
+
+The simplest and safest way to reduce plan API cost is to skip the full refresh on
+routine PR/merge plans and rely on a scheduled full-refresh plan as the drift-detection
+authority.
+
+**How it works:**
+
+- PR/merge plans use `terraform plan -refresh=false` — this skips the API read for every
+  resource that has not changed in config, cutting API usage by 70–80% on typical changes
+- A scheduled job (e.g., nightly) runs a full-refresh plan with all data sources and
+  resource refreshes enabled — this acts as the drift-detection authority and applies if changes are found
+- No state migration needed; works on single shared states with zero destroy risk
+
+**Example GitHub Actions:**
+
+```yaml
+jobs:
+  plan-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Terraform plan (PR, no refresh)
+        run: |
+          terraform init
+          terraform plan -refresh=false
+
+  plan-nightly:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Full refresh plan (drift detection)
+        run: |
+          terraform init
+          terraform plan
+```
+
+**Recommendation:** Try `-refresh=false` on PR plans first. It eliminates most API cost
+without any architectural changes. Move to repository partitioning only if even a
+scheduled full-refresh plan exceeds your API limits (roughly 2,000+ repositories).
+
 ## Repository Partitioning
 
-Partitioning lets you scope a Terraform plan to a subset of repositories, reducing
-API consumption in proportion to the fraction of repos in the partition.
+Repository partitioning is a **static state-sharding mechanism** for very large organizations
+(2,000+ repositories) where even a scheduled full-refresh plan exceeds GitHub's API limits.
+It requires a separate Terraform state per partition, not a dynamic selection within a single state.
 
 ### Directory Layout
 
@@ -113,38 +158,81 @@ which partitions are selected.
 
 ### Selecting Partitions
 
-Pass the `repository_partitions` variable to the module. An empty list (the
-default) loads all partitions — identical to the pre-partitioning behaviour.
+**CRITICAL:** `repository_partitions` must be paired with a **dedicated Terraform state per partition**.
+Each root module in each state selects exactly one partition value and keeps it constant.
 
 ```hcl
+# infra-root/main.tf — manages only infra partition, in its own state
 module "github_org" {
   source  = "gjed/config-as-yaml/github"
   version = "~> 1.0"
 
-  config_path = "${path.root}/config"
+  config_path = "${path.root}/../config"
 
-  # Load only the infra and product partitions
-  repository_partitions = ["infra", "product"]
+  # Set ONCE at bootstrap, never vary dynamically between plans in this state
+  repository_partitions = ["infra"]
 }
 ```
 
-Setting `repository_partitions = []` (or omitting it) loads everything.
+```hcl
+# product-root/main.tf — manages only product partition, in its own state
+module "github_org" {
+  source  = "gjed/config-as-yaml/github"
+  version = "~> 1.0"
 
-> **⚠️ Warning — Partition switching causes destroy plans**
->
-> When you change `repository_partitions` from `[]` (all repos) to `["infra"]`,
-> repositories in other partitions (`product`, `legacy`) disappear from
-> Terraform's view. Terraform will plan to **destroy** their resources.
->
-> Always verify the plan output before applying when narrowing the partition
-> selection. Use repository deletion protection (see issue #37) as a safety net.
-> The `detect-partitions.sh` script is designed to help CI avoid accidental
-> partition narrowing.
+  config_path = "${path.root}/../config"
+
+  # Different state, different partition value
+  repository_partitions = ["product"]
+}
+```
+
+Each root module has its own backend (e.g., S3 bucket prefix, or separate Terraform Cloud workspace):
+
+```hcl
+# infra-root/backend.tf
+terraform {
+  cloud {
+    organization = "my-org"
+    workspaces {
+      name = "github-infra-partition"
+    }
+  }
+}
+```
+
+```hcl
+# product-root/backend.tf
+terraform {
+  cloud {
+    organization = "my-org"
+    workspaces {
+      name = "github-product-partition"
+    }
+  }
+}
+```
+
+Setting `repository_partitions = []` (or omitting it) loads everything and is appropriate for
+small to medium organizations where a single shared state is sufficient.
+
+#### ⚠️ Warning — Narrowing against a shared state causes repository destruction
+
+Changing `repository_partitions` from `[]` to `["infra"]` in a Terraform state that has
+ever managed repositories outside `infra` will plan destruction of every other repository.
+Terraform has no mechanism to leave an orphaned `for_each` instance untouched.
+
+This is not preventable inside Terraform — the module emits a warning whenever you narrow
+to a strict subset, but legitimate dedicated-per-partition states also trip this warning.
+**The safe path is structural:** use dedicated per-partition root modules with constant
+partition values, never vary `repository_partitions` dynamically against a shared state.
+See docs/scaling.md "Repository Partitioning" and AGENTS.md for the state-sharding contract.
 
 ### CI Integration with `detect-partitions.sh`
 
-The `scripts/detect-partitions.sh` helper maps git changes to the affected
-partitions, so CI only plans the partitions that actually changed.
+The `scripts/detect-partitions.sh` helper maps git changes to the affected partitions.
+Use its output to **select which per-partition root module directories to run**,
+not to dynamically select partitions within a single state.
 
 **Basic usage:**
 
@@ -152,11 +240,11 @@ partitions, so CI only plans the partitions that actually changed.
 # Show which partitions changed between main and the current branch
 ./scripts/detect-partitions.sh main...HEAD
 
-# Output as a JSON array for use as a Terraform variable
+# Output as a JSON array for use in CI matrices
 ./scripts/detect-partitions.sh --tfvar main...HEAD
 ```
 
-**GitHub Actions example:**
+**GitHub Actions example (multi-root per-partition model):**
 
 ```yaml
 jobs:
@@ -178,29 +266,35 @@ jobs:
   plan:
     needs: detect
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        partition: ${{ fromJson(needs.detect.outputs.partitions) }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Terraform plan (scoped to affected partitions)
+      - name: Terraform plan (${{ matrix.partition }} partition)
+        working-directory: ${{ matrix.partition }}-root
         env:
-          TF_VAR_repository_partitions: ${{ needs.detect.outputs.partitions }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           terraform init
           terraform plan
 ```
 
+Each `${{ matrix.partition }}-root` directory (`infra-root/`, `product-root/`, etc.)
+is an independent root module with its own `backend.tf` and constant `repository_partitions` value.
+
 **Escalation rules:**
 
-| Changed files                         | Partitions planned          |
-| ------------------------------------- | --------------------------- |
-| `config/group/*.yml`                  | All partitions              |
-| `config/ruleset/*.yml`                | All partitions              |
-| `config/webhook/*.yml`                | All partitions              |
-| `config/config.yml`                   | All partitions              |
-| `config/repository/<partition>/*.yml` | Only the changed partitions |
-| `config/repository/*.yml` (top-level) | None (always loaded)        |
-| Non-config files only                 | None                        |
+| Changed files                         | Partitions affected            |
+| ------------------------------------- | ------------------------------ |
+| `config/group/*.yml`                  | All partitions                 |
+| `config/ruleset/*.yml`                | All partitions                 |
+| `config/webhook/*.yml`                | All partitions                 |
+| `config/config.yml`                   | All partitions                 |
+| `config/repository/<partition>/*.yml` | Only the changed partitions    |
+| `config/repository/*.yml` (top-level) | All partitions (always loaded) |
+| Non-config files only                 | None                           |
 
 Shared config (groups, rulesets, webhooks, `config.yml`) can affect any
 repository, so changes there require planning all partitions.

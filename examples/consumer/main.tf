@@ -40,8 +40,10 @@ module "github_org" {
   config_path = "${path.root}/config"
 
   # Optional: scope the plan to specific repository partitions (subdirectories
-  # under config/repository/). Useful for large organisations that exceed GitHub
-  # API rate limits on a full plan.
+  # under config/repository/). This is a STATIC STATE-SHARDING mechanism: each
+  # non-empty partition list MUST be paired with a dedicated Terraform state
+  # (its own root module and backend), set once at bootstrap and never varied
+  # dynamically between plans in that state.
   #
   # Example directory layout:
   #   config/repository/
@@ -51,18 +53,19 @@ module "github_org" {
   #   └── product/            # Partition "product"
   #       └── apps.yml
   #
-  # Load only the "infra" partition (common.yml is still always loaded):
-  #   repository_partitions = ["infra"]
+  # For single-state consumers (common case), omit repository_partitions or set
+  # it to []. For multi-state sharding, create separate root modules:
+  #   infra-root/main.tf:   repository_partitions = ["infra"]
+  #   product-root/main.tf: repository_partitions = ["product"]
+  # Each gets its own Terraform backend (separate state).
   #
-  # Default (empty list) loads all partitions — identical to pre-partitioning
-  # behaviour. No migration needed for flat config/repository/ layouts.
+  # ⚠️  CRITICAL: Never narrow repository_partitions dynamically against a shared
+  # state. Narrowing causes repositories outside the new selection to vanish from
+  # the for_each key set while remaining in state, triggering destroy plans.
+  # This is unsupported and will destroy every repository outside the partition.
+  # See docs/scaling.md "Repository Partitioning" for the per-partition-state contract.
   #
-  # ⚠️  WARNING: Narrowing the partition list causes repositories outside the
-  # selected partitions to disappear from Terraform's view, resulting in a
-  # planned destroy for their resources. Always review the plan carefully before
-  # applying when changing repository_partitions. See docs/scaling.md for details.
-  #
-  # repository_partitions = []  # default: all partitions
+  # repository_partitions = []  # default: all partitions (recommended for single-state)
 
   # Optional: pass webhook secrets via environment variables or a secrets manager.
   # Used for both repository-level and organization-level webhooks that use
