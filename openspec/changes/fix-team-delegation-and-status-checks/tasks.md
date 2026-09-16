@@ -24,10 +24,12 @@
 - [x] 4.2 Full suite passes (63 tests)
 - [x] 4.3 `terraform validate` passes
 - [x] 4.4 `terraform plan` against `gjed-io` succeeds: 45 to add, 0 errors
-- [ ] 4.5 Live e2e run green end to end
+- [x] 4.5 Live e2e run green end to end — completed in fix-actions-tier-conflict after two more
+  bugs surfaced by the same run (org/repo actions tier conflict, nested team privacy); apply
+  succeeded (45 resources), `verify_e2e.py` reported 33/33, destroy cleaned up completely
 
 ## 5. Follow-ups
 
-- [ ] 5.1 `scripts/validate-config.py` has no flag to target a config directory, so it silently
-  validates `config/` even when pointed at the fixture. The e2e fixture's configuration is
-  therefore never checked by the validator.
+- [x] 5.1 Added `--config-dir` to `scripts/validate-config.py` in fix-actions-tier-conflict —
+  the script previously had no flag to target a config directory, so it silently validated
+  `config/` even when pointed at the fixture.
