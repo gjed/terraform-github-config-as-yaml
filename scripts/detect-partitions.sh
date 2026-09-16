@@ -34,8 +34,8 @@
 #
 # Escalation rules:
 #   1. Shared config changes  → output ALL partition names (any repo may be affected)
-#   2. Partition-specific     → output only the changed partitions
-#   3. Top-level repo files   → no partitions (always loaded, no partition plan needed)
+#   2. Top-level repo files   → output ALL partition names (loaded by every partition root)
+#   3. Partition-specific     → output only the changed partitions
 #   4. No config changes      → empty output, exit 0
 
 set -eo pipefail
@@ -127,9 +127,10 @@ while IFS= read -r file; do
     partition="${BASH_REMATCH[1]}"
     partition_list="${partition_list}${partition}"$'\n'
 
-  # Top-level repo file: config/repository/<file>.yml — always loaded, no partition needed
+  # Top-level repo file: config/repository/<file>.yml — always loaded by every
+  # partition root module, so a change here must plan all partitions too.
   elif [[ "$file" =~ ^config/repository/[^/]+\.yml$ ]]; then
-    : # no-op
+    shared_change=true
 
   fi
 done <<< "$changed_files"
