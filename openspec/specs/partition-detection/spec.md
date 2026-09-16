@@ -9,16 +9,29 @@ repository partitions are affected by changes in a git diff.
 
 ### Requirement: Git-based partition detection script
 
-The module SHALL include a script at `scripts/detect-partitions.sh` that analyzes git diff output and outputs affected partition names.
+The module SHALL include a script at `scripts/detect-partitions.sh` that analyzes git diff output
+and outputs affected partition names. The script's output identifies which per-partition **root
+modules or CI jobs** are affected by a diff, each managing its own dedicated Terraform state. The
+output SHALL NOT be fed as `repository_partitions` into a `terraform plan` against a single shared
+state, since doing so plans destruction of every repository outside the selected partitions.
 
 #### Scenario: Script accepts git diff range
 
 - **WHEN** the script is invoked as `./scripts/detect-partitions.sh main...HEAD`
 - **THEN** it SHALL analyze changed files between the specified git refs
 
+#### Scenario: Output selects per-partition CI jobs, not a shared-state plan
+
+- **WHEN** the script outputs `["infra", "product"]` for a given diff
+- **THEN** a consumer's CI SHALL run the `infra` and `product` per-partition root modules/jobs
+  (each with its own state and backend)
+- **AND** the output SHALL NOT be passed as `TF_VAR_repository_partitions` to a `terraform plan`
+  against a state that also manages other partitions
+
 ### Requirement: Shared config changes trigger all partitions
 
-When files in shared configuration directories change, the script SHALL output ALL partition names because shared config can affect any repository.
+When files in shared configuration directories change, the script SHALL output ALL partition names
+because shared config can affect any repository.
 
 #### Scenario: Group config changes
 
@@ -42,7 +55,8 @@ When files in shared configuration directories change, the script SHALL output A
 
 ### Requirement: Top-level repository file changes do not trigger partitions
 
-Changes to top-level files in `config/repository/` SHALL NOT trigger partition plans because those files are always loaded regardless of partition selection.
+Changes to top-level files in `config/repository/` SHALL NOT trigger partition plans because those
+files are always loaded regardless of partition selection.
 
 #### Scenario: Only top-level repo files changed
 
@@ -79,7 +93,8 @@ The script SHALL support a `--tfvar` flag that formats output as a Terraform lis
 
 ### Requirement: Combined changes follow escalation rules
 
-When multiple types of changes are present in the same diff, the script SHALL follow escalation: shared config changes take precedence over partition-specific changes.
+When multiple types of changes are present in the same diff, the script SHALL follow escalation:
+shared config changes take precedence over partition-specific changes.
 
 #### Scenario: Shared config plus partition-specific changes
 
