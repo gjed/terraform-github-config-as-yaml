@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# detect-partitions.sh — Map git diff output to affected Terraform partitions.
+# detect-partitions.sh — Map git diff output to affected Terraform partitions for CI job/root-module selection.
 #
 # Usage:
 #   ./scripts/detect-partitions.sh [--tfvar] [--help] [<git-diff-range>]
@@ -24,6 +24,13 @@
 #     (matches Terraform's repository_partition_dirs discovery logic)
 #   - Shared config directories: config/group/, config/ruleset/, config/webhook/, config/config.yml
 #   - This script is run from the repository root.
+#
+# Output usage:
+#   This script identifies which partitions a diff affects. Use the output to select which
+#   per-partition root module directories (each with its own Terraform state/backend) to run
+#   terraform plan in. Never feed the output as TF_VAR_repository_partitions into a single
+#   shared-state terraform plan, as narrowing against a shared state plans repository destruction.
+#   See docs/scaling.md and openspec/changes/fix-partition-narrowing-destroy/ for details.
 #
 # Escalation rules:
 #   1. Shared config changes  → output ALL partition names (any repo may be affected)
