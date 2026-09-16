@@ -223,6 +223,10 @@ ______________________________________________________________________
 The system SHALL manage PR review request delegation settings using the `github_team_settings`
 resource when `review_request_delegation` is defined.
 
+The system SHALL accept `algorithm` in any casing and SHALL normalise it to the uppercase form the
+GitHub provider requires (`ROUND_ROBIN` or `LOAD_BALANCE`). The provider rejects any other casing
+with `expected algorithm to be one of ["ROUND_ROBIN" "LOAD_BALANCE"]`.
+
 #### Scenario: Enable review request delegation
 
 - **GIVEN** a team defines:
@@ -231,7 +235,7 @@ resource when `review_request_delegation` is defined.
     description: "Platform engineering"
     review_request_delegation:
       enabled: true
-      algorithm: round_robin
+      algorithm: ROUND_ROBIN
       member_count: 2
       notify: true
   ```
@@ -243,15 +247,29 @@ resource when `review_request_delegation` is defined.
 
 #### Scenario: Load balance algorithm
 
-- **GIVEN** a team defines `review_request_delegation.algorithm: load_balance`
+- **GIVEN** a team defines `review_request_delegation.algorithm: LOAD_BALANCE`
 - **WHEN** `terraform apply` is executed
 - **THEN** the delegation uses the load balance algorithm
+
+#### Scenario: Lowercase algorithm is normalised
+
+- **GIVEN** a team defines `review_request_delegation.algorithm: round_robin`
+- **WHEN** `terraform apply` is executed
+- **THEN** validation passes
+- **AND** the value sent to the provider is `ROUND_ROBIN`
+
+#### Scenario: Unsupported algorithm rejected
+
+- **GIVEN** a team defines `review_request_delegation.algorithm: random`
+- **WHEN** validation runs
+- **THEN** an error reports the algorithm is invalid
+- **AND** the error lists `ROUND_ROBIN` and `LOAD_BALANCE` as the valid values
 
 #### Scenario: Default delegation values
 
 - **GIVEN** a team defines `review_request_delegation: { enabled: true }`
 - **WHEN** `terraform apply` is executed
-- **THEN** the algorithm defaults to `round_robin`
+- **THEN** the algorithm defaults to `ROUND_ROBIN`
 - **AND** the member count defaults to `1`
 - **AND** notify defaults to `true`
 
