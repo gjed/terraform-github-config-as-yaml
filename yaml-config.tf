@@ -1152,6 +1152,25 @@ check "valid_partitions" {
   }
 }
 
+# Warn when partition selection is narrowed to a strict subset of discovered partitions.
+# This is the only in-Terraform signal for the unsupported "narrow against shared state" trap,
+# since Terraform config cannot inspect its own state. Legitimate dedicated per-partition
+# states will also trip this condition on every plan (it warns, not errors, to avoid blocking them).
+check "partition_narrowing" {
+  assert {
+    condition     = !(length(var.repository_partitions) > 0 && length(var.repository_partitions) < length(local.repository_partition_dirs))
+    error_message = <<-EOT
+      WARNING: repository_partitions selects a strict subset of discovered partitions.
+      This is only safe with a dedicated per-partition Terraform state (its own root module
+      and backend). Never use a narrowed repository_partitions value dynamically against a
+      shared Terraform state, because narrowing removes repositories from the for_each key set
+      while they remain in state, causing Terraform to plan their destruction.
+
+      For details, see docs/scaling.md and openspec/changes/fix-partition-narrowing-destroy/specs/repository-partitioning/spec.md.
+    EOT
+  }
+}
+
 # Validate that all org_webhook references are defined in config/webhook/
 check "org_webhook_references" {
   assert {
