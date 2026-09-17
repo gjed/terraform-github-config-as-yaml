@@ -1,66 +1,39 @@
 ## ADDED Requirements
 
-### Requirement: Archive-on-Destroy Safety Net
+### Requirement: Archive-on-Destroy
 
-The repository submodule SHALL support an `archive_on_destroy` argument on the `github_repository`
-resource. When set to `true`, the GitHub provider archives the repository instead of deleting it if
-a destroy operation somehow proceeds (e.g., after `terraform state rm` and re-import).
+The repository submodule SHALL set `archive_on_destroy = true` on the `github_repository` resource as a hardcoded, non-configurable value. On destroy, the GitHub provider SHALL archive the repository instead of permanently deleting it.
 
-#### Scenario: Default archive_on_destroy value
+#### Scenario: Repository removed from configuration
 
-- **WHEN** `archive_on_destroy` is not specified in `config/config.yml` defaults
-- **THEN** the system uses `false` as the default value
-- **AND** all repositories have `archive_on_destroy = false` applied (current behavior preserved)
+- **GIVEN** a repository managed by the module
+- **WHEN** the repository is removed from configuration (or drops out of a partition) and `terraform apply` runs
+- **THEN** the GitHub provider archives the repository via the edit API (`archived: true`)
+- **AND** the repository is not permanently deleted
+- **AND** the resource is removed from Terraform state
 
-#### Scenario: Explicit archive_on_destroy in config defaults
+#### Scenario: Repository already archived
 
-- **GIVEN** `config/config.yml` contains:
+- **GIVEN** a managed repository that is already archived
+- **WHEN** it is destroyed
+- **THEN** the provider performs no destructive API call
+- **AND** the resource is removed from Terraform state
 
-  ```yaml
-  defaults:
-    archive_on_destroy: false
-  ```
+#### Scenario: Value is not configurable
 
-- **WHEN** Terraform is initialized and planned
-
-- **THEN** all repositories have `archive_on_destroy = false` applied
-
-#### Scenario: archive_on_destroy passed through to resource
-
-- **GIVEN** `archive_on_destroy` is set to `true` in config defaults
-- **WHEN** a repository resource is created
-- **THEN** the `github_repository` resource includes `archive_on_destroy = true`
-
-______________________________________________________________________
-
-### Requirement: Validation Warning for Disabled Safety Net
-
-The validation script SHALL warn when `archive_on_destroy` is explicitly set to `false` in
-configuration, since this removes the secondary safety net.
-
-#### Scenario: archive_on_destroy set to false
-
-- **GIVEN** `config/config.yml` contains `defaults.archive_on_destroy: false`
-- **WHEN** the validation script is executed
-- **THEN** the script outputs a warning that the archive-on-destroy safety net is disabled
-
-#### Scenario: archive_on_destroy set to true or absent
-
-- **GIVEN** `config/config.yml` does not set `defaults.archive_on_destroy` or sets it to `true`
-- **WHEN** the validation script is executed
-- **THEN** no warning about archive-on-destroy is produced
+- **WHEN** a user inspects the module
+- **THEN** `archive_on_destroy` is a fixed `true` with no variable, YAML key, or per-repo/group override
 
 ______________________________________________________________________
 
 ### Requirement: Decommissioning Documentation
 
-The module documentation SHALL describe the safe process for removing a repository from Terraform
-management, including the behavior of `archive_on_destroy` as a secondary safety net.
+The module documentation SHALL describe the safe process for removing a repository from Terraform management, including that repositories are archived rather than deleted on destroy.
 
 #### Scenario: Documentation covers decommissioning
 
 - **WHEN** a user reads the module documentation (AGENTS.md)
 - **THEN** they find a section explaining:
   - The normal YAML-entry removal process for repositories
-  - The role of `archive_on_destroy` as a secondary safety net (default: `false` in this release)
-  - How to configure `archive_on_destroy` in `config/config.yml` defaults
+  - That removal archives the repository instead of deleting it
+  - How to permanently delete a repository if truly intended (remove from state after archiving, then delete via GitHub UI/API)

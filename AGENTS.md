@@ -52,6 +52,23 @@ terraform-github-config-as-yaml/
 1. Assign appropriate groups (e.g., `["gjed", "internal"]` or `["gjed", "oss"]`)
 1. Run `terraform plan` to preview, then `terraform apply`
 
+### Decommissioning a repository
+
+Repositories are **archived, not deleted**, on destroy. The repository module hardcodes
+`archive_on_destroy = true`, so when a repo is removed from Terraform's view the GitHub provider
+archives it (via the API) instead of permanently deleting it. This is a fixed module contract, not a
+configurable setting.
+
+To decommission a repository:
+
+1. Remove its entry from `config/repositories.yml`
+1. Run `terraform plan` to preview, then `terraform apply` — the repository is archived
+1. If you genuinely intend to permanently delete it, remove the archived repo from Terraform state
+   (`terraform state rm`) and then delete it manually via the GitHub UI or API
+
+`prevent_destroy` is intentionally not set: Terraform requires it to be a literal boolean, and
+setting it `true` would deadlock normal `for_each`-based repo removal and repository partitioning.
+
 ### Modifying configuration groups
 
 Edit `config/groups.yml`. Groups are merged when multiple are assigned to a repo.
