@@ -262,7 +262,7 @@ def verify_no_duplicate_warnings(result: CheckResult, outputs: dict) -> None:
     result.assert_is_none("duplicate_key_warnings", warnings)
 
 
-def verify_partitioned_repo_loaded(result: CheckResult, outputs: dict) -> None:
+def verify_subdirectory_repo_loaded(result: CheckResult, outputs: dict) -> None:
     """Assert the subdirectory-defined e2e-partitioned-repo is loaded."""
     print("\n## Subdirectory loading check")
     repos = outputs.get("repositories", {}).get("value", {})
@@ -330,7 +330,7 @@ def main() -> None:
     verify_skipped_org_rulesets(result, outputs)
     verify_org_webhooks(result, outputs)
     verify_no_duplicate_warnings(result, outputs)
-    verify_partitioned_repo_loaded(result, outputs)
+    verify_subdirectory_repo_loaded(result, outputs)
 
     # Summary
     total = len(result.passed) + len(result.failed)
