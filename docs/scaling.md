@@ -126,8 +126,8 @@ jobs:
 
 **Recommendation:** Use `-refresh=false` on PR plans. It eliminates most API cost
 without any architectural changes. If even a scheduled full-refresh plan exceeds your
-API limits, switch to a GitHub App installation token (15,000 requests/hour) and
-increase `read_delay_ms` to spread the refresh over time.
+API limits, split `config/` across multiple root modules, each with its own backend and
+state, so no single plan refreshes the whole organisation.
 
 ## Organizing repository files
 
