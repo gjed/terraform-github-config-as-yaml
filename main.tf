@@ -10,7 +10,9 @@
 # See examples/consumer/ for a complete consumer setup.
 
 terraform {
-  required_version = ">= 1.0"
+  # 1.5 is the floor: this module uses `check` blocks (main.tf and yaml-config.tf),
+  # which parse-error on 1.0-1.4 rather than failing with a clear version message.
+  required_version = ">= 1.5"
 
   required_providers {
     github = {
