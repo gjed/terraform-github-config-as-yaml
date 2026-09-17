@@ -23,8 +23,9 @@ Three shipped scripts. All support `--dry-run`; use it first, always. For wrappe
 ./scripts/onboard-repos.sh -d -i my-repo                # dry-run of the import
 ```
 
-Order matters: the YAML entry must exist in `config/repository/` **before** importing,
-otherwise the imported resource has no config and the next plan destroys it.
+Order matters: the YAML entry must exist in `config/repository/` **before** importing —
+`terraform import` refuses addresses that do not exist in configuration, and the entry is
+what creates the `module.repositories["<name>"]` instance to import into.
 
 After importing, run `make plan` — the goal is an **empty diff** (or only benign updates).
 A non-empty diff means the YAML does not match the live repo; fix the YAML, not GitHub.
