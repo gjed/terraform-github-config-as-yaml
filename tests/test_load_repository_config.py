@@ -47,6 +47,15 @@ class TestLoadRepositoryConfig:
         repos = load_repository_config(tmp_path)
         assert set(repos) == {"top-repo", "oss-repo"}
 
+    def test_subdirectory_key_overrides_top_level(self, tmp_path):
+        """Collisions are last-write-wins here; Terraform reports them as duplicates."""
+        (tmp_path / "repos.yml").write_text("dup:\n  description: top\n")
+        (tmp_path / "oss").mkdir()
+        (tmp_path / "oss" / "projects.yml").write_text("dup:\n  description: sub\n")
+
+        repos = load_repository_config(tmp_path)
+        assert repos["dup"]["description"] == "sub"
+
     def test_nested_subdirectories_ignored(self, tmp_path):
         """Only immediate subdirectories are loaded, mirroring Terraform."""
         (tmp_path / "oss").mkdir()
