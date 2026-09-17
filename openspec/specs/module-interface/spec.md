@@ -83,31 +83,6 @@ The module SHALL accept a `membership_management_enabled` variable of type `bool
 
 ______________________________________________________________________
 
-### Requirement: Repository Partitions Variable
-
-The module SHALL accept a `repository_partitions` variable of type `list(string)` that defaults to
-`[]`. This variable allows consumers to limit which repositories are managed in a given Terraform
-run, mitigating GitHub API rate limits for large organizations.
-
-#### Scenario: Default value preserves backward compatibility
-
-- **WHEN** a consumer does not set `repository_partitions`
-- **THEN** the variable defaults to `[]`
-- **AND** the module manages all repositories defined in the configuration
-
-#### Scenario: Consumer sets specific partitions
-
-- **WHEN** a consumer passes `repository_partitions = ["a-m"]`
-- **THEN** the module only manages repositories that match the specified partitions
-- **AND** repositories outside the partitions are not included in the Terraform plan
-
-#### Scenario: Variable is documented
-
-- **WHEN** a consumer reads the module documentation
-- **THEN** the `repository_partitions` variable is described with its type, default, and purpose
-
-______________________________________________________________________
-
 ### Requirement: Module Outputs
 
 The module SHALL expose the following outputs so consumers can reference managed resource details

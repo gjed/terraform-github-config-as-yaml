@@ -73,8 +73,9 @@ sub-fields), `required_status_checks`, `allows_deletions`, `allows_force_pushes`
 `members_can_create_repositories`, `dependabot_alerts_enabled_for_new_repositories`,
 `dependency_graph_enabled_for_new_repositories`.
 
-**Partition loading:** a repository defined in a subdirectory partition
-(`config/repository/partitioned/`) alongside top-level `*.yml` files.
+**Subdirectory loading:** a repository defined in a subdirectory of `config/repository/`
+(e.g. `config/repository/partitioned/`) alongside top-level `*.yml` files, loaded without
+any selection variable.
 
 #### Scenario: All declared repositories appear in Terraform outputs
 
@@ -84,8 +85,9 @@ sub-fields), `required_status_checks`, `allows_deletions`, `allows_force_pushes`
 
 #### Scenario: Partition-loaded repo appears in outputs
 
-- **WHEN** `terraform apply` completes with `repository_partitions = ["partitioned"]`
-- **THEN** `e2e-partitioned-repo` appears in the `repositories` output
+- **WHEN** `terraform apply` completes
+- **THEN** `e2e-partitioned-repo` (defined in `config/repository/partitioned/`) appears in the
+  `repositories` output
 
 ---
 
