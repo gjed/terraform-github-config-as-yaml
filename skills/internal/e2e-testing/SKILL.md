@@ -17,13 +17,13 @@ test org exercising every module feature, then verifies live state via the GitHu
   destroys everything it manages.
 - `GITHUB_TOKEN` with admin rights on the test org.
 - `tests/e2e/terraform.tfvars` (copy from `terraform.tfvars.example`): `github_org`,
-  `test_user`, `webhook_secret`.
+  `webhook_secret`, `membership_management_enabled`.
 
 ## Lifecycle (root Makefile delegates to tests/e2e/Makefile)
 
 ```bash
 make e2e-init       # terraform init in tests/e2e/
-make e2e-validate   # terraform validate (works without credentials: TF_VAR_github_org=placeholder)
+make e2e-validate   # terraform validate (no credentials needed)
 make e2e-plan
 make e2e-apply
 make e2e-verify     # python3 tests/verify_e2e.py — asserts live GitHub state matches outputs
