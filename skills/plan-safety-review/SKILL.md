@@ -27,8 +27,8 @@ the human rendering.
 
 ## Red flags — require explicit human confirmation
 
-- **Any `delete` or `delete,create` (replace)** on `github_repository` — repository
-  destruction or recreation. Recreation loses issues, PRs, stars, and watchers.
+- **Any `delete`, or a replace (`delete,create` / `create,delete`)** on `github_repository` —
+  repository destruction or recreation. Recreation loses issues, PRs, stars, and watchers.
 - **Visibility flips**, especially `private` → `public`: check
   `.change.before.visibility != .change.after.visibility` on `github_repository`.
 - **`github_membership` deletions** — removes a person from the organization, revoking all
