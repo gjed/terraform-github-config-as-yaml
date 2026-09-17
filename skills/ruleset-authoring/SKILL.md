@@ -66,6 +66,6 @@ on `free`/`pro` they are skipped and listed in the `skipped_org_rulesets` output
    ruleset key plans a destroy of the live ruleset — renames are destroy+create.
 
 For exact parameter semantics of `github_repository_ruleset` /
-`github_organization_ruleset` under the pinned provider (`integrations/github >= 6.12, < 7`),
+`github_organization_ruleset` under the pinned provider (`integrations/github >= 6.12.0`),
 prefer the Terraform Registry MCP server from `.mcp.json`; otherwise use the provider docs on
 registry.terraform.io.
