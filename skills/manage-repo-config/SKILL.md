@@ -59,6 +59,6 @@ next apply. If the repo should keep existing on GitHub unmanaged, use the offboa
 ## Provider attribute lookups
 
 When unsure how a `github_*` resource attribute behaves for the pinned provider version
-(`integrations/github >= 6.12, < 7.0`), prefer the Terraform Registry MCP server (declared
+(`integrations/github >= 6.12.0`), prefer the Terraform Registry MCP server (declared
 in `.mcp.json`) to fetch the exact provider docs; otherwise consult
 <https://registry.terraform.io/providers/integrations/github/latest/docs> directly.
