@@ -12,6 +12,19 @@ variable "webhook_secrets" {
   sensitive   = true
 }
 
+variable "archive_on_destroy" {
+  description = <<-EOT
+    Archive repositories instead of permanently deleting them on destroy.
+
+    Defaults to true: when a repository is removed from configuration or leaves Terraform's view,
+    the GitHub provider archives it rather than deleting it. This protects against accidental,
+    irreversible repository deletion. Set to false only for throwaway repositories (e.g. the e2e
+    test fixture) that must be hard-deleted on teardown.
+  EOT
+  type        = bool
+  default     = true
+}
+
 variable "membership_management_enabled" {
   description = <<-EOT
     Enable organization membership management via YAML configuration in config/membership/.

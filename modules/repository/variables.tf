@@ -19,6 +19,18 @@ variable "visibility" {
   }
 }
 
+variable "archive_on_destroy" {
+  description = <<-EOT
+    Archive the repository instead of permanently deleting it on destroy.
+
+    Defaults to true: when a repository leaves Terraform's view (removed from config or via
+    `terraform state rm`), the GitHub provider archives it rather than deleting it. Set to false
+    only for throwaway repositories (e.g. the e2e test fixture) that must be hard-deleted on teardown.
+  EOT
+  type        = bool
+  default     = true
+}
+
 variable "has_wiki" {
   description = "Enable repository wiki"
   type        = bool
