@@ -23,4 +23,8 @@ module "github_org" {
   }
 
   membership_management_enabled = var.membership_management_enabled
+
+  # Hard-delete throwaway e2e repos on teardown so `make destroy` leaves no
+  # orphans and the next apply does not collide with archived repo names.
+  archive_on_destroy = false
 }

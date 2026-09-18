@@ -33,6 +33,8 @@ module "repositories" {
   homepage_url = each.value.homepage_url
   visibility   = each.value.visibility
 
+  archive_on_destroy = var.archive_on_destroy
+
   has_wiki        = each.value.has_wiki
   has_issues      = each.value.has_issues
   has_projects    = each.value.has_projects

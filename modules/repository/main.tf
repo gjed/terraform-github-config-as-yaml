@@ -34,13 +34,14 @@ resource "github_repository" "this" {
   gitignore_template = var.gitignore_template
   license_template   = var.license_template
 
-  # Archive repositories instead of deleting them on destroy. This is a
-  # hardcoded safety net: if a repository leaves Terraform's view (removed
-  # from config, partition narrowing, or `terraform state rm`), the GitHub
-  # provider archives it via the API rather than permanently deleting it.
+  # Archive repositories instead of deleting them on destroy. Defaults to true
+  # as a safety net: if a repository leaves Terraform's view (removed from
+  # config or via `terraform state rm`), the GitHub provider archives it via
+  # the API rather than permanently deleting it. Only the e2e test fixture
+  # overrides this to false so its throwaway repos are hard-deleted on teardown.
   # prevent_destroy is intentionally NOT set: it must be a literal and would
-  # deadlock normal for_each-based repo removal and repository partitioning.
-  archive_on_destroy = true
+  # deadlock normal for_each-based repo removal.
+  archive_on_destroy = var.archive_on_destroy
 
   lifecycle {
     ignore_changes = [auto_init]
