@@ -44,7 +44,15 @@ resource "github_repository" "this" {
   archive_on_destroy = var.archive_on_destroy
 
   lifecycle {
-    ignore_changes = [auto_init]
+    # auto_init: write-only, only meaningful at creation.
+    # template: the provider's Read always repopulates this from the live
+    # repository's TemplateRepository field, but the schema exposes no way
+    # to set it in config (there is no `template` variable on this module),
+    # so any repo created from a template shows a permanent, no-op removal
+    # diff. GitHub's API has no endpoint to change the template a repo was
+    # created from, and the provider's Update never touches this field, so
+    # ignoring it here is safe.
+    ignore_changes = [auto_init, template]
   }
 }
 
