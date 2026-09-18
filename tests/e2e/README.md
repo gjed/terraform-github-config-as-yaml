@@ -226,5 +226,9 @@ After every test run:
 make destroy
 ```
 
+The fixture sets `archive_on_destroy = false`, so `make destroy` permanently deletes the
+`e2e-*` repos rather than archiving them (the module default of `archive_on_destroy = true`
+would archive them, leaving the names taken and colliding with the next apply).
+
 If destroy fails partway through, you can re-run it or manually delete `e2e-*` repos
 and teams from the GitHub org UI. The `e2e-` prefix makes them easy to find.
