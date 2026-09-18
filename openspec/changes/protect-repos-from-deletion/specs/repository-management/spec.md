@@ -2,14 +2,15 @@
 
 ### Requirement: Repository Resource Management
 
-The system SHALL create and manage GitHub repositories using the Terraform GitHub provider. Repositories SHALL have `archive_on_destroy = true` set as a hardcoded module contract.
+The system SHALL create and manage GitHub repositories using the Terraform GitHub provider.
+Repositories SHALL have `archive_on_destroy` applied from the module variable (default `true`).
 
 #### Scenario: Create new repository
 
 - **WHEN** a repository is defined in configuration that does not exist in GitHub
 - **AND** `terraform apply` is executed
 - **THEN** the repository is created with the specified settings
-- **AND** `archive_on_destroy = true` is applied
+- **AND** `archive_on_destroy` is applied from the module variable (default `true`)
 
 #### Scenario: Update existing repository
 
@@ -29,4 +30,5 @@ The system SHALL create and manage GitHub repositories using the Terraform GitHu
 
 - **WHEN** a repository is removed from configuration
 - **AND** `terraform apply` is executed
-- **THEN** the repository is archived instead of permanently deleted
+- **THEN** the repository is archived instead of permanently deleted (with the default
+  `archive_on_destroy = true`)

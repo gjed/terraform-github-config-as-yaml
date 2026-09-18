@@ -157,15 +157,17 @@ A `Makefile` at `tests/e2e/` SHALL provide targets: `init`, `validate`, `plan`, 
 
 ### Requirement: Fixture is isolated and destroyable
 
-All resources created by the fixture SHALL use the `e2e-` prefix. Running `terraform
-destroy` in `tests/e2e/` SHALL remove all provisioned resources and leave no orphan
-resources in the test org.
+All resources created by the fixture SHALL use the `e2e-` prefix. The fixture SHALL set
+`archive_on_destroy = false` so that `terraform destroy` in `tests/e2e/` hard-deletes all
+provisioned resources and leaves no orphan resources in the test org (the module default of
+`archive_on_destroy = true` would otherwise archive repositories, leaving their names taken).
 
 #### Scenario: Destroy removes all e2e resources
 
+- **GIVEN** the fixture sets `archive_on_destroy = false`
 - **WHEN** `terraform destroy` is run after a successful apply
 - **THEN** all `e2e-*` repositories, teams, rulesets, webhooks, and branch protections
-  are removed from the test org
+  are permanently deleted from the test org
 
 ---
 
