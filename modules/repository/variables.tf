@@ -175,6 +175,7 @@ variable "rulesets" {
           integration_id = optional(number)
         })), [])
         strict_required_status_checks_policy = optional(bool)
+        do_not_enforce_on_create             = optional(bool)
         update_allows_fetch_and_merge        = optional(bool)
         required_deployment_environments     = optional(list(string))
         operator                             = optional(string)

@@ -157,6 +157,7 @@ resource "github_repository_ruleset" "this" {
           }
         }
         strict_required_status_checks_policy = lookup(required_status_checks.value.parameters, "strict_required_status_checks_policy", false)
+        do_not_enforce_on_create             = coalesce(lookup(required_status_checks.value.parameters, "do_not_enforce_on_create", false), false)
       }
     }
 
