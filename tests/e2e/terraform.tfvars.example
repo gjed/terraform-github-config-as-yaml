@@ -11,7 +11,7 @@ github_org = "gjed-io"
 # Optional: Webhook secret for the e2e-webhook.
 # Any string works — webhook.site ignores secrets.
 # Defaults to "e2e-test-secret" if not set.
-webhook_secret = "e2e-test-secret"
+webhook_secret = "e2e-test-secret"  # pragma: allowlist secret
 
 # Safety flag: enable organization membership management.
 # DANGER: Setting true allows Terraform to ADD and REMOVE org members.
