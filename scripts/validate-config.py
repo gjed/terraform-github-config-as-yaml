@@ -101,6 +101,43 @@ VALID_RULE_TYPES = [
 ]
 VALID_SCOPES = ["organization", "repository"]
 
+# Keys that yaml-config.tf reads from group entries. Anything else is silently
+# dropped by Terraform, so unknown keys are reported as warnings.
+VALID_GROUP_KEYS = {
+    "visibility",
+    "homepage_url",
+    "has_wiki",
+    "has_issues",
+    "has_projects",
+    "has_discussions",
+    "allow_merge_commit",
+    "allow_squash_merge",
+    "allow_rebase_merge",
+    "allow_auto_merge",
+    "allow_update_branch",
+    "delete_branch_on_merge",
+    "web_commit_signoff_required",
+    "vulnerability_alerts",
+    "license_template",
+    "topics",
+    "teams",
+    "collaborators",
+    "rulesets",
+    "branch_protections",
+    "webhooks",
+    "actions",
+}
+# Repository entries accept every group key plus the two identity fields.
+VALID_REPOSITORY_KEYS = VALID_GROUP_KEYS | {"description", "groups"}
+
+# Known-dead keys that consumers copy from old shipped configs; map to a targeted hint.
+DEAD_KEY_HINTS = {
+    "require_linear_history": (
+        "not a repository setting. Use a 'required_linear_history' rule in a ruleset "
+        "or branch protection instead"
+    ),
+}
+
 VALID_TEAM_PRIVACIES = ["closed", "secret"]
 # The GitHub provider only accepts these two values and rejects any other
 # casing. Compared case-insensitively so existing lowercase configurations,
@@ -316,6 +353,22 @@ def validate_settings(config: dict) -> tuple[list[str], list[str]]:
             )
 
     return errors, warnings
+
+
+def validate_unknown_keys(
+    entries: dict, valid_keys: set[str], kind: str, label: str
+) -> list[str]:
+    """Warn on keys in group/repository entries that the module never reads."""
+    warnings = []
+    for name, entry in entries.items():
+        if not isinstance(entry, dict):
+            continue
+        for key in sorted(set(entry) - valid_keys):
+            hint = DEAD_KEY_HINTS.get(
+                key, "unknown key, ignored by the module (typo or obsolete?)"
+            )
+            warnings.append(f"{label}: {kind} '{name}' key '{key}': {hint}")
+    return warnings
 
 
 def validate_groups(groups: dict, org_ruleset_names: set) -> list[str]:
@@ -1161,6 +1214,14 @@ def main():
     all_errors.extend(settings_errors)
     all_warnings.extend(settings_warnings)
     all_errors.extend(validate_groups(groups, org_ruleset_names))
+    all_warnings.extend(
+        validate_unknown_keys(groups, VALID_GROUP_KEYS, "Group", "groups")
+    )
+    all_warnings.extend(
+        validate_unknown_keys(
+            repos, VALID_REPOSITORY_KEYS, "Repository", "repositories"
+        )
+    )
     all_errors.extend(validate_rulesets(rulesets))
     all_errors.extend(validate_membership(members))
     all_errors.extend(validate_branch_protections(branch_protections))
