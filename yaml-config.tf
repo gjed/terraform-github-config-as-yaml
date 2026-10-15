@@ -893,6 +893,22 @@ locals {
     (local.rulesets_require_paid_for_private && local.repo_visibility[repo_name] != "public") ? tomap({}) : rulesets
   }
 
+  # Team slugs referenced as ruleset required_reviewers (pull_request rule) that
+  # need resolving to a team ID. Reviewers given by numeric id are excluded.
+  # Only effective rulesets count, so skipped rulesets trigger no team lookups.
+  reviewer_team_slugs = toset(flatten([
+    for ruleset in concat(
+      flatten([for repo_name, rulesets in local.effective_rulesets : values(rulesets)]),
+      values(local.effective_org_rulesets),
+      ) : [
+      for rule in try(ruleset.rules, []) : [
+        for reviewer in coalesce(try(rule.parameters.required_reviewers, null), []) :
+        reviewer.reviewer.slug
+        if try(reviewer.reviewer.id, null) == null && try(reviewer.reviewer.slug, null) != null
+      ] if try(rule.type, null) == "pull_request"
+    ]
+  ]))
+
   # Track which repos have rulesets skipped due to subscription limitations
   repos_with_skipped_rulesets = [
     for repo_name, rulesets in local.merged_rulesets : repo_name
