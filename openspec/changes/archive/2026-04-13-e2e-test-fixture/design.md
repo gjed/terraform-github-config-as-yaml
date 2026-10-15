@@ -56,7 +56,7 @@ in state).
 ### Decision 4: PyGithub for post-apply verification, not a Terraform data source
 
 `verify.py` calls the GitHub REST API directly after apply, instead of re-running Terraform
-with data sources. 
+with data sources.
 
 **Why:** Data sources re-use provider auth and Terraform's plan engine — they test the
 provider, not our config. A direct API call independently verifies that the provisioned
