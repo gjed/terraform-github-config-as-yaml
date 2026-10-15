@@ -2,7 +2,8 @@
 
 ### Requirement: Define custom properties via YAML
 
-The system SHALL load custom property definitions from `config/custom-property/*.yml` files. Each top-level key in the YAML represents one custom property. The YAML structure for each property SHALL support:
+The system SHALL load custom property definitions from `config/custom-property/*.yml` files. Each top-level key in the
+YAML represents one custom property. The YAML structure for each property SHALL support:
 
 - `description` (string, optional): human-readable description
 - `value_type` (string, required): one of `string`, `single_select`, `multi_select`, `true_false`
@@ -14,7 +15,8 @@ The system SHALL load custom property definitions from `config/custom-property/*
 #### Scenario: Load property definitions from YAML files
 
 - **WHEN** `config/custom-property/` contains one or more `.yml` files with property definitions
-- **THEN** the system SHALL parse each file and create a `github_organization_custom_properties` resource for each top-level key
+- **THEN** the system SHALL parse each file and create a `github_organization_custom_properties` resource for each
+  top-level key
 
 #### Scenario: Multiple YAML files merged
 
@@ -28,7 +30,8 @@ The system SHALL load custom property definitions from `config/custom-property/*
 
 ### Requirement: Detect duplicate property names across files
 
-The system SHALL detect when the same property name appears as a top-level key in multiple `config/custom-property/*.yml` files and surface a warning via a Terraform `check` block.
+The system SHALL detect when the same property name appears as a top-level key in multiple
+`config/custom-property/*.yml` files and surface a warning via a Terraform `check` block.
 
 #### Scenario: Duplicate property name across files
 
@@ -37,7 +40,9 @@ The system SHALL detect when the same property name appears as a top-level key i
 
 ### Requirement: Subscription tier gating for property definitions
 
-The system SHALL only create `github_organization_custom_properties` resources when the subscription tier is `team` or `enterprise` AND `is_organization` is `true`. On all other configurations, property definition resources SHALL be skipped.
+The system SHALL only create `github_organization_custom_properties` resources when the subscription tier is `team` or
+`enterprise` AND `is_organization` is `true`. On all other configurations, property definition resources SHALL be
+skipped.
 
 #### Scenario: Free tier skips property definitions
 
@@ -56,7 +61,8 @@ The system SHALL only create `github_organization_custom_properties` resources w
 
 ### Requirement: Output skipped custom properties warning
 
-The system SHALL expose an output listing custom property names that were skipped due to subscription tier or account type, matching the pattern used by `skipped_org_rulesets`.
+The system SHALL expose an output listing custom property names that were skipped due to subscription tier or account
+type, matching the pattern used by `skipped_org_rulesets`.
 
 #### Scenario: Skipped properties listed in output
 

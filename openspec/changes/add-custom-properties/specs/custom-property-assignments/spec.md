@@ -2,13 +2,15 @@
 
 ### Requirement: Assign custom property values per repository
 
-The system SHALL support a `custom_property_values:` map in both group and repository YAML configurations. Each key in the map is a property name and each value is the property value to assign.
+The system SHALL support a `custom_property_values:` map in both group and repository YAML configurations. Each key in
+the map is a property name and each value is the property value to assign.
 
 #### Scenario: Group-level property values
 
 - **WHEN** a group defines `custom_property_values: { environment: production }`
 - **AND** a repository belongs to that group
-- **THEN** the system SHALL create a `github_repository_custom_property` resource assigning `environment = production` to that repository
+- **THEN** the system SHALL create a `github_repository_custom_property` resource assigning `environment = production`
+  to that repository
 
 #### Scenario: Repository-level override
 
@@ -25,7 +27,9 @@ The system SHALL support a `custom_property_values:` map in both group and repos
 
 ### Requirement: Handle multi_select property values
 
-The system SHALL accept list values for `multi_select` properties and scalar string values for all other types (`string`, `single_select`, `true_false`). The Terraform layer SHALL normalize all values to the list format expected by the `github_repository_custom_property` resource.
+The system SHALL accept list values for `multi_select` properties and scalar string values for all other types
+(`string`, `single_select`, `true_false`). The Terraform layer SHALL normalize all values to the list format expected by
+the `github_repository_custom_property` resource.
 
 #### Scenario: Scalar value for single_select
 
@@ -39,7 +43,9 @@ The system SHALL accept list values for `multi_select` properties and scalar str
 
 ### Requirement: Subscription tier gating for property assignments
 
-The system SHALL only create `github_repository_custom_property` resources when the subscription tier supports custom properties (`team` or `enterprise`) AND `is_organization` is `true`. On unsupported configurations, all property value assignments SHALL be skipped.
+The system SHALL only create `github_repository_custom_property` resources when the subscription tier supports custom
+properties (`team` or `enterprise`) AND `is_organization` is `true`. On unsupported configurations, all property value
+assignments SHALL be skipped.
 
 #### Scenario: Free tier skips property assignments
 
@@ -53,7 +59,9 @@ The system SHALL only create `github_repository_custom_property` resources when 
 
 ### Requirement: Property definitions must exist before assignments
 
-The system SHALL ensure that `github_organization_custom_properties` resources are created before any `github_repository_custom_property` resources that reference them. This SHALL be enforced via Terraform's `depends_on` mechanism on the repository module.
+The system SHALL ensure that `github_organization_custom_properties` resources are created before any
+`github_repository_custom_property` resources that reference them. This SHALL be enforced via Terraform's `depends_on`
+mechanism on the repository module.
 
 #### Scenario: Fresh deployment ordering
 
@@ -62,13 +70,15 @@ The system SHALL ensure that `github_organization_custom_properties` resources a
 
 ### Requirement: Validate property references
 
-The validation script SHALL verify that every property name used in `custom_property_values:` (in groups or repositories) is defined in `config/custom-property/`. Undefined references SHALL be reported as validation errors.
+The validation script SHALL verify that every property name used in `custom_property_values:` (in groups or
+repositories) is defined in `config/custom-property/`. Undefined references SHALL be reported as validation errors.
 
 #### Scenario: Undefined property reference
 
 - **WHEN** a group or repository references `custom_property_values: { nonexistent: value }`
 - **AND** `nonexistent` is not defined in `config/custom-property/`
-- **THEN** the validation script SHALL report an error identifying the undefined property name and the group/repo that references it
+- **THEN** the validation script SHALL report an error identifying the undefined property name and the group/repo that
+  references it
 
 #### Scenario: All references valid
 
@@ -77,7 +87,8 @@ The validation script SHALL verify that every property name used in `custom_prop
 
 ### Requirement: Validate select-type values
 
-The validation script SHALL verify that values assigned to `single_select` and `multi_select` properties are in the property's `allowed_values` list. Invalid values SHALL be reported as validation errors.
+The validation script SHALL verify that values assigned to `single_select` and `multi_select` properties are in the
+property's `allowed_values` list. Invalid values SHALL be reported as validation errors.
 
 #### Scenario: Invalid single_select value
 
@@ -93,7 +104,9 @@ The validation script SHALL verify that values assigned to `single_select` and `
 
 ### Requirement: Validate required properties have assignments
 
-The validation script SHALL verify that every property marked `required: true` has a value assigned (via group or repo-level `custom_property_values:`) for every managed repository when the subscription tier supports custom properties.
+The validation script SHALL verify that every property marked `required: true` has a value assigned (via group or
+repo-level `custom_property_values:`) for every managed repository when the subscription tier supports custom
+properties.
 
 #### Scenario: Required property missing on a repo
 
