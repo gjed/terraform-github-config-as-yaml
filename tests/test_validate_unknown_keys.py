@@ -57,5 +57,10 @@ class TestValidateUnknownKeys:
         assert "not a repository setting" in warnings[0]
         assert "required_linear_history" in warnings[0]
 
+    def test_mixed_type_unknown_keys_do_not_raise(self):
+        groups = {"g": {1: True, "require_linear_history": True}}
+        warnings = validate_unknown_keys(groups, VALID_GROUP_KEYS, "Group", "groups")
+        assert len(warnings) == 2
+
     def test_non_dict_entries_skipped(self):
         assert validate_unknown_keys({"g": None}, VALID_GROUP_KEYS, "Group", "groups") == []

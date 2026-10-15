@@ -363,7 +363,8 @@ def validate_unknown_keys(
     for name, entry in entries.items():
         if not isinstance(entry, dict):
             continue
-        for key in sorted(set(entry) - valid_keys):
+        # key=str: YAML keys may be ints/bools, which cannot be sorted against strings
+        for key in sorted(set(entry) - valid_keys, key=str):
             hint = DEAD_KEY_HINTS.get(
                 key, "unknown key, ignored by the module (typo or obsolete?)"
             )
