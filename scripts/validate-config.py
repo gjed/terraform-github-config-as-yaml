@@ -436,6 +436,104 @@ def validate_repositories(
     return errors
 
 
+def validate_required_reviewers(ruleset_name: str, required_reviewers) -> list[str]:
+    """Validate the required_reviewers parameter of a pull_request rule."""
+    if required_reviewers is None:
+        return []
+
+    def error(field: str, message: str) -> str:
+        return f"rulesets: Ruleset '{ruleset_name}' field '{field}' {message}"
+
+    if not isinstance(required_reviewers, list):
+        return [
+            error(
+                "required_reviewers",
+                f"must be a list, got {type(required_reviewers).__name__!r}",
+            )
+        ]
+    if len(required_reviewers) > 15:
+        return [
+            error(
+                "required_reviewers",
+                f"must have at most 15 entries, got {len(required_reviewers)}",
+            )
+        ]
+
+    errors = []
+    for i, entry in enumerate(required_reviewers):
+        field = f"required_reviewers[{i}]"
+        if not isinstance(entry, dict):
+            errors.append(error(field, "must be a mapping"))
+            continue
+
+        reviewer = entry.get("reviewer")
+        if not isinstance(reviewer, dict):
+            errors.append(error(f"{field}.reviewer", "must be a mapping"))
+        else:
+            slug = reviewer.get("slug")
+            reviewer_id = reviewer.get("id")
+            if (slug is None) == (reviewer_id is None):
+                errors.append(
+                    error(f"{field}.reviewer", "must set exactly one of 'slug' or 'id'")
+                )
+            if slug is not None and not (
+                isinstance(slug, str) and _SLUG_RE.match(slug)
+            ):
+                errors.append(
+                    error(
+                        f"{field}.reviewer.slug",
+                        f"must be a valid team slug, got {slug!r}",
+                    )
+                )
+            if reviewer_id is not None and (
+                not isinstance(reviewer_id, int)
+                or isinstance(reviewer_id, bool)
+                or reviewer_id <= 0
+            ):
+                errors.append(
+                    error(
+                        f"{field}.reviewer.id",
+                        f"must be a positive integer, got {reviewer_id!r}",
+                    )
+                )
+            if "type" in reviewer and reviewer["type"] != "Team":
+                errors.append(
+                    error(
+                        f"{field}.reviewer.type",
+                        f"must be 'Team', got {reviewer['type']!r}",
+                    )
+                )
+
+        file_patterns = entry.get("file_patterns")
+        if (
+            not isinstance(file_patterns, list)
+            or not file_patterns
+            or not all(isinstance(p, str) and p for p in file_patterns)
+        ):
+            errors.append(
+                error(
+                    f"{field}.file_patterns",
+                    "must be a non-empty list of non-empty strings",
+                )
+            )
+
+        minimum_approvals = entry.get("minimum_approvals")
+        if (
+            not isinstance(minimum_approvals, int)
+            or isinstance(minimum_approvals, bool)
+            or not 0 <= minimum_approvals <= 10
+        ):
+            errors.append(
+                error(
+                    f"{field}.minimum_approvals",
+                    f"must be an integer between 0 and 10, got {minimum_approvals!r}",
+                )
+            )
+
+    return errors
+
+
+
 def validate_rulesets(rulesets: dict) -> list[str]:
     """Validate rulesets configuration."""
     errors = []
@@ -489,6 +587,14 @@ def validate_rulesets(rulesets: dict) -> list[str]:
                         f"rulesets: Org-scoped ruleset '{ruleset_name}' uses rule type "
                         f"'required_deployments' which is not supported for organization rulesets"
                     )
+                elif rule["type"] == "pull_request":
+                    parameters = rule.get("parameters")
+                    if isinstance(parameters, dict):
+                        errors.extend(
+                            validate_required_reviewers(
+                                ruleset_name, parameters.get("required_reviewers")
+                            )
+                        )
 
     return errors
 
