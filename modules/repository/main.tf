@@ -140,6 +140,24 @@ resource "github_repository_ruleset" "this" {
         require_code_owner_review         = lookup(pull_request.value.parameters, "require_code_owner_review", false)
         require_last_push_approval        = lookup(pull_request.value.parameters, "require_last_push_approval", false)
         required_review_thread_resolution = lookup(pull_request.value.parameters, "required_review_thread_resolution", false)
+
+        dynamic "required_reviewers" {
+          # coalesce guards against an explicit `required_reviewers: null`, which
+          # bypasses the optional() default.
+          for_each = coalesce(try(pull_request.value.parameters.required_reviewers, null), [])
+          content {
+            reviewer {
+              # A conditional, not coalesce(): coalesce evaluates every argument and
+              # indexing team_ids with a null slug would fail.
+              id = (required_reviewers.value.reviewer.id != null
+                ? required_reviewers.value.reviewer.id
+              : tonumber(var.team_ids[required_reviewers.value.reviewer.slug]))
+              type = coalesce(required_reviewers.value.reviewer.type, "Team")
+            }
+            file_patterns     = required_reviewers.value.file_patterns
+            minimum_approvals = required_reviewers.value.minimum_approvals
+          }
+        }
       }
     }
 

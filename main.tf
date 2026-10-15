@@ -67,6 +67,8 @@ module "repositories" {
   # Apply branch protection rules from groups and repo-specific definitions
   branch_protections = each.value.branch_protections
 
+  # Team slug => ID map used to resolve ruleset required_reviewers given by slug
+  team_ids = local.reviewer_team_ids
 }
 
 # Organization membership management
@@ -155,6 +157,24 @@ resource "github_organization_ruleset" "this" {
         require_code_owner_review         = lookup(pull_request.value.parameters, "require_code_owner_review", false)
         require_last_push_approval        = lookup(pull_request.value.parameters, "require_last_push_approval", false)
         required_review_thread_resolution = lookup(pull_request.value.parameters, "required_review_thread_resolution", false)
+
+        dynamic "required_reviewers" {
+          # coalesce guards against `required_reviewers:` written with no value in
+          # YAML, which decodes to null and cannot be used in for_each.
+          for_each = coalesce(lookup(pull_request.value.parameters, "required_reviewers", []), [])
+          content {
+            reviewer {
+              # A conditional, not coalesce(): coalesce evaluates every argument and
+              # indexing reviewer_team_ids with a null slug would fail.
+              id = (try(required_reviewers.value.reviewer.id, null) != null
+                ? required_reviewers.value.reviewer.id
+              : tonumber(local.reviewer_team_ids[required_reviewers.value.reviewer.slug]))
+              type = coalesce(try(required_reviewers.value.reviewer.type, null), "Team")
+            }
+            file_patterns     = required_reviewers.value.file_patterns
+            minimum_approvals = required_reviewers.value.minimum_approvals
+          }
+        }
       }
     }
 
@@ -362,6 +382,36 @@ module "teams_level_2" {
   maintainers    = each.value.maintainers
 
   review_request_delegation = each.value.review_request_delegation
+}
+
+# Resolve team slugs referenced as ruleset required_reviewers to team IDs.
+# Teams managed in config/team/ resolve from their module output, so a team and a
+# ruleset requiring it can be created in the same apply (the module output also
+# orders the ruleset after the team). Any other slug is looked up as an existing
+# team; the plan fails if it does not exist.
+locals {
+  managed_team_ids = merge(
+    { for slug, team in module.teams_root : slug => team.team_id },
+    { for slug, team in module.teams_level_1 : slug => team.team_id },
+    { for slug, team in module.teams_level_2 : slug => team.team_id },
+  )
+
+  # Keyed on local.all_teams rather than the module outputs so the set is known
+  # at plan time (data source for_each cannot depend on apply-time values).
+  managed_team_slugs = local.is_organization ? toset(keys(local.all_teams)) : toset([])
+
+  reviewer_team_ids = merge(
+    { for slug, team in data.github_team.reviewers : slug => team.id },
+    { for slug in local.reviewer_team_slugs : slug => local.managed_team_ids[slug] if contains(local.managed_team_slugs, slug) },
+  )
+}
+
+data "github_team" "reviewers" {
+  for_each = setsubtract(local.reviewer_team_slugs, local.managed_team_slugs)
+
+  slug = each.value
+  # Only the ID is needed; skip fetching members and repositories.
+  summary_only = true
 }
 
 # Look up organization roles to resolve the security_manager role ID dynamically

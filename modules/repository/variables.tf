@@ -165,6 +165,18 @@ variable "rulesets" {
         require_code_owner_review         = optional(bool)
         require_last_push_approval        = optional(bool)
         required_review_thread_resolution = optional(bool)
+        # Teams that must approve changes to matching files. A reviewer is given by
+        # numeric `id` or by team `slug`, resolved through var.team_ids. Defaults to
+        # [] for the same null-in-for_each reason as required_checks below.
+        required_reviewers = optional(list(object({
+          reviewer = object({
+            id   = optional(number)
+            slug = optional(string)
+            type = optional(string, "Team")
+          })
+          file_patterns     = list(string)
+          minimum_approvals = number
+        })), [])
         # Defaults to [] rather than being left unset. Inside a typed object the
         # attribute always exists, so lookup(parameters, "required_checks", [])
         # returns null instead of its fallback, and a null cannot be used in
@@ -191,6 +203,12 @@ variable "rulesets" {
     })))
   }))
   default = {}
+}
+
+variable "team_ids" {
+  description = "Map of team slug to team ID, used to resolve ruleset required_reviewers given by slug"
+  type        = map(string)
+  default     = {}
 }
 
 variable "actions" {
