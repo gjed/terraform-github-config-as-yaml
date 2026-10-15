@@ -42,6 +42,30 @@
 #         required_approving_review_count: 1
 #         dismiss_stale_reviews_on_push: true
 #
+# Required reviewers on a pull_request rule (uncomment to enable; beta GitHub feature).
+# 'slug' must be a team in config/team/ or an existing team; the reviewing team needs
+# write access. Use 'id' instead of 'slug' (exactly one) for a numeric team ID.
+# Personal accounts have no teams, so this does not apply there.
+#
+# example-required-reviewers:
+#   target: branch
+#   enforcement: active
+#   conditions:
+#     ref_name:
+#       include:
+#         - "~DEFAULT_BRANCH"
+#       exclude: []
+#   rules:
+#     - type: pull_request
+#       parameters:
+#         required_approving_review_count: 1
+#         required_reviewers:
+#           - reviewer:
+#               slug: security-team   # or id: 1234567
+#               type: Team            # optional, default: Team
+#             file_patterns: ["*.tf", "security/**"]
+#             minimum_approvals: 1    # 0 = requested for review, not required
+#
 # When using templates in repositories.yml or groups.yml:
 #   rulesets:
 #     - template: strict-main

@@ -50,6 +50,27 @@ on `free`/`pro` they are skipped and listed in the `skipped_org_rulesets` output
 (repository scope only), `branch_name_pattern`, `commit_message_pattern`,
 `commit_author_email_pattern`, `committer_email_pattern`.
 
+## Required reviewers (beta)
+
+Add `required_reviewers` to a `pull_request` rule's `parameters` (repository and org rulesets):
+
+```yaml
+    - type: pull_request
+      parameters:
+        required_approving_review_count: 1
+        required_reviewers:
+          - reviewer:
+              slug: security-team    # OR id: 1234567 (exactly one); type defaults to Team
+            file_patterns: ["*.tf", "security/**"]
+            minimum_approvals: 1     # 0 = requested for review, not required
+```
+
+- `slug` of a team in `config/team/` resolves from the managed team (same apply). Any other slug is
+  looked up; the plan fails if the team does not exist.
+- The team needs write access to the repository.
+- Beta GitHub feature. Personal accounts have no teams, so this does not apply there.
+- Max 15 entries; `minimum_approvals` 0-10; `type`, if set, must be `Team`.
+
 ## Tier gating
 
 - `free`: repository rulesets work on **public** repos only; private-repo assignments are
