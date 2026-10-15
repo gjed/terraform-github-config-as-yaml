@@ -17,7 +17,7 @@
 
 ## 4. Spec Updates
 
-- [ ] 4.1 Archive the change into `openspec/specs/` after implementation is complete
+- [x] 4.1 Archive the change into `openspec/specs/` after implementation is complete
 
 ## 5. Verification
 
