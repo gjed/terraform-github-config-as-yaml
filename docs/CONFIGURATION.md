@@ -136,6 +136,21 @@ When `allowed_actions: selected`, add an `allowed_actions_config:` sub-block:
 
 ______________________________________________________________________
 
+## Group and repository keys
+
+Only the keys listed in `VALID_GROUP_KEYS` and `VALID_REPOSITORY_KEYS` in `scripts/validate-config.py` are read
+from `config/group/` and `config/repository/` entries. Any other key is silently dropped by Terraform;
+`validate-config.py` reports it as a warning.
+
+### Linear history is branch-level only
+
+GitHub has no repository-wide linear-history setting, so there is no `require_linear_history` group or repository
+key. Enforce it on specific branches with a `required_linear_history` rule in a ruleset (see
+`config/ruleset/default-rulesets.yml`) or `required_linear_history: true` in a branch protection (see
+`config/branch-protection/`).
+
+______________________________________________________________________
+
 ## Subscription tier feature matrix
 
 | Feature                   | free | pro | team | enterprise |
