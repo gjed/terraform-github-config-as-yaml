@@ -13,6 +13,7 @@ matches the declared config.
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Cover every documented feature at least once in YAML config
 - Be runnable by any developer against their own test org with `make e2e-apply`
 - Produce actionable output on failure (which feature broke, expected vs actual)
@@ -20,6 +21,7 @@ matches the declared config.
 - Leave no orphan resources (full `terraform destroy` cleans up completely)
 
 **Non-Goals:**
+
 - Running in CI automatically (no GitHub Actions workflow — that needs a dedicated test org
   and secrets management; a follow-on change can add it)
 - Testing every permutation (one clear example per feature is enough)

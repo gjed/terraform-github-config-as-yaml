@@ -2,7 +2,8 @@
 
 ### Requirement: Git-based partition detection script
 
-The module SHALL include a script at `scripts/detect-partitions.sh` that analyzes git diff output and outputs affected partition names.
+The module SHALL include a script at `scripts/detect-partitions.sh` that analyzes git diff output and outputs affected
+partition names.
 
 #### Scenario: Script accepts git diff range
 
@@ -11,7 +12,8 @@ The module SHALL include a script at `scripts/detect-partitions.sh` that analyze
 
 ### Requirement: Shared config changes trigger all partitions
 
-When files in shared configuration directories change, the script SHALL output ALL partition names because shared config can affect any repository.
+When files in shared configuration directories change, the script SHALL output ALL partition names because shared config
+can affect any repository.
 
 #### Scenario: Group config changes
 
@@ -35,7 +37,8 @@ When files in shared configuration directories change, the script SHALL output A
 
 ### Requirement: Top-level repository file changes do not trigger partitions
 
-Changes to top-level files in `config/repository/` SHALL NOT trigger partition plans because those files are always loaded regardless of partition selection.
+Changes to top-level files in `config/repository/` SHALL NOT trigger partition plans because those files are always
+loaded regardless of partition selection.
 
 #### Scenario: Only top-level repo files changed
 
@@ -72,7 +75,8 @@ The script SHALL support a `--tfvar` flag that formats output as a Terraform lis
 
 ### Requirement: Combined changes follow escalation rules
 
-When multiple types of changes are present in the same diff, the script SHALL follow escalation: shared config changes take precedence over partition-specific changes.
+When multiple types of changes are present in the same diff, the script SHALL follow escalation: shared config changes
+take precedence over partition-specific changes.
 
 #### Scenario: Shared config plus partition-specific changes
 

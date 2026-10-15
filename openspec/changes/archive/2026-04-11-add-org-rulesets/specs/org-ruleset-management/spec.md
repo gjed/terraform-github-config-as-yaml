@@ -69,6 +69,7 @@ plans, all org rulesets are skipped with a warning output.
 
 ______________________________________________________________________
 
+<!-- markdownlint-disable-next-line MD024 -->
 ## ADDED Requirements
 
 ### Requirement: Organization Ruleset Subscription Gating
@@ -128,6 +129,7 @@ rulesets map and are not available for assignment via `rulesets:` in groups or r
 
 ______________________________________________________________________
 
+<!-- markdownlint-disable-next-line MD024 -->
 ## MODIFIED Requirements
 
 ### Requirement: Subscription Tier Awareness (MODIFIED)

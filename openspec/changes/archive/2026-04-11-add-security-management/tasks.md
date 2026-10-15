@@ -5,15 +5,18 @@
 
 ## 2. Terraform Config Parsing
 
-- [x] 2.1 Add `security_config` local in `yaml-config.tf` to extract `security` from `common_config` (defaulting to null when absent)
+- [x] 2.1 Add `security_config` local in `yaml-config.tf` to extract `security` from `common_config` (defaulting to null
+      when absent)
 - [x] 2.2 Add `security_managers_supported` local boolean gated on `is_organization` and subscription tier (`team`/`enterprise`)
 - [x] 2.3 Add `security_manager_teams` local that resolves the team slug list (empty when unsupported or unconfigured)
 
 ## 3. Terraform Resources
 
-- [x] 3.1 Add `data.github_organization_roles` data source in `main.tf` with conditional count (only when security managers are configured and supported)
+- [x] 3.1 Add `data.github_organization_roles` data source in `main.tf` with conditional count (only when security
+      managers are configured and supported)
 - [x] 3.2 Add local to extract `security_manager` role ID from the data source
-- [x] 3.3 Add `github_organization_role_team` resource with `for_each` over `security_manager_teams` using the resolved role ID
+- [x] 3.3 Add `github_organization_role_team` resource with `for_each` over `security_manager_teams` using the resolved
+      role ID
 
 ## 4. Outputs
 
@@ -21,7 +24,8 @@
 
 ## 5. Validation Script
 
-- [x] 5.1 Update `scripts/validate-config.py` to validate `security` section schema (optional section, `security_manager_teams` must be list of strings)
+- [x] 5.1 Update `scripts/validate-config.py` to validate `security` section schema (optional section,
+      `security_manager_teams` must be list of strings)
 - [x] 5.2 Add subscription tier warning when security manager teams are configured on `free` or `pro` tier
 
 ## 6. Documentation and Examples
