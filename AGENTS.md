@@ -189,6 +189,12 @@ Supported rule types:
 - `commit_author_email_pattern` - Enforce commit author email patterns
 - `committer_email_pattern` - Enforce committer email patterns
 
+**Required reviewers** (`pull_request` rule, beta GitHub feature): add `required_reviewers` under
+`parameters`. Each entry sets `reviewer` (exactly one of `slug` or `id`; `type` defaults to `Team`),
+`file_patterns` and `minimum_approvals` (0 = requested, not required; max 15 entries). A `slug` of a
+team in `config/team/` resolves from the managed team; any other slug is looked up and the plan fails
+if it does not exist. The team needs write access to the repository. Personal accounts have no teams.
+
 Then run `terraform plan` to preview and `terraform apply` to apply.
 
 **Subscription tier limitations:**
