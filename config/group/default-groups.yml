@@ -24,7 +24,6 @@ oss:
   has_issues: true
   has_projects: false
   has_wiki: true
-  require_linear_history: true
   rulesets:
     - oss-main-protection
   topics:
