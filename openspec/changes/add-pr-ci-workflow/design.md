@@ -45,8 +45,11 @@ of the contract with the external ruleset (see spec). `pytest` runs `pytest test
 
 ### Permissions and triggers
 
-`on: pull_request` and `push` to `main`; top-level `permissions: contents: read`; `concurrency` group per ref with
-`cancel-in-progress` for pull requests only (a push to `main` must not be cancelled). No `pull_request_target`, no
+`on: pull_request` and `push` to `main`; top-level `permissions: contents: read`. Concurrency uses one group per pull
+request number with `cancel-in-progress` so only superseded PR runs are cancelled, and a group unique to each push run
+(`github.run_id`) so pushes to `main` never cancel or replace one another. A shared per-ref group is not enough: even
+with `cancel-in-progress: false`, GitHub keeps only one pending run per group, so a third push replaces the queued
+second one and that commit is never checked. No `pull_request_target`, no
 secrets, no environment.
 
 ### Baseline debt is cleared in a prerequisite PR, not suppressed globally
