@@ -56,6 +56,15 @@ module "github_org" {
   #   ORG_WEBHOOK_SECRET      = var.org_webhook_secret
   # }
 
+  # Optional: pass Actions and Dependabot secret values for secrets defined in
+  # config/secret/ and in group/repository `secrets:` blocks. YAML references them as
+  # value: "env:VAR_NAME"; the key must exist here or the plan fails. Values are sensitive
+  # and end up in Terraform state, so use an encrypted remote backend.
+  # secret_values = {
+  #   DEPLOY_TOKEN      = var.deploy_token
+  #   REGISTRY_PASSWORD = var.registry_password
+  # }
+
   # Optional: enable organization membership management via config/membership/.
   #
   # WARNING: When enabled, removing a username from config/membership/ will remove that person

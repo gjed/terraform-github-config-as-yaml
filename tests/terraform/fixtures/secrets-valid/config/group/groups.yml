@@ -1,0 +1,15 @@
+base:
+  teams: {}
+  variables:
+    actions:
+      LOG_LEVEL:
+        value: "info"
+
+oss:
+  secrets:
+    actions:
+      GROUP_SECRET:
+        value: "env:DEPLOY_TOKEN"  # pragma: allowlist secret
+    dependabot:
+      GROUP_DEPENDABOT_SECRET:
+        value: "env:REGISTRY_PASSWORD"  # pragma: allowlist secret

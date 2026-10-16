@@ -38,6 +38,19 @@ oss:
   # Branch protections: reference by name from config/branch-protection/
   # branch_protections:
   #   - main-protection        # Requires PR review before merging
+  # Secrets and variables: values for secrets use env:VAR_NAME, resolved from the secret_values variable.
+  # Repositories in this group inherit them; a repository definition replaces one with the same name.
+  # secrets:
+  #   actions:
+  #     NPM_TOKEN:
+  #       value: "env:NPM_TOKEN"
+  #   dependabot:
+  #     REGISTRY_PASSWORD:
+  #       value: "env:REGISTRY_PASSWORD"
+  # variables:
+  #   actions:
+  #     DEPLOY_ENV:
+  #       value: "staging"
 
 # Internal - Private repositories
 # Use this group for internal/private projects

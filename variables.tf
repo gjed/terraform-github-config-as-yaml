@@ -12,6 +12,13 @@ variable "webhook_secrets" {
   sensitive   = true
 }
 
+variable "secret_values" {
+  description = "Map of Actions/Dependabot secret names to their values. Keys must match the VAR_NAME in env:VAR_NAME references used in config/secret/ and group/repository `secrets:` definitions."
+  type        = map(string)
+  default     = {}
+  sensitive   = true
+}
+
 variable "archive_on_destroy" {
   description = <<-EOT
     Archive repositories instead of permanently deleting them on destroy.

@@ -67,6 +67,10 @@ module "repositories" {
   # Apply branch protection rules from groups and repo-specific definitions
   branch_protections = each.value.branch_protections
 
+  # Actions and Dependabot secrets, Actions variables (values resolved in yaml-config.tf)
+  secrets   = each.value.secrets
+  variables = each.value.variables
+
   # Team slug => ID map used to resolve ruleset required_reviewers given by slug
   team_ids = local.reviewer_team_ids
 }

@@ -23,6 +23,7 @@ terraform-github-config-as-yaml/
 │   ├── group/                        # Configuration groups (oss, internal, etc.)
 │   ├── repository/                   # Repository definitions
 │   ├── ruleset/                      # Ruleset definitions
+│   ├── secret/                       # Org Actions/Dependabot secrets and variables (optional)
 │   └── membership/                   # Organization membership definitions (optional)
 ├── examples/consumer/                # Consumer example for module usage
 ├── scripts/
@@ -295,6 +296,62 @@ org_webhooks:
 - Webhooks must be defined in `config/webhook/` before they can be referenced in `org_webhooks`
 - Secrets follow the same `env:VAR_NAME` pattern as repo webhooks; pass via `webhook_secrets` variable
 - Org webhooks work on all GitHub subscription tiers (no tier gating)
+
+### Managing secrets and variables
+
+Actions secrets, Actions variables, and Dependabot secrets can be managed at the organization or
+repository level. Secret values are never written in YAML: a secret's `value` must be an
+`env:VAR_NAME` reference, and the value is supplied through the sensitive `secret_values`
+Terraform variable (same pattern as `webhook_secrets`).
+
+**State warning:** secret values are stored in Terraform state. Use an encrypted remote backend
+(for example S3 with encryption, or Terraform Cloud) before managing secrets.
+
+1. Organization-level definitions live in `config/secret/*.yml` (see `config/secret/examples.yml`).
+   Each file may define `actions_secrets`, `actions_variables`, and `dependabot_secrets`. Files are
+   merged per type by name, last file wins. Visibility is `all`, `private`, or `selected`; with
+   `selected`, list the managed repositories in `selected_repositories`.
+
+   ```yaml
+   # config/secret/org-secrets.yml
+   actions_secrets:
+     DEPLOY_TOKEN:
+       value: "env:DEPLOY_TOKEN"
+       visibility: selected
+       selected_repositories: [my-app, my-api]
+   actions_variables:
+     ENVIRONMENT:
+       value: "production"
+       visibility: all
+   ```
+
+1. Repository-level definitions go under `secrets:` and `variables:` in a group or repository.
+   Groups apply in order, and a repository definition replaces a group definition with the same name.
+
+   ```yaml
+   secrets:
+     actions:
+       DATABASE_URL:
+         value: "env:MY_REPO_DATABASE_URL"
+     dependabot:
+       REGISTRY_PASSWORD:
+         value: "env:REGISTRY_PASSWORD"
+   variables:
+     actions:
+       DEPLOY_ENV:
+         value: "staging"
+   ```
+
+1. Pass the values through `secret_values` in the root module, for example
+   `secret_values = { DEPLOY_TOKEN = var.deploy_token }`.
+
+1. Names must match `^[A-Z_][A-Z0-9_]*$` and must not start with `GITHUB_`. Lowercase names are
+   rejected because GitHub upper-cases them, which would cause a perpetual diff.
+
+1. A missing `env:` key, invalid name, or unknown `selected_repositories` entry fails `terraform plan`.
+   Error messages name the secret and the reference, never the value.
+
+1. Run `terraform plan` to review the changes before applying.
 
 ### Managing security managers
 

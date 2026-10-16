@@ -80,10 +80,11 @@ jobs:
       # the org with no state to describe them, and apply would fail forever with
       # 422 name-already-exists. The org is the state: every fixture resource is
       # e2e- prefixed, so removing them makes the run idempotent from any
-      # starting condition.
+      # starting condition. Org Actions variables use the E2E_ prefix instead, since
+      # variable names are uppercase.
       #
-      # Hard-scoped to the e2e- prefix and to vars.E2E_GITHUB_ORG. Anything not
-      # matching that prefix is never touched.
+      # Hard-scoped to the e2e- and E2E_ prefixes and to vars.E2E_GITHUB_ORG. Anything not
+      # matching those prefixes is never touched.
       - name: Sweep leftover fixture resources
         timeout-minutes: 5
         env:
@@ -133,6 +134,20 @@ jobs:
             }
             swept=$((swept + 1))
           done < <(gh api --paginate "orgs/${GITHUB_OWNER}/hooks" -q '.[].id')
+
+          while read -r var_name; do
+            [ -n "$var_name" ] || continue
+            case "$var_name" in
+              E2E_*) ;;
+              *) echo "  skip variable $var_name (not E2E_ prefixed)"; continue ;;
+            esac
+            echo "  deleting org variable $var_name"
+            gh api -X DELETE "orgs/${GITHUB_OWNER}/actions/variables/${var_name}" --silent || {
+              echo "::error::Failed to delete org variable ${var_name}. The token needs organization Variables (write)."
+              exit 1
+            }
+            swept=$((swept + 1))
+          done < <(gh api --paginate "orgs/${GITHUB_OWNER}/actions/variables" -q '.variables[].name')
 
           echo "Swept ${swept} leftover resource(s)."
 

@@ -22,7 +22,7 @@ repository names MUST be provided. The secret value SHALL be resolved from the
 - **WHEN** a YAML file in `config/secret/` contains an `actions_secrets` entry with
   `visibility: selected` and `selected_repositories: [repo-a, repo-b]`
 - **THEN** the module creates a `github_actions_organization_secret` with
-  `visibility = "selected_repositories"` and resolves the repository names to IDs from
+  `visibility = "selected"` and resolves the repository names to IDs from
   the managed repository set
 
 #### Scenario: Missing env reference in secret_values
@@ -87,8 +87,10 @@ create a `github_dependabot_organization_secret` resource for each defined secre
 ### Requirement: Config loading from config/secret/ directory
 
 The module SHALL load all `*.yml` files from `config/secret/` in alphabetical order,
-merging entries across files. Duplicate keys across files SHALL be detected and reported
-as warnings (consistent with other config types). The directory SHALL be optional —
+merging entries across files per type (`actions_secrets`, `actions_variables`,
+`dependabot_secrets`) by name, so that one file's type map never replaces another's.
+Duplicate names within a type across files SHALL be detected and reported as warnings
+(consistent with other config types; last file wins). The directory SHALL be optional —
 when absent or empty, no org-level secrets/variables are created.
 
 #### Scenario: Multiple files in config/secret/
@@ -97,6 +99,12 @@ when absent or empty, no org-level secrets/variables are created.
   `actions_secrets`
 - **THEN** secrets from both files are merged; duplicate secret names across files are
   detected and warned
+
+#### Scenario: Different files define different types
+
+- **WHEN** `a.yml` defines only `actions_secrets.TOKEN_A` and `b.yml` defines
+  `actions_secrets.TOKEN_B` and `actions_variables.ENV`
+- **THEN** both `TOKEN_A` and `TOKEN_B` are created as Actions secrets and `ENV` as a variable
 
 #### Scenario: Missing config/secret/ directory
 
@@ -138,3 +146,20 @@ SHALL be surfaced as validation errors at plan time.
 - **WHEN** `selected_repositories` contains `nonexistent-repo` which is not defined
   in `config/repository/`
 - **THEN** a validation error is raised at plan time indicating the invalid reference
+
+### Requirement: Secret and variable name validation
+
+Secret and variable names (org-level and repo-level) SHALL match `^[A-Z_][A-Z0-9_]*$` and
+SHALL NOT start with `GITHUB_`. Invalid names SHALL fail the plan with an error naming the
+offending entry. Missing `env:` values SHALL also fail the plan (not merely warn); error
+messages SHALL never include secret values.
+
+#### Scenario: Lowercase secret name
+
+- **WHEN** an `actions_secrets` entry is named `deploy_token`
+- **THEN** the plan fails with an error naming `deploy_token`
+
+#### Scenario: Reserved prefix
+
+- **WHEN** an `actions_variables` entry is named `GITHUB_ENV_NAME`
+- **THEN** the plan fails with an error naming `GITHUB_ENV_NAME`

@@ -79,3 +79,23 @@ jobs:
       # runs from e2e.yml only.
       - name: Run unit tests
         run: pytest tests/ --ignore=tests/e2e
+
+  terraform-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # mock_provider in tests/*.tftest.hcl needs Terraform 1.7 or later.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      # Plans run offline against mock_provider, so no provider credentials are set.
+      - name: Init
+        run: terraform init -backend=false
+
+      - name: Run terraform test
+        run: terraform test

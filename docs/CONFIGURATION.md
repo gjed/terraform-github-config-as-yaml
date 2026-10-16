@@ -151,6 +151,67 @@ key. Enforce it on specific branches with a `required_linear_history` rule in a 
 
 ______________________________________________________________________
 
+## Secrets and variables
+
+Actions secrets, Actions variables, and Dependabot secrets are managed at two levels. Neither level is gated by
+`subscription` in this module, but on GitHub Free organization-level secrets and variables are not accessible from
+private repositories.
+
+- **Organization level:** `config/secret/*.yml`, one or more files, each with optional `actions_secrets`,
+  `actions_variables`, and `dependabot_secrets` maps. Visibility is `all`, `private`, or `selected`.
+  `selected_repositories` lists managed repository names and is only used with `visibility: selected`.
+  Files merge per type by name, last file wins; duplicates appear in `duplicate_key_warnings`. Organization
+  resources are skipped when `is_organization: false`.
+- **Repository level:** `secrets.actions`, `secrets.dependabot`, and `variables.actions` under a group or
+  repository. Groups apply in order and a repository entry replaces a group entry with the same name.
+
+Secret values are never written in YAML. A secret's `value` must be `env:VAR_NAME`, and the value comes from
+the sensitive `secret_values` Terraform variable:
+
+```hcl
+module "github_org" {
+  # ...
+  secret_values = {
+    DEPLOY_TOKEN = var.deploy_token
+  }
+}
+```
+
+Variable values are plaintext. YAML numbers and booleans are converted to strings.
+
+Names must match `^[A-Z_][A-Z0-9_]*$` and must not start with `GITHUB_`. Lowercase names are rejected because
+GitHub upper-cases them, which would cause a perpetual diff.
+
+The plan fails when a secret references a missing `secret_values` key, when a name is invalid, when a
+`selected_repositories` entry is not a managed repository, or when visibility is not one of the allowed values.
+Error messages name the secret and the reference, never the value.
+
+> **Warning: state contains secret values.** Terraform stores secret values in its state file. Use an
+> encrypted remote backend with restricted access, for example an S3 bucket with SSE-KMS, or Terraform Cloud.
+> Do not commit a local `terraform.tfstate` that contains these resources.
+
+Each secret and variable is one GitHub API call. Organizations with hundreds of them may hit API rate limits on
+the first apply. Use `terraform apply -parallelism=N` to limit concurrency.
+
+```yaml
+# config/secret/org-secrets.yml
+actions_secrets:
+  DEPLOY_TOKEN:
+    value: "env:DEPLOY_TOKEN"
+    visibility: selected
+    selected_repositories: [my-app, my-api]
+actions_variables:
+  ENVIRONMENT:
+    value: "production"
+    visibility: all
+dependabot_secrets:
+  REGISTRY_PASSWORD:
+    value: "env:REGISTRY_PASSWORD"
+    visibility: private
+```
+
+______________________________________________________________________
+
 ## Subscription tier feature matrix
 
 | Feature                   | free | pro | team | enterprise |

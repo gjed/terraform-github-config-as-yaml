@@ -433,6 +433,102 @@ locals {
     }
   }
 
+  # Organization-level secrets and variables from config/secret/*.yml (directory optional).
+  # Each file may define actions_secrets, actions_variables and dependabot_secrets maps.
+  # Merged PER TYPE by name (sorted file order, last wins): a shallow merge() of whole files
+  # would let one file's type map replace another's. Comment-only files decode to null.
+  secret_config_path = "${local.config_base_path}/secret"
+  secret_files = try(
+    fileset(local.secret_config_path, "*.yml"),
+    toset([])
+  )
+  secret_files_raw = {
+    for f in sort(tolist(local.secret_files)) :
+    f => file("${local.secret_config_path}/${f}")
+  }
+  secret_configs_by_file = {
+    for f, raw in local.secret_files_raw :
+    f => trimspace(replace(raw, local.yaml_blank_pattern, "")) == "" ? null : yamldecode(raw)
+  }
+
+  org_secret_types = ["actions_secrets", "actions_variables", "dependabot_secrets"]
+
+  # Duplicate names per type, keyed "<type>.<name>" for duplicate_key_warnings
+  duplicate_org_secret_keys = {
+    for id, files in merge([
+      for type in local.org_secret_types : {
+        for key in distinct(flatten([
+          for f, c in local.secret_configs_by_file :
+          c != null ? keys(try(merge(lookup(c, type, null)), {})) : []
+          ])) : "${type}.${key}" => [
+          for f, c in local.secret_configs_by_file : f
+          if c != null && contains(keys(try(merge(lookup(c, type, null)), {})), key)
+        ]
+      }
+    ]...) : id => files if length(files) > 1
+  }
+
+  # Merged per type (last file wins by name). Null files contribute nothing.
+  # try(merge(x), {}) is used instead of coalesce(x, {}): coalesce() rejects maps whose values
+  # differ in type (e.g. one entry value is a string and another is a number), and merge() of a
+  # single map is a null-safe copy.
+  org_secrets_by_type = {
+    for type in local.org_secret_types : type => merge({}, [
+      for f, c in local.secret_configs_by_file : try(merge(lookup(c, type, null)), {}) if c != null
+    ]...)
+  }
+
+  # Normalized entries. try() keeps null or malformed entries alive so the resource
+  # preconditions report them with a clear message instead of a Terraform type error.
+  org_secret_raw = {
+    for type in local.org_secret_types : type => {
+      for name, e in local.org_secrets_by_type[type] : name => {
+        raw                   = try(tostring(e.value), null)
+        visibility            = try(tostring(e.visibility), null)
+        selected_repositories = coalesce(try(tolist(e.selected_repositories), null), [])
+        # A null attribute in one entry breaks the map type unification in for_each, so the omitted-list
+        # signal is a bool. False when the list is missing, null or not a list; true for an explicit [].
+        selected_list_supplied = try(e.selected_repositories, null) != null && can(tolist(e.selected_repositories))
+      }
+    }
+  }
+
+  # Secret values: only `env:VAR_NAME` references are accepted; the value is looked up in
+  # var.secret_values. A missing key leaves value null, which fails the plan in a precondition.
+  # source (the reference itself, or a generic label for non-env values) is used in error
+  # messages; literal values are never echoed.
+  secret_ref_pattern = "^env:[A-Za-z0-9_]+$"
+
+  org_actions_secrets = {
+    for name, e in local.org_secret_raw.actions_secrets : name => {
+      value                  = can(regex(local.secret_ref_pattern, e.raw)) ? lookup(var.secret_values, substr(e.raw, 4, -1), null) : null
+      source                 = can(regex(local.secret_ref_pattern, e.raw)) ? e.raw : "non-env value"
+      visibility             = e.visibility
+      selected_repositories  = e.selected_repositories
+      selected_list_supplied = e.selected_list_supplied
+    }
+  }
+
+  org_dependabot_secrets = {
+    for name, e in local.org_secret_raw.dependabot_secrets : name => {
+      value                  = can(regex(local.secret_ref_pattern, e.raw)) ? lookup(var.secret_values, substr(e.raw, 4, -1), null) : null
+      source                 = can(regex(local.secret_ref_pattern, e.raw)) ? e.raw : "non-env value"
+      visibility             = e.visibility
+      selected_repositories  = e.selected_repositories
+      selected_list_supplied = e.selected_list_supplied
+    }
+  }
+
+  # Variables are plaintext; tostring() accepts YAML numbers and booleans.
+  org_actions_variables = {
+    for name, e in local.org_secret_raw.actions_variables : name => {
+      value                  = e.raw
+      visibility             = e.visibility
+      selected_repositories  = e.selected_repositories
+      selected_list_supplied = e.selected_list_supplied
+    }
+  }
+
   # 1.1 Organization-level settings configuration
   # Parses optional `settings:` block from config.yml.
   # Returns null when: is_organization=false, block absent, or value is not a map.
@@ -1016,6 +1112,58 @@ locals {
 
 
 
+  # Merge secrets and variables from groups (in order) and the repo for each repository.
+  # Later definitions replace earlier ones by name (whole-definition replacement, like webhooks).
+  merged_secrets_raw = {
+    for repo_name, repo_config in local.repos_yaml : repo_name => {
+      actions = merge(concat(
+        [for g in repo_config.groups : try(merge(local.config_groups[g].secrets.actions), {})],
+        [try(merge(repo_config.secrets.actions), {})],
+      )...)
+      dependabot = merge(concat(
+        [for g in repo_config.groups : try(merge(local.config_groups[g].secrets.dependabot), {})],
+        [try(merge(repo_config.secrets.dependabot), {})],
+      )...)
+    }
+  }
+
+  merged_variables_raw = {
+    for repo_name, repo_config in local.repos_yaml : repo_name => {
+      actions = merge(concat(
+        [for g in repo_config.groups : try(merge(local.config_groups[g].variables.actions), {})],
+        [try(merge(repo_config.variables.actions), {})],
+      )...)
+    }
+  }
+
+  # Resolve env:VAR_NAME references for repo-level secrets (same rules as org-level secrets)
+  merged_secrets = {
+    for repo_name, s in local.merged_secrets_raw : repo_name => {
+      actions = {
+        for name, e in s.actions : name => {
+          value  = can(regex(local.secret_ref_pattern, try(tostring(e.value), ""))) ? lookup(var.secret_values, substr(tostring(e.value), 4, -1), null) : null
+          source = can(regex(local.secret_ref_pattern, try(tostring(e.value), ""))) ? tostring(e.value) : "non-env value"
+        }
+      }
+      dependabot = {
+        for name, e in s.dependabot : name => {
+          value  = can(regex(local.secret_ref_pattern, try(tostring(e.value), ""))) ? lookup(var.secret_values, substr(tostring(e.value), 4, -1), null) : null
+          source = can(regex(local.secret_ref_pattern, try(tostring(e.value), ""))) ? tostring(e.value) : "non-env value"
+        }
+      }
+    }
+  }
+
+  merged_variables = {
+    for repo_name, v in local.merged_variables_raw : repo_name => {
+      actions = {
+        for name, e in v.actions : name => {
+          value = try(tostring(e.value), null)
+        }
+      }
+    }
+  }
+
   # Transform YAML repos into the format expected by the module
   # Multiple groups are applied sequentially with proper merging
   repositories = {
@@ -1071,6 +1219,10 @@ locals {
 
       # Webhooks: merge from all groups + repo-specific webhooks (repo overrides group by name)
       webhooks = local.merged_webhooks[repo_name]
+
+      # Secrets and variables: merged from groups + repo (repo overrides group by name)
+      secrets   = local.merged_secrets[repo_name]
+      variables = local.merged_variables[repo_name]
 
       # Branch protections: merge from all groups + repo-specific (repo overrides group by name)
       # Note: effective_branch_protections filters based on subscription tier

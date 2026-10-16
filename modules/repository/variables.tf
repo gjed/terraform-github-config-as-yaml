@@ -247,6 +247,33 @@ variable "webhooks" {
   default = {}
 }
 
+# Values are resolved from env:VAR_NAME by the root module (yaml-config.tf) before reaching here.
+# source is the env reference, used only in precondition messages.
+variable "secrets" {
+  description = "Repository Actions and Dependabot secrets to create, keyed by secret name"
+  type = object({
+    actions = optional(map(object({
+      value  = optional(string)
+      source = optional(string)
+    })), {})
+    dependabot = optional(map(object({
+      value  = optional(string)
+      source = optional(string)
+    })), {})
+  })
+  default = {}
+}
+
+variable "variables" {
+  description = "Repository Actions variables to create, keyed by variable name"
+  type = object({
+    actions = optional(map(object({
+      value = optional(string)
+    })), {})
+  })
+  default = {}
+}
+
 variable "branch_protections" {
   description = "Map of branch protection rules to apply"
   type = map(object({

@@ -22,6 +22,10 @@ module "github_org" {
     E2E_WEBHOOK_SECRET = var.webhook_secret
   }
 
+  secret_values = {
+    E2E_SECRET_VALUE = var.e2e_secret_value
+  }
+
   membership_management_enabled = var.membership_management_enabled
 
   # Hard-delete throwaway e2e repos on teardown so `make destroy` leaves no

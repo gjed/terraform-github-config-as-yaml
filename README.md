@@ -39,6 +39,7 @@ documentation.
 - **Repository rulesets** - Enforce branch protection and policies
 - **GitHub Actions permissions** - Control which actions can run and workflow permissions
 - **Webhook management** - Configure CI/CD and notification webhooks as code
+- **Secrets and variables** - Actions and Dependabot secrets and Actions variables, org and repo level
 - **Subscription-aware** - Gracefully handles GitHub Free tier limitations
 - **Onboarding script** - Easily import existing repositories
 
@@ -57,6 +58,7 @@ A GitHub Personal Access Token with `repo` and `admin:org` scopes is required.
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------- | -------- |
 | `config_path`     | Absolute path to the directory containing `config.yml`, `group/`, `repository/`, `ruleset/`, and `webhook/` subdirectories. Consumers should set this to `"${path.root}/config"`. Must be a static string. | `string`      | n/a     | yes      |
 | `webhook_secrets` | Map of webhook secret names to their values. Keys should match the `VAR_NAME` in `env:VAR_NAME` patterns used in webhook configurations.                                                                   | `map(string)` | `{}`    | no       |
+| `secret_values`   | Map of Actions and Dependabot secret names to their values. Keys must match the `VAR_NAME` in `env:VAR_NAME` references used in `config/secret/` and group/repository `secrets:` definitions.              | `map(string)` | `{}`    | no       |
 
 ## Outputs
 
@@ -83,6 +85,8 @@ config/
 │   └── repositories.yml
 ├── ruleset/                # Ruleset definitions (one or more YAML files)
 │   └── rulesets.yml
+├── secret/                 # Org Actions/Dependabot secrets and variables (optional, one or more YAML files)
+│   └── secrets.yml
 └── webhook/                # Webhook definitions (optional, one or more YAML files)
     └── webhooks.yml
 ```
