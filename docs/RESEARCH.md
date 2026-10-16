@@ -431,7 +431,7 @@ ______________________________________________________________________
 
 ### Medium-Term Improvements
 
-6. **Split `yaml-config.tf`** — Break into `yaml-parsing.tf`,
+1. **Split `yaml-config.tf`** — Break into `yaml-parsing.tf`,
    `group-merging.tf`, `ruleset-resolution.tf`, `actions-config.tf` for
    maintainability.
 
@@ -446,17 +446,17 @@ ______________________________________________________________________
 
 ### Strategic Considerations
 
-10. **Name:** Rebranded to `github-as-yaml` — short, descriptive, and
-    communicates the YAML-driven approach immediately.
+1. **Name:** Rebranded to `github-as-yaml` — short, descriptive, and
+   communicates the YAML-driven approach immediately.
 
-01. **Adoption path:** The biggest barrier isn't features — it's that nobody
-    knows this exists. A clear README with a 30-second quickstart, a blog
-    post, and Terraform Registry publishing would do more for adoption than
-    any feature work.
+1. **Adoption path:** The biggest barrier isn't features — it's that nobody
+   knows this exists. A clear README with a 30-second quickstart, a blog
+   post, and Terraform Registry publishing would do more for adoption than
+   any feature work.
 
-01. **Testing:** Terraform testing (`terraform test`) could validate the
-    merge logic with synthetic YAML configs. This is the highest-risk
-    untested area.
+1. **Testing:** Terraform testing (`terraform test`) could validate the
+   merge logic with synthetic YAML configs. This is the highest-risk
+   untested area.
 
 ______________________________________________________________________
 

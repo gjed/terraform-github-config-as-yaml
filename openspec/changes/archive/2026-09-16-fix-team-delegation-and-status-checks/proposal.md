@@ -9,7 +9,7 @@ failed at `terraform plan` with four errors. Two are module defects that affect 
 `modules/team/main.tf` defaults to `"round_robin"`. The provider accepts neither. Verified by
 applying against a real organization:
 
-```
+```text
 Error: expected algorithm to be one of ["ROUND_ROBIN" "LOAD_BALANCE"], got round_robin
 ```
 
@@ -31,7 +31,7 @@ default. Inside a typed object the attribute always exists, so
 `lookup(parameters, "required_checks", [])` finds it and returns its value — `null` — rather than
 the `[]` fallback. `for_each` cannot take null:
 
-```
+```text
 Error: Invalid dynamic for_each value
 Cannot use a null value in for_each.
 ```

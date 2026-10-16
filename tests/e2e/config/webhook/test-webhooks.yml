@@ -1,7 +1,7 @@
 e2e-webhook:
   url: https://webhook.site/00000000-0000-0000-0000-000000000001
   content_type: json
-  secret: env:E2E_WEBHOOK_SECRET
+  secret: env:E2E_WEBHOOK_SECRET  # pragma: allowlist secret # checkov:skip=CKV_SECRET_6: env var reference, not a secret
   events:
     - push
     - pull_request

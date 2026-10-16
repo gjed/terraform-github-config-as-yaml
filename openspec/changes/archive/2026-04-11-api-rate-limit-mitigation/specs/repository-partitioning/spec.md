@@ -2,7 +2,8 @@
 
 ### Requirement: Subdirectory-based repository partitioning
 
-The module SHALL support organizing repository YAML configuration files into subdirectories under `config/repository/`. Each subdirectory is a named partition. Only one level of nesting SHALL be supported.
+The module SHALL support organizing repository YAML configuration files into subdirectories under `config/repository/`.
+Each subdirectory is a named partition. Only one level of nesting SHALL be supported.
 
 #### Scenario: Flat layout with no subdirectories (backward compatibility)
 
@@ -12,7 +13,8 @@ The module SHALL support organizing repository YAML configuration files into sub
 #### Scenario: Mixed layout with top-level files and subdirectories
 
 - **WHEN** `config/repository/` contains both top-level `*.yml` files and subdirectories with `*.yml` files
-- **THEN** the module SHALL load all top-level files and all files from all subdirectories when `repository_partitions` is empty
+- **THEN** the module SHALL load all top-level files and all files from all subdirectories when `repository_partitions`
+  is empty
 
 #### Scenario: Nested subdirectories are ignored
 
@@ -21,7 +23,8 @@ The module SHALL support organizing repository YAML configuration files into sub
 
 ### Requirement: Top-level files always loaded
 
-Top-level `*.yml` files directly under `config/repository/` SHALL always be loaded, regardless of the `repository_partitions` variable value.
+Top-level `*.yml` files directly under `config/repository/` SHALL always be loaded, regardless of the
+`repository_partitions` variable value.
 
 #### Scenario: Top-level files loaded even when partitions are filtered
 
@@ -35,7 +38,8 @@ Top-level `*.yml` files directly under `config/repository/` SHALL always be load
 
 ### Requirement: Partition selection via variable
 
-The module SHALL accept a `repository_partitions` variable of type `list(string)` that specifies which subdirectories to load. An empty list SHALL mean "load all partitions."
+The module SHALL accept a `repository_partitions` variable of type `list(string)` that specifies which subdirectories to
+load. An empty list SHALL mean "load all partitions."
 
 #### Scenario: Empty partitions list loads everything
 
@@ -45,7 +49,8 @@ The module SHALL accept a `repository_partitions` variable of type `list(string)
 #### Scenario: Specific partitions restrict loading
 
 - **WHEN** `repository_partitions = ["infra", "platform"]`
-- **THEN** the module SHALL load only files from `config/repository/infra/` and `config/repository/platform/`, plus top-level files
+- **THEN** the module SHALL load only files from `config/repository/infra/` and `config/repository/platform/`, plus
+  top-level files
 - **THEN** files in other subdirectories (e.g., `config/repository/legacy/`) SHALL NOT be loaded
 
 ### Requirement: Partition name validation
@@ -64,9 +69,11 @@ The module SHALL validate that all names in `repository_partitions` correspond t
 
 ### Requirement: Duplicate detection across partitions
 
-Existing duplicate key detection SHALL work across partition boundaries. A repository name defined in multiple files across different partitions SHALL be detected as a duplicate.
+Existing duplicate key detection SHALL work across partition boundaries. A repository name defined in multiple files
+across different partitions SHALL be detected as a duplicate.
 
 #### Scenario: Same repo name in two partition files
 
-- **WHEN** `config/repository/infra/repos.yml` defines repo `my-service` AND `config/repository/platform/repos.yml` also defines repo `my-service`
+- **WHEN** `config/repository/infra/repos.yml` defines repo `my-service` AND `config/repository/platform/repos.yml` also
+  defines repo `my-service`
 - **THEN** the duplicate detection logic SHALL identify this as a duplicate and include both file paths in the error

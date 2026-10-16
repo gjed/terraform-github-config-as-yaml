@@ -24,7 +24,8 @@
 ## 5. Module Resource
 
 - [x] 5.1 Add `github_branch_protection` resource in `modules/repository/main.tf` with `for_each`
-- [x] 5.2 Map top-level boolean fields (`enforce_admins`, `allows_deletions`, `allows_force_pushes`, `lock_branch`, `require_conversation_resolution`, `require_signed_commits`, `required_linear_history`)
+- [x] 5.2 Map top-level boolean fields (`enforce_admins`, `allows_deletions`, `allows_force_pushes`, `lock_branch`,
+      `require_conversation_resolution`, `require_signed_commits`, `required_linear_history`)
 - [x] 5.3 Add dynamic `required_pull_request_reviews` block (only when sub-object is present)
 - [x] 5.4 Add dynamic `required_status_checks` block (only when sub-object is present)
 - [x] 5.5 Add dynamic `restrict_pushes` block (only when sub-object is present)

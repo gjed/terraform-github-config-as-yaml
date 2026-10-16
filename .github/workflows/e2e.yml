@@ -6,6 +6,7 @@ name: E2E
 # changes on a public repository is not acceptable. Manual dispatch and a nightly
 # schedule on main only.
 on:
+  # checkov:skip=CKV_GHA_7: skip_destroy is a debug toggle that only keeps resources; it cannot alter build output
   workflow_dispatch:
     inputs:
       skip_destroy:
