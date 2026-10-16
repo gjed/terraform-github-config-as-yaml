@@ -43,7 +43,7 @@
   `secrets`/`variables` keys (incl. unknown-key handling, visibility values, `selected_repositories` without
   `visibility: selected` warning)
 - [x] 5.5 Enforce name rules (`^[A-Z_][A-Z0-9_]*$`, no `GITHUB_` prefix) in preconditions and `validate-config.py`
-- [ ] 5.6 Add pytest coverage in `tests/` for the new validator rules
+- [x] 5.6 Add pytest coverage in `tests/` for the new validator rules
 
 ## 6. Consumer example and documentation
 
@@ -59,7 +59,7 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Run `terraform fmt -recursive` and fix formatting
-- [ ] 7.2 Run `terraform validate` and fix any errors
-- [ ] 7.3 Run `pre-commit run --all-files` and fix any failures
-- [ ] 7.4 Run `terraform plan` against example config with secrets defined and verify expected resources
+- [x] 7.1 Run `terraform fmt -recursive` and fix formatting
+- [x] 7.2 Run `terraform validate` and fix any errors
+- [x] 7.3 Run `pre-commit run --all-files` and fix any failures
+- [x] 7.4 Run `terraform plan` against example config with secrets defined and verify expected resources
