@@ -1,0 +1,3 @@
+fixture-app:
+  description: "Fixture repository that organization secrets reference"
+  groups: []
