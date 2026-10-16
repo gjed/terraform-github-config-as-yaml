@@ -1343,18 +1343,12 @@ def validate_org_secret_files(files: dict, repo_names: set) -> tuple[list, list]
                 continue
             entries = data[key]
             label = f"{label_file} {key}"
-            if key == "actions_variables":
-                errors.extend(
-                    validate_secret_entries(
-                        label, entries, "variable", {"value", "visibility", "selected_repositories"}
-                    )
+            kind = "variable" if key == "actions_variables" else "secret"
+            errors.extend(
+                validate_secret_entries(
+                    label, entries, kind, {"value", "visibility", "selected_repositories"}
                 )
-            else:
-                errors.extend(
-                    validate_secret_entries(
-                        label, entries, "secret", {"value", "visibility", "selected_repositories"}
-                    )
-                )
+            )
             if not isinstance(entries, dict):
                 continue
             for name, entry in entries.items():
