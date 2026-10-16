@@ -31,6 +31,10 @@ resource "github_actions_organization_secret" "this" {
       error_message = "Organization Actions secret '${each.key}' visibility must be one of: all, private, selected."
     }
     precondition {
+      condition     = each.value.visibility != "selected" || each.value.selected_list_supplied
+      error_message = "Organization Actions secret '${each.key}' has visibility selected but no selected_repositories list. Add the list (an empty list is allowed)."
+    }
+    precondition {
       condition     = each.value.visibility != "selected" || alltrue([for r in each.value.selected_repositories : contains(keys(local.repos_yaml), r)])
       error_message = "Organization Actions secret '${each.key}' selects repositories not defined in config/repository/: ${join(", ", [for r in each.value.selected_repositories : r if !contains(keys(local.repos_yaml), r)])}."
     }
@@ -63,6 +67,10 @@ resource "github_actions_organization_variable" "this" {
       error_message = "Organization Actions variable '${each.key}' visibility must be one of: all, private, selected."
     }
     precondition {
+      condition     = each.value.visibility != "selected" || each.value.selected_list_supplied
+      error_message = "Organization Actions variable '${each.key}' has visibility selected but no selected_repositories list. Add the list (an empty list is allowed)."
+    }
+    precondition {
       condition     = each.value.visibility != "selected" || alltrue([for r in each.value.selected_repositories : contains(keys(local.repos_yaml), r)])
       error_message = "Organization Actions variable '${each.key}' selects repositories not defined in config/repository/: ${join(", ", [for r in each.value.selected_repositories : r if !contains(keys(local.repos_yaml), r)])}."
     }
@@ -93,6 +101,10 @@ resource "github_dependabot_organization_secret" "this" {
     precondition {
       condition     = try(contains(["all", "private", "selected"], each.value.visibility), false)
       error_message = "Organization Dependabot secret '${each.key}' visibility must be one of: all, private, selected."
+    }
+    precondition {
+      condition     = each.value.visibility != "selected" || each.value.selected_list_supplied
+      error_message = "Organization Dependabot secret '${each.key}' has visibility selected but no selected_repositories list. Add the list (an empty list is allowed)."
     }
     precondition {
       condition     = each.value.visibility != "selected" || alltrue([for r in each.value.selected_repositories : contains(keys(local.repos_yaml), r)])
