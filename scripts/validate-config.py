@@ -360,6 +360,13 @@ def validate_groups(groups: dict, org_ruleset_names: set) -> list[str]:
                     f"groups: Group '{group_name}' references org-scoped ruleset '{entry_name}' "
                     f"via 'rulesets:' — org rulesets apply globally and cannot be assigned per-group"
                 )
+            if isinstance(ruleset_entry, dict):
+                errors.extend(
+                    validate_override_rules(
+                        f"{entry_name} (override in group '{group_name}')",
+                        ruleset_entry,
+                    )
+                )
 
     return errors
 
@@ -432,7 +439,38 @@ def validate_repositories(
                     errors.append(
                         f"repositories: Repository '{repo_name}' references unknown template '{template_name}'"
                     )
+                errors.extend(
+                    validate_override_rules(
+                        f"{template_name} (override in repository '{repo_name}')",
+                        ruleset_entry,
+                    )
+                )
 
+    return errors
+
+
+def validate_rule_required_reviewers(label: str, rule) -> list[str]:
+    """Validate required_reviewers if the rule is a pull_request rule."""
+    if not isinstance(rule, dict) or rule.get("type") != "pull_request":
+        return []
+    parameters = rule.get("parameters")
+    if not isinstance(parameters, dict):
+        return []
+    return validate_required_reviewers(label, parameters.get("required_reviewers"))
+
+
+def validate_override_rules(label: str, ruleset_entry: dict) -> list[str]:
+    """Validate required_reviewers in the inline `rules` override of a template entry.
+
+    Group and repository `rulesets:` entries of the form `{template: x, rules: [...]}`
+    replace the template's rules, so they bypass validate_rulesets.
+    """
+    rules = ruleset_entry.get("rules")
+    if not isinstance(rules, list):
+        return []
+    errors = []
+    for rule in rules:
+        errors.extend(validate_rule_required_reviewers(label, rule))
     return errors
 
 
@@ -587,14 +625,8 @@ def validate_rulesets(rulesets: dict) -> list[str]:
                         f"rulesets: Org-scoped ruleset '{ruleset_name}' uses rule type "
                         f"'required_deployments' which is not supported for organization rulesets"
                     )
-                elif rule["type"] == "pull_request":
-                    parameters = rule.get("parameters")
-                    if isinstance(parameters, dict):
-                        errors.extend(
-                            validate_required_reviewers(
-                                ruleset_name, parameters.get("required_reviewers")
-                            )
-                        )
+                else:
+                    errors.extend(validate_rule_required_reviewers(ruleset_name, rule))
 
     return errors
 
