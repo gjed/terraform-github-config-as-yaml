@@ -23,6 +23,7 @@ terraform-github-config-as-yaml/
 │   ├── group/                        # Configuration groups (oss, internal, etc.)
 │   ├── repository/                   # Repository definitions
 │   ├── ruleset/                      # Ruleset definitions
+│   ├── secret/                       # Org Actions/Dependabot secrets and variables (optional)
 │   └── membership/                   # Organization membership definitions (optional)
 ├── examples/consumer/                # Consumer example for module usage
 ├── scripts/

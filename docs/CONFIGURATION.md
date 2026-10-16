@@ -153,8 +153,9 @@ ______________________________________________________________________
 
 ## Secrets and variables
 
-Actions secrets, Actions variables, and Dependabot secrets are managed at two levels. Neither level is
-tier-gated.
+Actions secrets, Actions variables, and Dependabot secrets are managed at two levels. Neither level is gated by
+`subscription` in this module, but on GitHub Free organization-level secrets and variables are not accessible from
+private repositories.
 
 - **Organization level:** `config/secret/*.yml`, one or more files, each with optional `actions_secrets`,
   `actions_variables`, and `dependabot_secrets` maps. Visibility is `all`, `private`, or `selected`.
