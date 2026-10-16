@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 0
 
       - name: Release
-        uses: cycjimmy/semantic-release-action@v6
+        uses: cycjimmy/semantic-release-action@v8.1.2
         with:
           # Neither commit-analyzer nor release-notes-generator bundles the
           # conventionalcommits preset - both depend only on
