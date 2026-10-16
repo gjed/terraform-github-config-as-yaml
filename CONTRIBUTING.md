@@ -94,7 +94,20 @@ pre-commit run --all-files
 
 # Run specific hook
 pre-commit run terraform-fmt --all-files
+
+# Run the unit tests (the e2e fixture needs org credentials and is excluded)
+pytest tests/ --ignore=tests/e2e
 ```
+
+### Continuous Integration
+
+Every pull request and every push to `main` runs `.github/workflows/ci.yml`, which has two jobs:
+
+- `pre-commit` runs every hook in `.pre-commit-config.yaml` against all files
+- `pytest` runs the unit tests under `tests/`, excluding `tests/e2e`
+
+The job names are required status checks for `main`. Do not rename them without updating the ruleset that
+references them. The e2e fixture runs separately from `.github/workflows/e2e.yml` and never on pull requests.
 
 ## Code Style
 
