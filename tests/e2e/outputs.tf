@@ -73,3 +73,13 @@ output "organization_settings_warnings" {
   description = "Warnings about enterprise-only organization settings skipped on current subscription tier"
   value       = module.github_org.organization_settings_warnings
 }
+
+output "organization_secrets" {
+  description = "Names of managed organization-level secrets and variables"
+  value       = module.github_org.organization_secrets
+}
+
+output "repository_secrets" {
+  description = "Names of managed repository-level secrets and variables, keyed by repository"
+  value       = module.github_org.repository_secrets
+}

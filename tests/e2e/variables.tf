@@ -10,6 +10,13 @@ variable "webhook_secret" {
   default     = "e2e-test-secret"
 }
 
+variable "e2e_secret_value" {
+  description = "Value for the env:E2E_SECRET_VALUE secret references in tests/e2e/config (org, group, and repo secrets). Any string works."
+  type        = string
+  sensitive   = true
+  default     = "e2e-test-secret"
+}
+
 variable "membership_management_enabled" {
   description = <<-EOT
     Enable organization membership management for e2e testing.

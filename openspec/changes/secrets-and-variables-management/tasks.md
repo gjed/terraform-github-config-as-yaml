@@ -47,14 +47,14 @@
 
 ## 6. Consumer example and documentation
 
-- [ ] 6.1 Update `examples/consumer/` to demonstrate `secret_values` variable usage
-- [ ] 6.2 Add `config/secret/examples.yml` with commented examples for all three org-level types
-- [ ] 6.3 Add commented `secrets`/`variables` examples in `config/group/default-groups.yml`
-- [ ] 6.4 Update `AGENTS.md` with secrets/variables management section
-- [ ] 6.5 Add outputs for managed secrets/variables (names only, not values) in `outputs.tf`
-- [ ] 6.6 Document secrets/variables in `docs/CONFIGURATION.md`, including the encrypted-state-backend warning
-- [ ] 6.7 Update the consumer skill `skills/manage-repo-config/SKILL.md`
-- [ ] 6.8 Extend the e2e fixture (`tests/e2e/`) with org- and repo-level secrets/variables and update
+- [x] 6.1 Update `examples/consumer/` to demonstrate `secret_values` variable usage
+- [x] 6.2 Add `config/secret/examples.yml` with commented examples for all three org-level types
+- [x] 6.3 Add commented `secrets`/`variables` examples in `config/group/default-groups.yml`
+- [x] 6.4 Update `AGENTS.md` with secrets/variables management section
+- [x] 6.5 Add outputs for managed secrets/variables (names only, not values) in `outputs.tf`
+- [x] 6.6 Document secrets/variables in `docs/CONFIGURATION.md`, including the encrypted-state-backend warning
+- [x] 6.7 Update the consumer skill `skills/manage-repo-config/SKILL.md`
+- [x] 6.8 Extend the e2e fixture (`tests/e2e/`) with org- and repo-level secrets/variables and update
   `tests/verify_e2e.py` if it asserts resource coverage
 
 ## 7. Verification
