@@ -36,7 +36,10 @@ this token can delete repositories.
 Organization permissions:
 
 - **Administration** — read and write (org settings, rulesets, Actions permissions)
+- **Dependabot secrets** — read and write (org Dependabot secrets)
 - **Members** — read and write (teams, membership)
+- **Secrets** — read and write (org Actions secrets)
+- **Variables** — read and write (org Actions variables)
 - **Webhooks** — read and write (org webhooks)
 
 Repository permissions:
@@ -45,6 +48,9 @@ Repository permissions:
 - **Contents** — read and write
 - **Webhooks** — read and write
 - **Dependabot alerts** — read (verification only)
+- **Dependabot secrets** — read and write (repo Dependabot secrets)
+- **Secrets** — read and write (repo Actions secrets)
+- **Variables** — read and write (repo Actions variables)
 
 Set the token in your environment:
 
