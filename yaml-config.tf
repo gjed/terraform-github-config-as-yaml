@@ -485,7 +485,10 @@ locals {
       for name, e in local.org_secrets_by_type[type] : name => {
         raw                   = try(tostring(e.value), null)
         visibility            = try(tostring(e.visibility), null)
-        selected_repositories = coalesce(try(e.selected_repositories, null), [])
+        selected_repositories = coalesce(try(tolist(e.selected_repositories), null), [])
+        # A null attribute in one entry breaks the map type unification in for_each, so the omitted-list
+        # signal is a bool. False when the list is missing, null or not a list; true for an explicit [].
+        selected_list_supplied = try(e.selected_repositories, null) != null && can(tolist(e.selected_repositories))
       }
     }
   }
@@ -498,28 +501,31 @@ locals {
 
   org_actions_secrets = {
     for name, e in local.org_secret_raw.actions_secrets : name => {
-      value                 = can(regex(local.secret_ref_pattern, e.raw)) ? lookup(var.secret_values, substr(e.raw, 4, -1), null) : null
-      source                = can(regex(local.secret_ref_pattern, e.raw)) ? e.raw : "non-env value"
-      visibility            = e.visibility
-      selected_repositories = e.selected_repositories
+      value                  = can(regex(local.secret_ref_pattern, e.raw)) ? lookup(var.secret_values, substr(e.raw, 4, -1), null) : null
+      source                 = can(regex(local.secret_ref_pattern, e.raw)) ? e.raw : "non-env value"
+      visibility             = e.visibility
+      selected_repositories  = e.selected_repositories
+      selected_list_supplied = e.selected_list_supplied
     }
   }
 
   org_dependabot_secrets = {
     for name, e in local.org_secret_raw.dependabot_secrets : name => {
-      value                 = can(regex(local.secret_ref_pattern, e.raw)) ? lookup(var.secret_values, substr(e.raw, 4, -1), null) : null
-      source                = can(regex(local.secret_ref_pattern, e.raw)) ? e.raw : "non-env value"
-      visibility            = e.visibility
-      selected_repositories = e.selected_repositories
+      value                  = can(regex(local.secret_ref_pattern, e.raw)) ? lookup(var.secret_values, substr(e.raw, 4, -1), null) : null
+      source                 = can(regex(local.secret_ref_pattern, e.raw)) ? e.raw : "non-env value"
+      visibility             = e.visibility
+      selected_repositories  = e.selected_repositories
+      selected_list_supplied = e.selected_list_supplied
     }
   }
 
   # Variables are plaintext; tostring() accepts YAML numbers and booleans.
   org_actions_variables = {
     for name, e in local.org_secret_raw.actions_variables : name => {
-      value                 = e.raw
-      visibility            = e.visibility
-      selected_repositories = e.selected_repositories
+      value                  = e.raw
+      visibility             = e.visibility
+      selected_repositories  = e.selected_repositories
+      selected_list_supplied = e.selected_list_supplied
     }
   }
 
