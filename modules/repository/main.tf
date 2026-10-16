@@ -270,6 +270,67 @@ resource "github_repository_webhook" "this" {
   active = each.value.active
 }
 
+# Manage repository Actions secrets
+# Values are resolved from env:VAR_NAME at the root module; a missing reference fails the plan.
+resource "github_actions_secret" "this" {
+  for_each = var.secrets.actions
+
+  repository  = github_repository.this.name
+  secret_name = each.key
+  value       = each.value.value
+
+  lifecycle {
+    precondition {
+      condition     = can(regex("^[A-Z_][A-Z0-9_]*$", each.key)) && !can(regex("^GITHUB_", each.key))
+      error_message = "Repository Actions secret name '${each.key}' is invalid: names must match ^[A-Z_][A-Z0-9_]*$ and must not start with GITHUB_."
+    }
+    precondition {
+      condition     = nonsensitive(each.value.value != null)
+      error_message = "Repository Actions secret '${each.key}': ${each.value.source} is not resolvable. Secret values must be env:VAR_NAME references with VAR_NAME set in secret_values."
+    }
+  }
+}
+
+# Manage repository Actions variables (plaintext values)
+resource "github_actions_variable" "this" {
+  for_each = var.variables.actions
+
+  repository    = github_repository.this.name
+  variable_name = each.key
+  value         = each.value.value
+
+  lifecycle {
+    precondition {
+      condition     = can(regex("^[A-Z_][A-Z0-9_]*$", each.key)) && !can(regex("^GITHUB_", each.key))
+      error_message = "Repository Actions variable name '${each.key}' is invalid: names must match ^[A-Z_][A-Z0-9_]*$ and must not start with GITHUB_."
+    }
+    precondition {
+      condition     = each.value.value != null
+      error_message = "Repository Actions variable '${each.key}' has no value. Define a value in the group or repository config."
+    }
+  }
+}
+
+# Manage repository Dependabot secrets
+resource "github_dependabot_secret" "this" {
+  for_each = var.secrets.dependabot
+
+  repository  = github_repository.this.name
+  secret_name = each.key
+  value       = each.value.value
+
+  lifecycle {
+    precondition {
+      condition     = can(regex("^[A-Z_][A-Z0-9_]*$", each.key)) && !can(regex("^GITHUB_", each.key))
+      error_message = "Repository Dependabot secret name '${each.key}' is invalid: names must match ^[A-Z_][A-Z0-9_]*$ and must not start with GITHUB_."
+    }
+    precondition {
+      condition     = nonsensitive(each.value.value != null)
+      error_message = "Repository Dependabot secret '${each.key}': ${each.value.source} is not resolvable. Secret values must be env:VAR_NAME references with VAR_NAME set in secret_values."
+    }
+  }
+}
+
 # Manage traditional branch protection rules
 # Keyed by protection name (e.g. "main-protection") - renaming requires a state move
 resource "github_branch_protection" "this" {

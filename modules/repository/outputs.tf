@@ -33,6 +33,20 @@ output "repo_id" {
   value       = github_repository.this.repo_id
 }
 
+# Names only - secret and variable values are never exposed as outputs
+output "secret_names" {
+  description = "Names of managed repository Actions and Dependabot secrets"
+  value = {
+    actions    = keys(github_actions_secret.this)
+    dependabot = keys(github_dependabot_secret.this)
+  }
+}
+
+output "variable_names" {
+  description = "Names of managed repository Actions variables"
+  value       = keys(github_actions_variable.this)
+}
+
 output "webhooks" {
   description = "Map of webhook names to their URLs"
   value = {

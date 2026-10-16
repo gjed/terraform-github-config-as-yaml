@@ -112,7 +112,8 @@ output "duplicate_key_warnings" {
     length(local.duplicate_group_keys) > 0 ||
     length(local.duplicate_ruleset_keys) > 0 ||
     length(local.duplicate_membership_keys) > 0 ||
-    length(local.duplicate_branch_protection_keys) > 0
+    length(local.duplicate_branch_protection_keys) > 0 ||
+    length(local.duplicate_org_secret_keys) > 0
     ) ? {
     message = "WARNING: Duplicate keys detected across config files. Later files (alphabetically) completely override earlier ones - no deep merge!"
     repositories = length(local.duplicate_repository_keys) > 0 ? {
@@ -135,7 +136,32 @@ output "duplicate_key_warnings" {
       for key, files in local.duplicate_branch_protection_keys :
       key => "defined in: ${join(", ", files)} - using: ${files[length(files) - 1]}"
     } : null
+    secrets = length(local.duplicate_org_secret_keys) > 0 ? {
+      for key, files in local.duplicate_org_secret_keys :
+      key => "defined in: ${join(", ", files)} - using: ${files[length(files) - 1]}"
+    } : null
   } : null
+}
+
+# Names only - secret and variable values are never exposed as outputs
+output "organization_secrets" {
+  description = "Names of managed organization-level Actions secrets, Actions variables, and Dependabot secrets"
+  value = {
+    actions_secrets    = keys(github_actions_organization_secret.this)
+    actions_variables  = keys(github_actions_organization_variable.this)
+    dependabot_secrets = keys(github_dependabot_organization_secret.this)
+  }
+}
+
+output "repository_secrets" {
+  description = "Names of managed repository-level Actions and Dependabot secrets and Actions variables, keyed by repository"
+  value = {
+    for repo_name, repo in module.repositories : repo_name => {
+      actions_secrets    = repo.secret_names.actions
+      dependabot_secrets = repo.secret_names.dependabot
+      actions_variables  = repo.variable_names
+    }
+  }
 }
 
 output "managed_teams" {
