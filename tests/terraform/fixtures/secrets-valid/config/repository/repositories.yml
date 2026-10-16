@@ -1,0 +1,24 @@
+fixture-app:
+  description: "Fixture repository with group and repo-level secrets"
+  groups:
+    - base
+    - oss
+  secrets:
+    actions:
+      REPO_SECRET:
+        value: "env:API_TOKEN"  # pragma: allowlist secret
+  variables:
+    actions:
+      LOG_LEVEL:
+        value: "debug"
+
+fixture-lib:
+  description: "Fixture repository inheriting group-level secrets only"
+  groups:
+    - base
+    - oss
+
+fixture-docs:
+  description: "Fixture repository without secrets"
+  groups:
+    - base
