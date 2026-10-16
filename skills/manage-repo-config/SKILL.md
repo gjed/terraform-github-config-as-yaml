@@ -3,7 +3,7 @@ name: manage-repo-config
 description: >-
   Add, modify, or remove a repository managed by the config-as-yaml Terraform module. Use when
   editing files under config/repository/, assigning configuration groups, changing repository
-  settings (visibility, merge strategies, topics, teams, webhooks), or when the user asks to
+  settings (visibility, merge strategies, topics, teams, webhooks, secrets, variables), or when the user asks to
   "add a repo", "make repo X private", or "put repo Y in the oss group".
 ---
 
@@ -38,6 +38,17 @@ generation step.
   `rulesets`) are merged.
 - Repository-level settings override everything from groups.
 - Global defaults come from `config/config.yml`.
+
+## Secrets and variables
+
+- Repo-level secrets and variables go under `secrets.actions`, `secrets.dependabot`, and
+  `variables.actions` in the repo or its group (later groups override by name; the repo overrides groups).
+- A secret `value` must be `env:VAR_NAME`. The value comes from the `secret_values` Terraform variable,
+  never from YAML. A variable `value` is plaintext.
+- Org-level secrets and variables live in `config/secret/*.yml` (see `config/secret/examples.yml`).
+- Names must match `^[A-Z_][A-Z0-9_]*$` and must not start with `GITHUB_`.
+- Secret values are stored in Terraform state, so recommend an encrypted remote backend.
+- Never print or echo secret values while editing, and never add a literal secret to YAML.
 
 ## Tier gating
 
