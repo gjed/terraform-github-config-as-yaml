@@ -205,3 +205,54 @@ class TestOrgScopedRulesets:
         assert len(errors) == 1
         assert "Ruleset 'protect'" in errors[0]
         assert "file_patterns" in errors[0]
+
+
+class TestTemplateOverrides:
+    """Inline `rules` overrides in group/repository `rulesets:` entries are validated too."""
+
+    @staticmethod
+    def _override(required_reviewers) -> dict:
+        return {
+            "template": "protect",
+            "rules": [
+                {
+                    "type": "pull_request",
+                    "parameters": {"required_reviewers": required_reviewers},
+                }
+            ],
+        }
+
+    def test_group_override_both_slug_and_id_rejected(self):
+        entry = self._override([_entry(reviewer={"slug": "sec", "id": 1})])
+        errors = validate_config.validate_groups({"g": {"rulesets": [entry]}}, set())
+        assert len(errors) == 1
+        assert "exactly one of 'slug' or 'id'" in errors[0]
+        assert "group 'g'" in errors[0]
+
+    def test_group_override_valid_accepted(self):
+        entry = self._override([_entry()])
+        assert validate_config.validate_groups({"g": {"rulesets": [entry]}}, set()) == []
+
+    def test_repository_override_both_slug_and_id_rejected(self):
+        entry = self._override([_entry(reviewer={"slug": "sec", "id": 1})])
+        repos = {"r": {"description": "d", "groups": ["g"], "rulesets": [entry]}}
+        errors = validate_config.validate_repositories(
+            repos, {"g": {}}, {"protect": {}}, set()
+        )
+        assert len(errors) == 1
+        assert "exactly one of 'slug' or 'id'" in errors[0]
+        assert "repository 'r'" in errors[0]
+
+    def test_repository_override_valid_accepted(self):
+        entry = self._override([_entry()])
+        repos = {"r": {"description": "d", "groups": ["g"], "rulesets": [entry]}}
+        assert (
+            validate_config.validate_repositories(
+                repos, {"g": {}}, {"protect": {}}, set()
+            )
+            == []
+        )
+
+    def test_override_without_rules_ignored(self):
+        entry = {"template": "protect", "enforcement": "evaluate"}
+        assert validate_config.validate_groups({"g": {"rulesets": [entry]}}, set()) == []
