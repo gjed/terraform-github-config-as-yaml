@@ -27,6 +27,7 @@ TEAM_DIR = CONFIG_DIR / "team"
 MEMBERSHIP_DIR = CONFIG_DIR / "membership"
 WEBHOOK_DIR = CONFIG_DIR / "webhook"
 BRANCH_PROTECTION_DIR = CONFIG_DIR / "branch-protection"
+SECRET_DIR = CONFIG_DIR / "secret"
 
 
 def set_config_dir(config_dir: Path) -> None:
@@ -37,7 +38,7 @@ def set_config_dir(config_dir: Path) -> None:
     repository's own config/ regardless of the path it was given.
     """
     global CONFIG_DIR, GROUP_DIR, REPOSITORY_DIR, RULESET_DIR
-    global TEAM_DIR, MEMBERSHIP_DIR, WEBHOOK_DIR, BRANCH_PROTECTION_DIR
+    global TEAM_DIR, MEMBERSHIP_DIR, WEBHOOK_DIR, BRANCH_PROTECTION_DIR, SECRET_DIR
 
     CONFIG_DIR = config_dir
     GROUP_DIR = CONFIG_DIR / "group"
@@ -47,6 +48,7 @@ def set_config_dir(config_dir: Path) -> None:
     MEMBERSHIP_DIR = CONFIG_DIR / "membership"
     WEBHOOK_DIR = CONFIG_DIR / "webhook"
     BRANCH_PROTECTION_DIR = CONFIG_DIR / "branch-protection"
+    SECRET_DIR = CONFIG_DIR / "secret"
 
 VALID_VISIBILITIES = ["public", "private", "internal"]
 VALID_MEMBERSHIP_ROLES = ["member", "admin"]
@@ -126,6 +128,8 @@ VALID_GROUP_KEYS = {
     "branch_protections",
     "webhooks",
     "actions",
+    "secrets",
+    "variables",
 }
 # Repository entries accept every group key plus the two identity fields.
 VALID_REPOSITORY_KEYS = VALID_GROUP_KEYS | {"description", "groups"}
@@ -137,6 +141,14 @@ DEAD_KEY_HINTS = {
         "or branch protection instead"
     ),
 }
+
+# Org-level secret/variable maps accepted in each config/secret/*.yml file
+VALID_ORG_SECRET_TYPES = ["actions_secrets", "actions_variables", "dependabot_secrets"]
+VALID_SECRET_VISIBILITIES = ["all", "private", "selected"]
+# Names are upper-cased by GitHub, so lowercase names would cause a perpetual diff.
+SECRET_NAME_RE = re.compile(r"[A-Z_][A-Z0-9_]*")
+# Secret values are references resolved from the secret_values Terraform variable.
+SECRET_REF_RE = re.compile(r"env:[A-Za-z0-9_]+")
 
 VALID_TEAM_PRIVACIES = ["closed", "secret"]
 # The GitHub provider only accepts these two values and rejects any other
@@ -1249,6 +1261,193 @@ def validate_actions_tier_conflict(
     return errors
 
 
+def load_secret_files(directory: Path) -> dict:
+    """Load config/secret/*.yml keyed by file name (kept per file to check each file's keys)."""
+    if not directory.exists():
+        return {}
+    return {p.name: load_yaml(p) for p in sorted(directory.glob("*.yml"))}
+
+
+def validate_secret_name(label: str, name) -> list[str]:
+    """Names must match GitHub's rules: upper-case, no GITHUB_ prefix."""
+    if (
+        not isinstance(name, str)
+        or not SECRET_NAME_RE.fullmatch(name)
+        or name.startswith("GITHUB_")
+    ):
+        return [
+            f"{label}: name '{name}' must match ^[A-Z_][A-Z0-9_]*$ and must not start with GITHUB_"
+        ]
+    return []
+
+
+def validate_secret_entries(
+    label: str, entries, kind: str, allowed_keys: set[str]
+) -> list[str]:
+    """Check a name -> definition map.
+
+    kind is 'secret' (value must be an env:VAR_NAME reference) or 'variable' (plaintext
+    scalar). Error messages never echo the value, since a literal secret may be present.
+    """
+    if not isinstance(entries, dict):
+        return [f"{label}: must be a mapping of name to definition"]
+
+    errors = []
+    for name, entry in entries.items():
+        entry_label = f"{label} '{name}'"
+        errors.extend(validate_secret_name(label, name))
+        if not isinstance(entry, dict):
+            errors.append(f"{entry_label}: definition must be a mapping with a 'value'")
+            continue
+        for key in sorted(set(entry) - allowed_keys, key=str):
+            errors.append(f"{entry_label}: unknown key '{key}'")
+
+        value = entry.get("value")
+        if kind == "secret":
+            if not isinstance(value, str) or not SECRET_REF_RE.fullmatch(value):
+                errors.append(
+                    f"{entry_label}: 'value' must be an env:VAR_NAME reference; "
+                    "the secret itself is supplied through the secret_values variable"
+                )
+        elif value is None or isinstance(value, (dict, list)):
+            errors.append(f"{entry_label}: 'value' must be a string, number, or boolean")
+    return errors
+
+
+def validate_org_secret_files(files: dict, repo_names: set) -> tuple[list, list]:
+    """Validate config/secret/*.yml. Returns (errors, warnings).
+
+    Unknown top-level keys are errors: Terraform ignores them, so a typo such as
+    'actions_secret' would otherwise silently drop every secret in the file.
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    for filename, data in files.items():
+        if not data:
+            continue  # empty or comment-only file
+        label_file = f"config/secret/{filename}"
+        if not isinstance(data, dict):
+            errors.append(f"{label_file}: top level must be a mapping")
+            continue
+
+        for key in data:
+            if key not in VALID_ORG_SECRET_TYPES:
+                errors.append(
+                    f"{label_file}: unknown key '{key}' "
+                    f"(expected one of: {', '.join(VALID_ORG_SECRET_TYPES)})"
+                )
+
+        for key in VALID_ORG_SECRET_TYPES:
+            if data.get(key) is None:
+                continue
+            entries = data[key]
+            label = f"{label_file} {key}"
+            if key == "actions_variables":
+                errors.extend(
+                    validate_secret_entries(
+                        label, entries, "variable", {"value", "visibility", "selected_repositories"}
+                    )
+                )
+            else:
+                errors.extend(
+                    validate_secret_entries(
+                        label, entries, "secret", {"value", "visibility", "selected_repositories"}
+                    )
+                )
+            if not isinstance(entries, dict):
+                continue
+            for name, entry in entries.items():
+                if not isinstance(entry, dict):
+                    continue
+                entry_label = f"{label} '{name}'"
+                visibility = entry.get("visibility")
+                selected = entry.get("selected_repositories")
+                if visibility not in VALID_SECRET_VISIBILITIES:
+                    errors.append(
+                        f"{entry_label}: 'visibility' must be one of: "
+                        f"{', '.join(VALID_SECRET_VISIBILITIES)}"
+                    )
+                elif visibility == "selected":
+                    if not isinstance(selected, list) or not all(
+                        isinstance(r, str) for r in selected
+                    ):
+                        errors.append(
+                            f"{entry_label}: visibility 'selected' requires "
+                            "'selected_repositories' as a list of repository names"
+                        )
+                    else:
+                        for repo in selected:
+                            if repo not in repo_names:
+                                errors.append(
+                                    f"{entry_label}: selected_repositories references "
+                                    f"'{repo}' which is not defined in config/repository/"
+                                )
+                elif "selected_repositories" in entry:
+                    warnings.append(
+                        f"{entry_label}: 'selected_repositories' is ignored unless "
+                        f"visibility is 'selected' (currently '{visibility}')"
+                    )
+
+    return errors, warnings
+
+
+def validate_repo_secret_blocks(label: str, config) -> list[str]:
+    """Validate a group's or repository's `secrets:` and `variables:` blocks."""
+    if not isinstance(config, dict):
+        return []
+
+    errors: list[str] = []
+    secrets_block = config.get("secrets")
+    if secrets_block is not None:
+        if not isinstance(secrets_block, dict):
+            errors.append(f"{label}: 'secrets' must be a mapping")
+        else:
+            for key in secrets_block:
+                if key not in ("actions", "dependabot"):
+                    errors.append(
+                        f"{label}: unknown key 'secrets.{key}' (expected: actions, dependabot)"
+                    )
+            for key in ("actions", "dependabot"):
+                if secrets_block.get(key) is not None:
+                    errors.extend(
+                        validate_secret_entries(
+                            f"{label} secrets.{key}", secrets_block[key], "secret", {"value"}
+                        )
+                    )
+
+    variables_block = config.get("variables")
+    if variables_block is not None:
+        if not isinstance(variables_block, dict):
+            errors.append(f"{label}: 'variables' must be a mapping")
+        else:
+            for key in variables_block:
+                if key != "actions":
+                    errors.append(
+                        f"{label}: unknown key 'variables.{key}' (expected: actions)"
+                    )
+            if variables_block.get("actions") is not None:
+                errors.extend(
+                    validate_secret_entries(
+                        f"{label} variables.actions",
+                        variables_block["actions"],
+                        "variable",
+                        {"value"},
+                    )
+                )
+    return errors
+
+
+def validate_all_repo_secret_blocks(groups: dict, repos: dict) -> list[str]:
+    """Run validate_repo_secret_blocks over every group and repository."""
+    errors: list[str] = []
+    for name, config in groups.items():
+        errors.extend(validate_repo_secret_blocks(f"group '{name}'", config))
+    for name, config in repos.items():
+        errors.extend(validate_repo_secret_blocks(f"repository '{name}'", config))
+    return errors
+
+
 def main():
     """Main validation entry point."""
     strict = "--strict" in sys.argv
@@ -1337,6 +1536,8 @@ def main():
             if BRANCH_PROTECTION_DIR.exists()
             else {}
         )
+        # Load org-level secret/variable definitions (optional directory, kept per file)
+        secret_files = load_secret_files(SECRET_DIR)
     except ValueError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
@@ -1375,6 +1576,12 @@ def main():
     all_errors.extend(
         validate_actions_tier_conflict(repos, groups, config.get("actions"))
     )
+    secret_errors, secret_warnings = validate_org_secret_files(
+        secret_files, set(repos.keys())
+    )
+    all_errors.extend(secret_errors)
+    all_warnings.extend(secret_warnings)
+    all_errors.extend(validate_all_repo_secret_blocks(groups, repos))
 
     # Print SCIM/SSO reminder when membership config is present
     if members:

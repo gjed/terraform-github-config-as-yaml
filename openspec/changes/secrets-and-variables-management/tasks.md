@@ -39,10 +39,10 @@
 - [x] 5.2 Fail the plan on undefined `env:` references via `lifecycle.precondition` on every secret resource (org and
   repo); error names the secret and key, never the value
 - [x] 5.3 Add duplicate key detection for `config/secret/` files (consistent with repo/group/ruleset pattern)
-- [ ] 5.4 Update `scripts/validate-config.py` with schema validation for `config/secret/` files and repo/group-level
+- [x] 5.4 Update `scripts/validate-config.py` with schema validation for `config/secret/` files and repo/group-level
   `secrets`/`variables` keys (incl. unknown-key handling, visibility values, `selected_repositories` without
   `visibility: selected` warning)
-- [ ] 5.5 Enforce name rules (`^[A-Z_][A-Z0-9_]*$`, no `GITHUB_` prefix) in preconditions and `validate-config.py`
+- [x] 5.5 Enforce name rules (`^[A-Z_][A-Z0-9_]*$`, no `GITHUB_` prefix) in preconditions and `validate-config.py`
 - [ ] 5.6 Add pytest coverage in `tests/` for the new validator rules
 
 ## 6. Consumer example and documentation
