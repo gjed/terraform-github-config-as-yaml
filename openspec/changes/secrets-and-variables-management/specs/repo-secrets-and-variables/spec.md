@@ -40,6 +40,11 @@ for each defined variable per repository.
 - **WHEN** a `variables.actions` entry has `value: "staging"`
 - **THEN** the value is used directly without `env:` resolution
 
+#### Scenario: Non-string variable value
+
+- **WHEN** a `variables.actions` entry has `value: 3` or `value: true`
+- **THEN** the value is converted to the string `"3"` or `"true"`
+
 ### Requirement: Repository-level Dependabot secrets
 
 The module SHALL support defining Dependabot secrets at the repository level via

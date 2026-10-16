@@ -48,8 +48,15 @@ separate from `config/config.yml`.
   the same reason.
 
 **Rationale:** Mirrors the `config/webhook/` pattern. Multiple YAML files in the directory are
-merged (alphabetical order, last-wins for duplicate keys). This keeps org-level definitions
-out of config.yml while allowing users to organize by team, environment, or purpose.
+merged in alphabetical order. This keeps org-level definitions out of config.yml while allowing
+users to organize by team, environment, or purpose.
+
+**Merge semantics:** Because every file shares the same three top-level keys (see Decision 2),
+a shallow `merge()` of decoded files would let the last file's `actions_secrets` map replace all
+earlier ones. Files are therefore merged **per type**: for each of `actions_secrets`,
+`actions_variables`, and `dependabot_secrets`, the per-file maps are merged by secret/variable
+name (last file wins). Duplicate names are detected per type and reported through the existing
+`duplicate_key_warnings` output.
 
 ### 2. YAML schema for org-level secrets
 
@@ -172,8 +179,9 @@ would be confusing (e.g., overriding just `visibility` but inheriting `value`).
 ### 6. `selected_repositories` resolution
 
 **Decision:** Org-level secrets with `visibility: selected` reference repository names in
-`selected_repositories`. These are resolved to repository IDs using a data source lookup
-against the repos managed by this module (from `local.repos_yaml`).
+`selected_repositories`. These are resolved to repository IDs from the managed repository
+module outputs (`module.repositories[name].repo_id`); names must exist in `local.repos_yaml`.
+YAML `visibility` values map 1:1 to the provider's accepted values: `all`, `private`, `selected`.
 
 **Rationale:** Users already reference repos by name everywhere else. Name-to-ID resolution
 is an internal concern. Only repos managed by this module can be referenced — external repo
@@ -183,13 +191,32 @@ names would require a data source lookup that could fail and is out of scope.
 
 **Decision:**
 
-- **Org-level resources:** New `org-secrets.tf` file at root level (mirrors `org-webhooks.tf`,
-  `org-rulesets.tf` pattern)
+- **Org-level resources:** New `org-secrets.tf` file at root level. Existing org-level resources
+  (org webhooks, org rulesets) live in `main.tf`; a dedicated file keeps the six-resource secrets
+  surface out of an already large `main.tf`.
 - **Repo-level resources:** Inside `modules/repository/` (mirrors existing repo-level resource pattern)
 - **YAML loading/merging:** In `yaml-config.tf` (extends existing locals)
 
 **Rationale:** Follows established file organization. Org resources at root, repo resources
 in the repository module, config parsing centralized in yaml-config.tf.
+
+### 8. Validation: hard errors via preconditions
+
+**Decision:** Missing `env:` values and invalid names fail the plan through `lifecycle.precondition`
+on each secret/variable resource, not through `check` blocks.
+
+**Rationale:** `check` blocks only emit warnings, which would let a secret be applied with a null
+value. Error messages name the secret and the referenced key, never the value.
+
+Name rules (GitHub API constraints): `^[A-Z_][A-Z0-9_]*$` and no `GITHUB_` prefix. GitHub
+upper-cases names server-side, so lowercase names in YAML would cause a perpetual diff; they are
+rejected rather than silently upper-cased. `scripts/validate-config.py` enforces the same rules,
+plus warns when `selected_repositories` is set without `visibility: selected`.
+
+### 9. Variable value coercion
+
+**Decision:** Variable values are passed through `tostring()`, so YAML numbers and booleans
+(`value: 3`, `value: true`) are accepted.
 
 ## Risks / Trade-offs
 
