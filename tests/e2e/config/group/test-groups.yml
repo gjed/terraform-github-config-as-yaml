@@ -23,6 +23,14 @@ oss-e2e:
     - e2e-oss-protection
   webhooks:
     - e2e-webhook
+  secrets:
+    actions:
+      E2E_GROUP_SECRET:
+        value: "env:E2E_SECRET_VALUE"  # pragma: allowlist secret
+  variables:
+    actions:
+      E2E_GROUP_VARIABLE:
+        value: "from-group"
 
 internal-e2e:
   visibility: private

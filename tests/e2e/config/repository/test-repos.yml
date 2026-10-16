@@ -20,6 +20,14 @@ e2e-multi-group:
     - base
     - internal-e2e
     - restricted-actions-e2e
+  secrets:
+    actions:
+      E2E_REPO_SECRET:
+        value: "env:E2E_SECRET_VALUE"  # pragma: allowlist secret
+  variables:
+    actions:
+      E2E_REPO_VARIABLE:
+        value: "from-repo"
 
 e2e-full-featured:
   description: "E2E test repository exercising every per-repo override"
