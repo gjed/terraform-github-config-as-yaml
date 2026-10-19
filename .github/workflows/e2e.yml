@@ -135,6 +135,12 @@ jobs:
             swept=$((swept + 1))
           done < <(gh api --paginate "orgs/${GITHUB_OWNER}/hooks" -q '.[].id')
 
+          # List first and abort on failure: an error inside < <(...) is invisible to the loop.
+          if ! org_vars=$(gh api --paginate "orgs/${GITHUB_OWNER}/actions/variables" -q '.variables[].name'); then
+            echo "::error::Failed to list org variables. The token needs organization Variables (read)."
+            exit 1
+          fi
+
           while read -r var_name; do
             [ -n "$var_name" ] || continue
             case "$var_name" in
@@ -147,7 +153,7 @@ jobs:
               exit 1
             }
             swept=$((swept + 1))
-          done < <(gh api --paginate "orgs/${GITHUB_OWNER}/actions/variables" -q '.variables[].name')
+          done <<< "$org_vars"
 
           echo "Swept ${swept} leftover resource(s)."
 
