@@ -1,1 +1,3 @@
-gjed
+# Code owners are requested for review on every pull request. The ruleset on
+# main requires an approval from a code owner (gjed can bypass it).
+* @gjed
