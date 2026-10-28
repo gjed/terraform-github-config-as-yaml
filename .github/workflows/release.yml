@@ -4,10 +4,7 @@ on:
   push:
     branches: [main]
 
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+permissions: {}
 
 # Releases must not overlap. Two runs from closely spaced pushes would resolve
 # the same prior tag and race to publish the same version. Queue instead of
@@ -19,14 +16,21 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the version tag and create the GitHub release
+      issues: write # comment on issues fixed by the release
+      pull-requests: write # comment on pull requests included in the release
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          # semantic-release authenticates its own pushes from GITHUB_TOKEN, so
+          # the token does not need to be left in .git/config.
+          persist-credentials: false
 
       - name: Release
-        uses: cycjimmy/semantic-release-action@v8.1.4
+        uses: cycjimmy/semantic-release-action@ad51787758d9654d5a75150a89a6fa9b3ccef95e # v8.1.4
         with:
           # Neither commit-analyzer nor release-notes-generator bundles the
           # conventionalcommits preset - both depend only on
