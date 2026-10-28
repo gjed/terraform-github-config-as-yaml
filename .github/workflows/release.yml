@@ -16,11 +16,29 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Holds the release app credentials and only accepts runs from protected
+    # branches, so a workflow on any other branch cannot mint the token.
+    environment: release
+    # GITHUB_TOKEN is only used to check out. Tags, releases and comments are
+    # written with the release app token below.
     permissions:
-      contents: write # push the version tag and create the GitHub release
-      issues: write # comment on issues fixed by the release
-      pull-requests: write # comment on pull requests included in the release
+      contents: read
     steps:
+      # v* tags are protected by the gjed-release-tags ruleset (managed in
+      # gjed/github-configs-public). Only admins and this app may create them;
+      # the built-in GitHub Actions app cannot be a bypass actor on a personal
+      # account, so GITHUB_TOKEN cannot push the tag.
+      - name: Mint release app token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write # push the version tag and create the GitHub release
+          permission-issues: write # comment on and label issues fixed by the release
+          permission-pull-requests: write # comment on pull requests included in the release
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -44,4 +62,4 @@ jobs:
           extra_plugins: |
             conventional-changelog-conventionalcommits@9
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
