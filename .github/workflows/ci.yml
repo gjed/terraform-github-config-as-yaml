@@ -4,16 +4,20 @@ name: CI
 # No secrets are used, so this is safe for fork PRs. The live-organization e2e
 # fixture lives in e2e.yml and must never run from here.
 #
-# The job names `pre-commit` and `pytest` are an external contract: the ruleset
-# that guards main (managed in a separate Terraform repository) requires them by
-# name. Renaming a job strands every pull request waiting on the old name.
+# The job names `pre-commit`, `pytest` and `terraform-test` are an
+# external contract: the ruleset that guards main (managed in gjed/github-configs-public)
+# requires them by name. Renaming a job strands every pull request waiting on the
+# old name.
+#
+# Every action is pinned to a full commit SHA; the repository enforces this
+# (Actions setting "require actions to be pinned to a full-length commit SHA").
+# Keep the `# vX.Y.Z` comment so Renovate can bump the pin.
 on:
   pull_request:
   push:
     branches: [main]
 
-permissions:
-  contents: read
+permissions: {}
 
 # Cancel superseded pull request runs, but never a run on main. A shared group
 # per ref is not enough: even with cancel-in-progress false, a third push to the
@@ -27,20 +31,24 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_wrapper: false
 
       - name: Set up TFLint
-        uses: terraform-linters/setup-tflint@v6
+        uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.15"
           cache: pip
@@ -50,7 +58,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Cache pre-commit environments
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -61,12 +69,16 @@ jobs:
   pytest:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.15"
           cache: pip
@@ -83,13 +95,17 @@ jobs:
   terraform-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # mock_provider in tests/*.tftest.hcl needs Terraform 1.7 or later.
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_wrapper: false
 
