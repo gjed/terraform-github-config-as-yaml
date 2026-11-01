@@ -100,6 +100,19 @@ jobs:
           echo "Sweeping stale e2e-* resources from ${GITHUB_OWNER}"
           swept=0
 
+          # Check the token before anything else: an expired or revoked token
+          # otherwise surfaces as a confusing failure further down.
+          if ! gh api "orgs/${GITHUB_OWNER}" --silent; then
+            echo "::error::E2E_GITHUB_TOKEN was rejected for org ${GITHUB_OWNER} (expired, revoked or no access). Regenerate it and update the secret on the 'e2e' environment."
+            exit 1
+          fi
+
+          # List first and abort on failure: an error inside < <(...) is
+          # invisible to the loop, which would then iterate over the error body.
+          if ! repos=$(gh api --paginate "orgs/${GITHUB_OWNER}/repos" -q '.[].name'); then
+            echo "::error::Failed to list repositories. The token needs repository Metadata (read)."
+            exit 1
+          fi
           while read -r repo; do
             [ -n "$repo" ] || continue
             case "$repo" in
@@ -112,8 +125,12 @@ jobs:
               exit 1
             }
             swept=$((swept + 1))
-          done < <(gh api --paginate "orgs/${GITHUB_OWNER}/repos" -q '.[].name')
+          done <<< "$repos"
 
+          if ! teams=$(gh api --paginate "orgs/${GITHUB_OWNER}/teams" -q '.[].slug'); then
+            echo "::error::Failed to list teams. The token needs organization Members (read)."
+            exit 1
+          fi
           while read -r slug; do
             [ -n "$slug" ] || continue
             case "$slug" in
@@ -126,10 +143,14 @@ jobs:
               exit 1
             }
             swept=$((swept + 1))
-          done < <(gh api --paginate "orgs/${GITHUB_OWNER}/teams" -q '.[].slug')
+          done <<< "$teams"
 
           # Org webhooks carry no name to prefix-match on, and this fixture is
           # the only thing that creates them in the test org.
+          if ! hooks=$(gh api --paginate "orgs/${GITHUB_OWNER}/hooks" -q '.[].id'); then
+            echo "::error::Failed to list org webhooks. The token needs organization Webhooks (read)."
+            exit 1
+          fi
           while read -r hook_id; do
             [ -n "$hook_id" ] || continue
             echo "  deleting org webhook $hook_id"
@@ -138,9 +159,8 @@ jobs:
               exit 1
             }
             swept=$((swept + 1))
-          done < <(gh api --paginate "orgs/${GITHUB_OWNER}/hooks" -q '.[].id')
+          done <<< "$hooks"
 
-          # List first and abort on failure: an error inside < <(...) is invisible to the loop.
           if ! org_vars=$(gh api --paginate "orgs/${GITHUB_OWNER}/actions/variables" -q '.variables[].name'); then
             echo "::error::Failed to list org variables. The token needs organization Variables (read)."
             exit 1
