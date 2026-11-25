@@ -331,6 +331,131 @@ resource "github_dependabot_secret" "this" {
   }
 }
 
+# Manage repository environments with their protection rules
+# Free-tier private repositories are filtered out at the yaml-config layer
+# (see skipped_environments output).
+resource "github_repository_environment" "this" {
+  for_each = var.environments
+
+  repository          = github_repository.this.name
+  environment         = each.key
+  wait_timer          = each.value.wait_timer
+  can_admins_bypass   = each.value.can_admins_bypass
+  prevent_self_review = each.value.prevent_self_review
+
+  # Users are given by login and teams by slug; both are resolved to IDs by the root module.
+  dynamic "reviewers" {
+    for_each = length(each.value.reviewers.users) + length(each.value.reviewers.teams) > 0 ? [each.value.reviewers] : []
+    content {
+      users = [for login in reviewers.value.users : tonumber(var.user_ids[login])]
+      teams = [for slug in reviewers.value.teams : tonumber(var.team_ids[slug])]
+    }
+  }
+
+  # GitHub rejects a policy with both flags false, so the block is only emitted when one is set.
+  dynamic "deployment_branch_policy" {
+    for_each = each.value.deployment_branch_policy.protected_branches || each.value.deployment_branch_policy.custom_branch_policies ? [each.value.deployment_branch_policy] : []
+    content {
+      protected_branches     = deployment_branch_policy.value.protected_branches
+      custom_branch_policies = deployment_branch_policy.value.custom_branch_policies
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !(each.value.deployment_branch_policy.protected_branches && each.value.deployment_branch_policy.custom_branch_policies)
+      error_message = "Environment '${each.key}': deployment_branch_policy.protected_branches and deployment_branch_policy.custom_branch_policies are mutually exclusive. Set only one of them."
+    }
+    precondition {
+      condition = each.value.deployment_branch_policy.custom_branch_policies || (
+        length(each.value.deployment_branch_policy.branch_patterns) + length(each.value.deployment_branch_policy.tag_patterns) == 0
+      )
+      error_message = "Environment '${each.key}': branch_patterns and tag_patterns require deployment_branch_policy.custom_branch_policies: true."
+    }
+    precondition {
+      condition     = each.value.wait_timer >= 0 && each.value.wait_timer <= 43200
+      error_message = "Environment '${each.key}': wait_timer must be between 0 and 43200 minutes."
+    }
+  }
+}
+
+locals {
+  # One deployment policy per branch or tag pattern, keyed <environment>/branch:<pattern> or
+  # <environment>/tag:<pattern>. Only environments with custom_branch_policies get policies.
+  environment_deployment_policies = merge([
+    for env, e in var.environments : merge(
+      { for p in e.deployment_branch_policy.branch_patterns : "${env}/branch:${p}" => { environment = env, branch_pattern = p, tag_pattern = null } },
+      { for p in e.deployment_branch_policy.tag_patterns : "${env}/tag:${p}" => { environment = env, branch_pattern = null, tag_pattern = p } },
+    ) if e.deployment_branch_policy.custom_branch_policies
+  ]...)
+
+  # Keys only: the maps hold no secret values, so for_each stays plan-time known. Values are
+  # read from var.environments inside the resources.
+  environment_secret_keys = {
+    for item in flatten([
+      for env, e in var.environments : [for name in keys(e.secrets) : { key = "${env}/${name}", environment = env, name = name }]
+    ]) : item.key => item
+  }
+
+  environment_variable_keys = {
+    for item in flatten([
+      for env, e in var.environments : [for name in keys(e.variables) : { key = "${env}/${name}", environment = env, name = name }]
+    ]) : item.key => item
+  }
+}
+
+resource "github_repository_environment_deployment_policy" "this" {
+  for_each = local.environment_deployment_policies
+
+  repository     = github_repository.this.name
+  environment    = github_repository_environment.this[each.value.environment].environment
+  branch_pattern = each.value.branch_pattern
+  tag_pattern    = each.value.tag_pattern
+}
+
+# Manage environment secrets
+# Values are resolved from env:VAR_NAME at the root module; a missing reference fails the plan.
+resource "github_actions_environment_secret" "this" {
+  for_each = local.environment_secret_keys
+
+  repository  = github_repository.this.name
+  environment = github_repository_environment.this[each.value.environment].environment
+  secret_name = each.value.name
+  value       = var.environments[each.value.environment].secrets[each.value.name].value
+
+  lifecycle {
+    precondition {
+      condition     = can(regex("^[A-Z_][A-Z0-9_]*$", each.value.name)) && !can(regex("^GITHUB_", each.value.name))
+      error_message = "Environment '${each.value.environment}' secret name '${each.value.name}' is invalid: names must match ^[A-Z_][A-Z0-9_]*$ and must not start with GITHUB_."
+    }
+    precondition {
+      condition     = nonsensitive(var.environments[each.value.environment].secrets[each.value.name].value != null)
+      error_message = "Environment '${each.value.environment}' secret '${each.value.name}': ${var.environments[each.value.environment].secrets[each.value.name].source} is not resolvable. Secret values must be env:VAR_NAME references with VAR_NAME set in secret_values."
+    }
+  }
+}
+
+# Manage environment variables (plaintext values)
+resource "github_actions_environment_variable" "this" {
+  for_each = local.environment_variable_keys
+
+  repository    = github_repository.this.name
+  environment   = github_repository_environment.this[each.value.environment].environment
+  variable_name = each.value.name
+  value         = var.environments[each.value.environment].variables[each.value.name].value
+
+  lifecycle {
+    precondition {
+      condition     = can(regex("^[A-Z_][A-Z0-9_]*$", each.value.name)) && !can(regex("^GITHUB_", each.value.name))
+      error_message = "Environment '${each.value.environment}' variable name '${each.value.name}' is invalid: names must match ^[A-Z_][A-Z0-9_]*$ and must not start with GITHUB_."
+    }
+    precondition {
+      condition     = var.environments[each.value.environment].variables[each.value.name].value != null
+      error_message = "Environment '${each.value.environment}' variable '${each.value.name}' has no value. Define a value in the group or repository config."
+    }
+  }
+}
+
 # Manage traditional branch protection rules
 # Keyed by protection name (e.g. "main-protection") - renaming requires a state move
 resource "github_branch_protection" "this" {

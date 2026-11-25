@@ -63,6 +63,17 @@ output "skipped_branch_protections" {
   } : null
 }
 
+# Output warning when environments are skipped due to subscription tier
+output "skipped_environments" {
+  description = "Repositories whose environments were skipped because environments on private repos require a paid subscription tier"
+  value = length(local.repos_with_skipped_environments) > 0 ? {
+    message      = "Environments skipped for ${length(local.repos_with_skipped_environments)} private repo(s) - environments, reviewers, wait timers and deployment branch policies on private repositories require a paid GitHub plan"
+    repos        = sort(keys(local.repos_with_skipped_environments))
+    environments = local.repos_with_skipped_environments
+    tier         = local.subscription
+  } : null
+}
+
 # Output warning when org rulesets are skipped due to subscription tier
 output "skipped_org_rulesets" {
   description = "Org rulesets skipped because the subscription tier (free/pro) does not support them"
@@ -161,6 +172,15 @@ output "repository_secrets" {
       dependabot_secrets = repo.secret_names.dependabot
       actions_variables  = repo.variable_names
     }
+  }
+}
+
+# Names only - environment secret and variable values are never exposed as outputs
+output "repository_environments" {
+  description = "Names of managed repository environments with their secret and variable names, keyed by repository"
+  value = {
+    for repo_name, repo in module.repositories : repo_name => repo.environments
+    if length(repo.environments) > 0
   }
 }
 

@@ -274,6 +274,44 @@ variable "variables" {
   default = {}
 }
 
+variable "user_ids" {
+  description = "Map of user login to user ID, used to resolve environment reviewers given by login"
+  type        = map(string)
+  default     = {}
+}
+
+# Secret values are resolved from env:VAR_NAME by the root module (yaml-config.tf) before reaching here.
+# source is the env reference, used only in precondition messages.
+variable "environments" {
+  description = "Repository environments to create, keyed by environment name"
+  type = map(object({
+    wait_timer          = optional(number, 0)
+    can_admins_bypass   = optional(bool, true)
+    prevent_self_review = optional(bool, false)
+    # Users by login and teams by slug, resolved through var.user_ids and var.team_ids.
+    reviewers = optional(object({
+      users = optional(list(string), [])
+      teams = optional(list(string), [])
+    }), {})
+    # protected_branches and custom_branch_policies are mutually exclusive; the patterns
+    # require custom_branch_policies. Enforced by preconditions on the environment resource.
+    deployment_branch_policy = optional(object({
+      protected_branches     = optional(bool, false)
+      custom_branch_policies = optional(bool, false)
+      branch_patterns        = optional(list(string), [])
+      tag_patterns           = optional(list(string), [])
+    }), {})
+    secrets = optional(map(object({
+      value  = optional(string)
+      source = optional(string)
+    })), {})
+    variables = optional(map(object({
+      value = optional(string)
+    })), {})
+  }))
+  default = {}
+}
+
 variable "branch_protections" {
   description = "Map of branch protection rules to apply"
   type = map(object({
