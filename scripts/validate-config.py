@@ -28,6 +28,7 @@ MEMBERSHIP_DIR = CONFIG_DIR / "membership"
 WEBHOOK_DIR = CONFIG_DIR / "webhook"
 BRANCH_PROTECTION_DIR = CONFIG_DIR / "branch-protection"
 SECRET_DIR = CONFIG_DIR / "secret"
+CUSTOM_PROPERTY_DIR = CONFIG_DIR / "custom-property"
 
 
 def set_config_dir(config_dir: Path) -> None:
@@ -39,6 +40,7 @@ def set_config_dir(config_dir: Path) -> None:
     """
     global CONFIG_DIR, GROUP_DIR, REPOSITORY_DIR, RULESET_DIR
     global TEAM_DIR, MEMBERSHIP_DIR, WEBHOOK_DIR, BRANCH_PROTECTION_DIR, SECRET_DIR
+    global CUSTOM_PROPERTY_DIR
 
     CONFIG_DIR = config_dir
     GROUP_DIR = CONFIG_DIR / "group"
@@ -49,6 +51,7 @@ def set_config_dir(config_dir: Path) -> None:
     WEBHOOK_DIR = CONFIG_DIR / "webhook"
     BRANCH_PROTECTION_DIR = CONFIG_DIR / "branch-protection"
     SECRET_DIR = CONFIG_DIR / "secret"
+    CUSTOM_PROPERTY_DIR = CONFIG_DIR / "custom-property"
 
 VALID_VISIBILITIES = ["public", "private", "internal"]
 VALID_MEMBERSHIP_ROLES = ["member", "admin"]
@@ -131,6 +134,7 @@ VALID_GROUP_KEYS = {
     "secrets",
     "variables",
     "environments",
+    "custom_property_values",
 }
 # Repository entries accept every group key plus the two identity fields.
 VALID_REPOSITORY_KEYS = VALID_GROUP_KEYS | {"description", "groups"}
@@ -171,6 +175,20 @@ VALID_DEPLOYMENT_BRANCH_POLICY_KEYS = {
 # GitHub accepts wait timers of 0-43200 minutes and at most 6 reviewers per environment.
 MAX_ENVIRONMENT_WAIT_TIMER = 43200
 MAX_ENVIRONMENT_REVIEWERS = 6
+
+# Custom property definitions (config/custom-property/*.yml) and the tiers that support them.
+VALID_CUSTOM_PROPERTY_TYPES = ["string", "single_select", "multi_select", "true_false"]
+SELECT_CUSTOM_PROPERTY_TYPES = ["single_select", "multi_select"]
+VALID_CUSTOM_PROPERTY_EDITORS = ["org_actors", "org_and_repo_actors"]
+VALID_CUSTOM_PROPERTY_KEYS = {
+    "description",
+    "value_type",
+    "required",
+    "default_value",
+    "allowed_values",
+    "values_editable_by",
+}
+CUSTOM_PROPERTY_SUBSCRIPTIONS = ["team", "enterprise"]
 
 VALID_TEAM_PRIVACIES = ["closed", "secret"]
 # The GitHub provider only accepts these two values and rejects any other
@@ -1646,6 +1664,309 @@ def validate_environments_tier(
     return warnings
 
 
+def custom_properties_supported(config: dict) -> bool:
+    """Whether Terraform manages custom properties: an organization on team or enterprise.
+
+    Mirrors local.custom_properties_supported in yaml-config.tf.
+    """
+    return (
+        bool(config.get("is_organization", True))
+        and config.get("subscription", "free") in CUSTOM_PROPERTY_SUBSCRIPTIONS
+    )
+
+
+def _scalar_text(value) -> str | None:
+    """The text Terraform's tostring() gives a YAML scalar; None for anything else."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (str, int, float)):
+        return str(value)
+    return None
+
+
+def load_custom_property_files(directory: Path) -> dict:
+    """Load config/custom-property/*.yml keyed by file name (kept per file to spot duplicates)."""
+    if not directory.exists():
+        return {}
+    return {p.name: load_yaml(p) for p in sorted(directory.glob("*.yml"))}
+
+
+def merge_custom_property_definitions(files: dict) -> dict:
+    """Merge the per-file definitions the way yaml-config.tf does: last file wins by name."""
+    merged: dict = {}
+    for data in files.values():
+        if isinstance(data, dict):
+            merged.update(data)
+    return merged
+
+
+def validate_custom_property_definition(name, definition) -> list[str]:
+    """Validate one custom property definition.
+
+    Mirrors the preconditions on github_organization_custom_properties.
+    """
+    if not isinstance(name, str) or not name:
+        return [f"custom property names must be non-empty strings (got '{name}')"]
+    label = f"custom property '{name}'"
+    if not isinstance(definition, dict):
+        return [f"{label}: definition must be a mapping with a 'value_type'"]
+
+    errors = []
+    for key in sorted(set(definition) - VALID_CUSTOM_PROPERTY_KEYS, key=str):
+        errors.append(f"{label}: unknown key '{key}'")
+
+    value_type = definition.get("value_type")
+    valid_type = value_type in VALID_CUSTOM_PROPERTY_TYPES
+    if not valid_type:
+        errors.append(
+            f"{label}: 'value_type' must be one of: {', '.join(VALID_CUSTOM_PROPERTY_TYPES)}"
+        )
+
+    description = definition.get("description")
+    if description is not None and not isinstance(description, str):
+        errors.append(f"{label}: 'description' must be a string")
+    required = definition.get("required")
+    if required is not None and not isinstance(required, bool):
+        errors.append(f"{label}: 'required' must be true or false")
+    editor = definition.get("values_editable_by")
+    if editor is not None and editor not in VALID_CUSTOM_PROPERTY_EDITORS:
+        errors.append(
+            f"{label}: 'values_editable_by' must be one of: "
+            f"{', '.join(VALID_CUSTOM_PROPERTY_EDITORS)}"
+        )
+
+    allowed = definition.get("allowed_values")
+    allowed_text: list[str] = []
+    if allowed is not None:
+        texts = [_scalar_text(v) for v in allowed] if isinstance(allowed, list) else []
+        if not isinstance(allowed, list) or any(t is None or t == "" for t in texts):
+            errors.append(f"{label}: 'allowed_values' must be a list of non-empty strings")
+        else:
+            allowed_text = texts
+
+    is_select = value_type in SELECT_CUSTOM_PROPERTY_TYPES
+    if is_select and allowed in (None, []):
+        errors.append(
+            f"{label}: select types need a non-empty 'allowed_values' list"
+        )
+    elif valid_type and not is_select and allowed_text:
+        errors.append(
+            f"{label}: 'allowed_values' only applies to single_select and multi_select properties"
+        )
+
+    default = definition.get("default_value")
+    if default is not None:
+        default_text = _scalar_text(default)
+        if default_text is None:
+            errors.append(f"{label}: 'default_value' must be a string, number, or boolean")
+        elif is_select and default_text not in allowed_text:
+            errors.append(
+                f"{label}: 'default_value' must be one of 'allowed_values' for select types"
+            )
+        elif value_type == "true_false" and default_text not in ("true", "false"):
+            errors.append(f"{label}: 'default_value' must be true or false for true_false")
+    return errors
+
+
+def validate_custom_property_files(files: dict) -> tuple[list, list]:
+    """Validate config/custom-property/*.yml. Returns (errors, warnings)."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    seen: dict = {}
+
+    for filename, data in files.items():
+        if not data:
+            continue  # empty or comment-only file
+        label_file = f"config/custom-property/{filename}"
+        if not isinstance(data, dict):
+            errors.append(f"{label_file}: top level must be a mapping of property name to definition")
+            continue
+        for name, definition in data.items():
+            seen.setdefault(name, []).append(filename)
+            errors.extend(
+                f"{label_file}: {e}"
+                for e in validate_custom_property_definition(name, definition)
+            )
+
+    for name, filenames in seen.items():
+        if len(filenames) > 1:
+            warnings.append(
+                f"custom property '{name}' is defined in {', '.join(filenames)} "
+                f"- the last file ({filenames[-1]}) wins entirely"
+            )
+    return errors, warnings
+
+
+def validate_custom_property_value(label: str, name, definition, value) -> list[str]:
+    """Validate one assigned value against its property definition.
+
+    Mirrors the preconditions on github_repository_custom_property: scalars and lists are
+    accepted, single-value types take exactly one value, select values must be allowed.
+    """
+    prop = f"{label}: custom property '{name}'"
+    if value is None:
+        return [f"{prop} needs a value"]
+
+    items = value if isinstance(value, list) else [value]
+    texts = [_scalar_text(v) for v in items]
+    if any(t is None for t in texts):
+        return [f"{prop}: the value must be a string, number, boolean, or a list of those"]
+    if not texts:
+        return [f"{prop}: at least one value is required"]
+
+    value_type = definition.get("value_type") if isinstance(definition, dict) else None
+    errors = []
+    if value_type != "multi_select" and len(texts) > 1:
+        errors.append(
+            f"{prop} is of type {value_type} and takes exactly one value; "
+            "only multi_select properties take a list"
+        )
+    if value_type in SELECT_CUSTOM_PROPERTY_TYPES:
+        allowed = definition.get("allowed_values")
+        allowed_text = (
+            [_scalar_text(v) for v in allowed] if isinstance(allowed, list) else []
+        )
+        bad = [t for t in texts if t not in allowed_text]
+        if bad:
+            errors.append(
+                f"{prop}: {', '.join(repr(t) for t in bad)} not in the allowed values "
+                f"({', '.join(str(t) for t in allowed_text)})"
+            )
+    elif value_type == "true_false" and any(t not in ("true", "false") for t in texts):
+        errors.append(f"{prop} is of type true_false and takes true or false")
+    return errors
+
+
+def validate_custom_property_value_blocks(
+    label: str, config, definitions: dict
+) -> list[str]:
+    """Validate a group's or repository's `custom_property_values:` block."""
+    if not isinstance(config, dict) or config.get("custom_property_values") is None:
+        return []
+
+    block = config["custom_property_values"]
+    if not isinstance(block, dict):
+        return [
+            f"{label}: 'custom_property_values' must be a mapping of property name to value"
+        ]
+
+    errors: list[str] = []
+    for name, value in block.items():
+        if name not in definitions:
+            errors.append(
+                f"{label}: custom property '{name}' is not defined in config/custom-property/"
+            )
+            continue
+        errors.extend(
+            validate_custom_property_value(label, name, definitions[name], value)
+        )
+    return errors
+
+
+def validate_all_custom_property_value_blocks(
+    groups: dict, repos: dict, definitions: dict
+) -> list[str]:
+    """Run validate_custom_property_value_blocks over every group and repository."""
+    errors: list[str] = []
+    for name, config in groups.items():
+        errors.extend(
+            validate_custom_property_value_blocks(f"group '{name}'", config, definitions)
+        )
+    for name, config in repos.items():
+        errors.extend(
+            validate_custom_property_value_blocks(
+                f"repository '{name}'", config, definitions
+            )
+        )
+    return errors
+
+
+def effective_custom_property_names(repo_config: dict, groups: dict) -> set[str]:
+    """Property names a repository sets after group inheritance (mirrors the Terraform merge)."""
+    names: set[str] = set()
+    for group_name in repo_config.get("groups", []) or []:
+        group_config = groups.get(group_name)
+        if isinstance(group_config, dict) and isinstance(
+            group_config.get("custom_property_values"), dict
+        ):
+            names |= set(group_config["custom_property_values"])
+    if isinstance(repo_config.get("custom_property_values"), dict):
+        names |= set(repo_config["custom_property_values"])
+    return names
+
+
+def validate_required_custom_properties(
+    repos: dict, groups: dict, definitions: dict
+) -> list[str]:
+    """Check that every required property has a value on every repository.
+
+    GitHub applies a property's default_value to repositories without an explicit value, so
+    only required properties without a default can be missing. Mirrors the precondition on
+    github_organization_custom_properties.
+    """
+    errors: list[str] = []
+    for name, definition in definitions.items():
+        if (
+            not isinstance(definition, dict)
+            or definition.get("required") is not True
+            or definition.get("default_value") is not None
+        ):
+            continue
+        missing = sorted(
+            repo_name
+            for repo_name, repo_config in repos.items()
+            if isinstance(repo_config, dict)
+            and name not in effective_custom_property_names(repo_config, groups)
+        )
+        if missing:
+            errors.append(
+                f"custom property '{name}' is required and has no default_value, but "
+                f"these repositories do not set it: {', '.join(missing)}. Set it in a "
+                "group or repository custom_property_values, or add a default_value"
+            )
+    return errors
+
+
+def validate_custom_properties_tier(
+    config: dict, repos: dict, groups: dict, definitions: dict
+) -> list[str]:
+    """Warn when custom properties are configured but Terraform will skip them.
+
+    Terraform skips definitions and assignments unless the target is an organization on the
+    team or enterprise tier and reports the definitions in skipped_custom_properties.
+    Surfacing this before plan avoids a silent no-op.
+
+    Returns a list of warning messages.
+    """
+    if custom_properties_supported(config):
+        return []
+
+    reason = (
+        f"subscription '{config.get('subscription', 'free')}', "
+        f"is_organization {str(bool(config.get('is_organization', True))).lower()}"
+    )
+    warnings: list[str] = []
+
+    if definitions:
+        warnings.append(
+            f"custom properties: {len(definitions)} definition(s) in config/custom-property/ "
+            f"require an organization on the team or enterprise subscription ({reason}) "
+            f"- they will be skipped by Terraform and listed in skipped_custom_properties"
+        )
+
+    for repo_name, repo_config in repos.items():
+        if not isinstance(repo_config, dict):
+            continue
+        if effective_custom_property_names(repo_config, groups):
+            warnings.append(
+                f"repositories: Repository '{repo_name}' sets custom_property_values, but "
+                f"custom properties require an organization on the team or enterprise "
+                f"subscription ({reason}) - they will be skipped by Terraform"
+            )
+
+    return warnings
+
+
 def main():
     """Main validation entry point."""
     strict = "--strict" in sys.argv
@@ -1736,6 +2057,8 @@ def main():
         )
         # Load org-level secret/variable definitions (optional directory, kept per file)
         secret_files = load_secret_files(SECRET_DIR)
+        # Load custom property definitions (optional directory, kept per file)
+        custom_property_files = load_custom_property_files(CUSTOM_PROPERTY_DIR)
     except ValueError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
@@ -1783,6 +2106,30 @@ def main():
     all_errors.extend(validate_all_environment_blocks(groups, repos))
     all_warnings.extend(
         validate_environments_tier(repos, groups, config.get("subscription", "free"))
+    )
+    custom_property_errors, custom_property_warnings = validate_custom_property_files(
+        custom_property_files
+    )
+    custom_property_definitions = merge_custom_property_definitions(
+        custom_property_files
+    )
+    all_errors.extend(custom_property_errors)
+    all_warnings.extend(custom_property_warnings)
+    all_errors.extend(
+        validate_all_custom_property_value_blocks(
+            groups, repos, custom_property_definitions
+        )
+    )
+    if custom_properties_supported(config):
+        all_errors.extend(
+            validate_required_custom_properties(
+                repos, groups, custom_property_definitions
+            )
+        )
+    all_warnings.extend(
+        validate_custom_properties_tier(
+            config, repos, groups, custom_property_definitions
+        )
     )
 
     # Print SCIM/SSO reminder when membership config is present
