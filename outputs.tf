@@ -74,6 +74,17 @@ output "skipped_environments" {
   } : null
 }
 
+# Names only. Custom properties are skipped on free/pro and for personal accounts
+output "skipped_custom_properties" {
+  description = "Names of custom property definitions skipped because custom properties need an organization on the team or enterprise tier (empty when nothing is skipped)"
+  value       = local.skipped_custom_property_names
+}
+
+output "managed_custom_properties" {
+  description = "Names of the managed organization custom property definitions"
+  value       = sort(keys(github_organization_custom_properties.this))
+}
+
 # Output warning when org rulesets are skipped due to subscription tier
 output "skipped_org_rulesets" {
   description = "Org rulesets skipped because the subscription tier (free/pro) does not support them"
@@ -124,7 +135,8 @@ output "duplicate_key_warnings" {
     length(local.duplicate_ruleset_keys) > 0 ||
     length(local.duplicate_membership_keys) > 0 ||
     length(local.duplicate_branch_protection_keys) > 0 ||
-    length(local.duplicate_org_secret_keys) > 0
+    length(local.duplicate_org_secret_keys) > 0 ||
+    length(local.duplicate_custom_property_keys) > 0
     ) ? {
     message = "WARNING: Duplicate keys detected across config files. Later files (alphabetically) completely override earlier ones - no deep merge!"
     repositories = length(local.duplicate_repository_keys) > 0 ? {
@@ -149,6 +161,10 @@ output "duplicate_key_warnings" {
     } : null
     secrets = length(local.duplicate_org_secret_keys) > 0 ? {
       for key, files in local.duplicate_org_secret_keys :
+      key => "defined in: ${join(", ", files)} - using: ${files[length(files) - 1]}"
+    } : null
+    custom_properties = length(local.duplicate_custom_property_keys) > 0 ? {
+      for key, files in local.duplicate_custom_property_keys :
       key => "defined in: ${join(", ", files)} - using: ${files[length(files) - 1]}"
     } : null
   } : null

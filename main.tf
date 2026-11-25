@@ -74,11 +74,18 @@ module "repositories" {
   # Repository environments (secret values resolved in yaml-config.tf)
   environments = each.value.environments
 
+  # Custom property values (type and allowed values resolved in yaml-config.tf)
+  custom_property_values = each.value.custom_property_values
+
   # Team slug => ID map used to resolve ruleset and environment reviewers given by slug
   team_ids = local.reviewer_team_ids
 
   # User login => ID map used to resolve environment reviewers
   user_ids = local.environment_reviewer_user_ids
+
+  # Property values refer to their definitions by name only, so the order is explicit. The module
+  # has no data sources, so this does not defer any reads.
+  depends_on = [github_organization_custom_properties.this]
 }
 
 # Organization membership management

@@ -366,6 +366,62 @@ locals {
     config if config != null
   ]...)
 
+  # Load custom property definitions from config/custom-property/ directory
+  # Directory is optional - missing directory results in empty map (no error)
+  custom_property_config_path = "${local.config_base_path}/custom-property"
+  custom_property_files = try(
+    fileset(local.custom_property_config_path, "*.yml"),
+    toset([])
+  )
+
+  custom_property_files_raw = {
+    for f in sort(tolist(local.custom_property_files)) :
+    f => file("${local.custom_property_config_path}/${f}")
+  }
+
+  # Comment-only and empty files decode to null; downstream consumers already guard on null.
+  custom_property_configs_by_file = {
+    for f, raw in local.custom_property_files_raw :
+    f => trimspace(replace(raw, local.yaml_blank_pattern, "")) == "" ? null : yamldecode(raw)
+  }
+
+  custom_property_key_occurrences = {
+    for key in distinct(flatten([
+      for file, config in local.custom_property_configs_by_file :
+      config != null ? keys(config) : []
+    ])) :
+    key => [
+      for file, config in local.custom_property_configs_by_file :
+      file if config != null && contains(keys(config), key)
+    ]
+  }
+
+  duplicate_custom_property_keys = {
+    for key, files in local.custom_property_key_occurrences :
+    key => files if length(files) > 1
+  }
+
+  # Merge all property definitions into a single map (alphabetical file order, last file wins)
+  # Seeded with {} so merge() is never called with zero arguments when the directory is empty
+  custom_properties_config = merge({}, [
+    for f, config in local.custom_property_configs_by_file :
+    config if config != null
+  ]...)
+
+  # Normalise each definition to a uniform shape. try() keeps null or malformed entries alive so
+  # the resource preconditions report them with a clear message instead of a Terraform type error;
+  # tostring() accepts YAML booleans and numbers (default_value: false, allowed_values: [1, 2]).
+  custom_properties_normalized = {
+    for name, p in local.custom_properties_config : name => {
+      description        = try(tostring(p.description), null)
+      value_type         = try(tostring(p.value_type), null)
+      required           = try(tobool(p.required), false)
+      default_value      = try(tostring(p.default_value), null)
+      allowed_values     = try(tolist(p.allowed_values), null)
+      values_editable_by = try(tostring(p.values_editable_by), null)
+    }
+  }
+
   # Extract values from YAML
   github_org      = local.common_config.organization
   is_organization = lookup(local.common_config, "is_organization", true)
@@ -621,6 +677,20 @@ locals {
     ? toset(coalesce(lookup(local.security_config, "security_manager_teams", []), []))
     : toset([])
   )
+
+  # Custom properties are an organization feature on the team and enterprise tiers.
+  # On free/pro or a personal account definitions and assignments are skipped, and
+  # skipped_custom_properties reports the definitions that were left out.
+  custom_properties_supported = local.is_organization && contains(["team", "enterprise"], local.subscription)
+
+  # A filter rather than a conditional: definitions differ in shape and a conditional would have
+  # to unify them with an empty map.
+  effective_custom_properties = {
+    for name, p in local.custom_properties_normalized : name => p
+    if local.custom_properties_supported
+  }
+
+  skipped_custom_property_names = local.custom_properties_supported ? [] : sort(keys(local.custom_properties_config))
 
   # Merge multiple config groups for each repository
   # Groups are applied sequentially: later groups override single values, lists are merged
@@ -1242,6 +1312,52 @@ locals {
     ]
   ]))
 
+  # Merge custom_property_values from groups (in order) and the repo for each repository.
+  # Later values replace earlier ones by property name, whole value at a time: a repository
+  # `tags: [a]` replaces a group `tags: [x, y]` instead of concatenating with it.
+  merged_custom_property_values_raw = {
+    for repo_name, repo_config in local.repos_yaml : repo_name => merge(concat(
+      [for g in repo_config.groups : try(merge(local.config_groups[g].custom_property_values), {})],
+      [try(merge(repo_config.custom_property_values), {})],
+    )...)
+  }
+
+  # Every value becomes a list of strings, as the provider expects: scalars (string, number,
+  # boolean) wrap into a one-element list and lists pass through. Anything else (a map, a nested
+  # list, an explicit null) becomes null and is reported by the module's preconditions.
+  merged_custom_property_values = {
+    for repo_name, vals in local.merged_custom_property_values_raw : repo_name => {
+      for name, v in vals : name => v == null ? null : try(
+        [for x in tolist(v) : tostring(x)],
+        [tostring(v)],
+        null,
+      )
+    }
+  }
+
+  # Assignments carry the type and allowed values of their definition so the module can set
+  # property_type and validate the value. value_type is null when the property is not defined.
+  # Skipped entirely when custom properties are not supported (see skipped_custom_properties).
+  # A filter rather than a conditional, because values differ in shape per repository.
+  effective_custom_property_values = {
+    for repo_name, vals in local.merged_custom_property_values : repo_name => {
+      for name, v in vals : name => {
+        value_type     = try(local.custom_properties_normalized[name].value_type, null)
+        allowed_values = coalesce(try(local.custom_properties_normalized[name].allowed_values, null), [])
+        values         = v
+      }
+      if local.custom_properties_supported
+    }
+  }
+
+  # Repositories without a value for a required property that has no default to fall back on.
+  custom_property_repos_missing_required = {
+    for name, p in local.effective_custom_properties : name => sort([
+      for repo_name in keys(local.repos_yaml) : repo_name
+      if p.required && p.default_value == null && !contains(keys(local.effective_custom_property_values[repo_name]), name)
+    ])
+  }
+
   # Transform YAML repos into the format expected by the module
   # Multiple groups are applied sequentially with proper merging
   repositories = {
@@ -1306,11 +1422,24 @@ locals {
       # Note: effective_environments filters based on subscription tier
       environments = local.effective_environments[repo_name]
 
+      # Custom properties: merged from groups + repo (repo overrides group by property name)
+      # Note: effective_custom_property_values is empty when the tier or account type is unsupported
+      custom_property_values = local.effective_custom_property_values[repo_name]
+
       # Branch protections: merge from all groups + repo-specific (repo overrides group by name)
       # Note: effective_branch_protections filters based on subscription tier
       branch_protections = local.effective_branch_protections[repo_name]
 
     }
+  }
+}
+
+# Validate no duplicate property names across config/custom-property/*.yml files
+# Last-file-wins merge silently drops definitions when two files share a property name.
+check "duplicate_custom_property_keys" {
+  assert {
+    condition     = length(local.duplicate_custom_property_keys) == 0
+    error_message = "Duplicate custom property names found across config/custom-property/ files: ${join(", ", keys(local.duplicate_custom_property_keys))}. Each property name must appear in only one file; the last file alphabetically wins."
   }
 }
 

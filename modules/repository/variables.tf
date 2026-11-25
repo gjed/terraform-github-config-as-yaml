@@ -312,6 +312,19 @@ variable "environments" {
   default = {}
 }
 
+# Values are normalised to lists of strings by the root module (yaml-config.tf), which also attaches the
+# type and allowed values of the property definition. value_type is null for a property that is not
+# defined; values is null for a value that is not a scalar or a list. Both are reported by preconditions.
+variable "custom_property_values" {
+  description = "Custom property values to assign to the repository, keyed by property name"
+  type = map(object({
+    value_type     = optional(string)
+    allowed_values = optional(list(string), [])
+    values         = optional(list(string))
+  }))
+  default = {}
+}
+
 variable "branch_protections" {
   description = "Map of branch protection rules to apply"
   type = map(object({
