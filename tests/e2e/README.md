@@ -17,13 +17,15 @@ have forked this repo, create your own **throwaway** organization and update bot
 Do **not** point this fixture at a real org — it creates, modifies, and deletes repositories
 and teams, and nothing it touches should be anything you would miss.
 
-Free-tier orgs work out of the box, with two features skipped by design:
+Free-tier orgs work out of the box, with some features skipped by design:
 
 - Org rulesets require Team or Enterprise — reported in `skipped_org_rulesets`
 - Branch protections on **private** repos require a paid plan — reported in
   `skipped_branch_protections`
+- Custom properties require an organization on Team or Enterprise — reported in
+  `skipped_custom_properties`
 
-The verification script asserts both skips on free tier, so a free org is a valid run. To
+The verification script asserts these skips on free tier, so a free org is a valid run. To
 exercise those features for real, upgrade the org to Team and set `subscription: team` in
 `config/config.yml`.
 
@@ -36,6 +38,7 @@ this token can delete repositories.
 Organization permissions:
 
 - **Administration** — read and write (org settings, rulesets, Actions permissions)
+- **Custom properties** — admin (organization custom property definitions)
 - **Dependabot secrets** — read and write (org Dependabot secrets)
 - **Members** — read and write (teams, membership)
 - **Secrets** — read and write (org Actions secrets)
@@ -47,6 +50,7 @@ Repository permissions:
 - **Administration** — read and write (repo creation, deletion, branch protection)
 - **Contents** — read and write
 - **Webhooks** — read and write
+- **Custom properties** — read and write (repository property values; only used on the team or enterprise tier)
 - **Dependabot alerts** — read (verification only)
 - **Dependabot secrets** — read and write (repo Dependabot secrets)
 - **Environments** — read and write (repo environments, deployment policies, environment secrets and variables)

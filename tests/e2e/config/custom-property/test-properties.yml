@@ -1,0 +1,21 @@
+# Custom property definitions for the e2e fixture.
+# The fixture runs on the free tier, so these are skipped and reported in
+# skipped_custom_properties; on a team or enterprise organization they are created.
+e2e_environment:
+  description: "E2E deployment environment"
+  value_type: single_select
+  allowed_values:
+    - development
+    - production
+
+e2e_tags:
+  description: "E2E multi-select tags"
+  value_type: multi_select
+  allowed_values:
+    - alpha
+    - beta
+    - gamma
+
+e2e_owner:
+  description: "E2E owning team"
+  value_type: string

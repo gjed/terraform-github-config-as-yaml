@@ -31,6 +31,9 @@ oss-e2e:
     actions:
       E2E_GROUP_VARIABLE:
         value: "from-group"
+  custom_property_values:
+    e2e_environment: production
+    e2e_owner: platform
 
 internal-e2e:
   visibility: private
