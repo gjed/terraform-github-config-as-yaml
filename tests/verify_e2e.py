@@ -244,9 +244,16 @@ def verify_environments(result: CheckResult, outputs: dict, gh_org) -> None:
     env = managed.get("e2e-oss-public", {}).get("e2e-deploy")
     result.assert_not_none("repository_environments e2e-oss-public/e2e-deploy", env)
     if env is not None:
-        result.assert_eq("e2e-deploy secret names", ["E2E_ENV_SECRET"], env.get("secrets"))
+        # Report booleans only: secret names must not flow into the printed messages.
         result.assert_eq(
-            "e2e-deploy variable names", ["E2E_ENV_VARIABLE"], env.get("variables")
+            "e2e-deploy lists the expected secret",
+            True,
+            env.get("secrets") == ["E2E_ENV_SECRET"],
+        )
+        result.assert_eq(
+            "e2e-deploy lists the expected variable",
+            True,
+            env.get("variables") == ["E2E_ENV_VARIABLE"],
         )
 
     try:
