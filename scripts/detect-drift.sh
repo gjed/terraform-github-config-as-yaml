@@ -5,8 +5,12 @@
 # Runs a full-refresh `terraform plan -detailed-exitcode`, converts the plan to
 # JSON with `terraform show -json` and summarises it with scripts/drift_report.py.
 # Run it from a directory where `terraform init` has been done, with GitHub
-# credentials in the environment (e.g. GITHUB_TOKEN). The refresh is never
-# skipped: a plan without it cannot see out-of-band changes.
+# credentials in the environment (e.g. GITHUB_TOKEN) and the module's required
+# variables set. From this repository's root that means
+# `export TF_VAR_config_path="$PWD/config"` (the Makefile does it for you).
+# The refresh is never skipped: a plan without it cannot see out-of-band
+# changes. The plan also contains configuration changes that are merged but not
+# yet applied, so run it against applied configuration for a drift-only signal.
 #
 # Usage:
 #   ./scripts/detect-drift.sh [OPTIONS]

@@ -76,7 +76,8 @@ plan-pr:
 	tfcmt plan -- terraform plan
 
 # Detect configuration drift: full-refresh plan summarised by scripts/detect-drift.sh
-# Exit codes: 0 no drift, 1 error, 2 drift, 3 critical (repository destroy/replace)
+# GNU make exits 2 for any failed recipe, so the script's 0/1/2/3 exit codes are lost here.
+# CI that needs them (3 = repository destroy/replace) must call scripts/detect-drift.sh directly.
 drift-check:
 	@./scripts/detect-drift.sh $(if $(REPO),--repo '$(REPO)') $(if $(FORMAT),--format '$(FORMAT)')
 

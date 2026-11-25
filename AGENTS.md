@@ -400,10 +400,16 @@ make drift-check REPO=my-repo           # one repository, same -target as plan-r
 ./scripts/detect-drift.sh --format json --plan-file drift.tfplan
 ```
 
-Run it where `terraform init` was done and `GITHUB_TOKEN` is set. The report goes to stdout; progress and
-Terraform output go to stderr, so `--format json` can be piped.
+Run it where `terraform init` was done and `GITHUB_TOKEN` is set. `make` exports `TF_VAR_config_path`; when
+calling the script directly from this repository's root, run `export TF_VAR_config_path="$PWD/config"` first,
+or Terraform stops with "No value for required variable". The report goes to stdout; progress and Terraform
+output go to stderr, so `--format json` can be piped.
 
-Exit codes, decided from the plan JSON:
+The plan compares GitHub with the configuration, so it also lists configuration changes that are merged but
+not yet applied; it does not read the plan's `resource_drift` section. Run it against applied configuration
+to get a drift-only signal.
+
+Exit codes of `scripts/detect-drift.sh`, decided from the plan JSON:
 
 | Code | Meaning                                                           |
 | ---- | ----------------------------------------------------------------- |
@@ -417,6 +423,9 @@ destroy or replace of a `github_repository`, and any change that weakens securit
 `private`/`internal` to `public`, a branch protection or ruleset deleted or disabled, required signatures
 removed. Sensitive values print as `(sensitive)`. The helper can also be used on its own:
 `terraform show -json tfplan | python scripts/drift_report.py --format markdown`.
+
+`make drift-check` shows the same report, but GNU make turns any failing recipe into exit status 2, so CI that
+needs the exit codes must call the script directly.
 
 A kept `--plan-file` contains sensitive values in clear text; treat it as a secret. Notifications,
 auto-remediation and scheduled CI runs are not part of this script.

@@ -42,7 +42,7 @@ documentation.
 - **Secrets and variables** - Actions and Dependabot secrets and Actions variables, org and repo level
 - **Subscription-aware** - Gracefully handles GitHub Free tier limitations
 - **Onboarding script** - Easily import existing repositories
-- **Drift detection** - Spot out-of-band changes with `make drift-check`
+- **Drift detection** - Spot differences between GitHub and the configuration with `make drift-check`
 
 ## Requirements
 
@@ -108,8 +108,10 @@ api-gateway:
 
 ## Detecting Drift
 
-`make drift-check` plans with a full refresh and reports what changed outside Terraform, grouped by
-repository, with destroyed repositories and security-weakening changes flagged as critical:
+`make drift-check` plans with a full refresh and reports where GitHub differs from the configuration,
+grouped by repository, with destroyed repositories and security-weakening changes flagged as critical. The
+plan also lists configuration changes that are merged but not yet applied, so run it against applied
+configuration for a drift-only signal:
 
 ```bash
 make drift-check                     # text report
@@ -117,9 +119,11 @@ make drift-check FORMAT=markdown     # markdown (also: json)
 make drift-check REPO=my-repo        # one repository
 ```
 
-It exits `0` for no drift, `2` for drift, `3` when a repository would be destroyed or replaced and `1` on
-error, so any CI system can schedule it. See `scripts/detect-drift.sh --help` and the "Detecting drift"
-section of `AGENTS.md`.
+`scripts/detect-drift.sh` exits `0` for no drift, `2` for drift, `3` when a repository would be destroyed or
+replaced and `1` on error, so any CI system can schedule it. `make drift-check` prints the same report, but
+GNU make turns every failing recipe into exit status 2, so CI that needs these codes must call the script
+directly (after `export TF_VAR_config_path="$PWD/config"`). See `scripts/detect-drift.sh --help` and the
+"Detecting drift" section of `AGENTS.md`.
 
 ## GitHub Subscription Tiers
 
