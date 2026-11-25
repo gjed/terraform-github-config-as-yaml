@@ -75,7 +75,7 @@ A GitHub Personal Access Token with `repo` and `admin:org` scopes is required.
 | `duplicate_key_warnings`    | Warnings about duplicate keys in config files                         |
 | `skipped_environments`      | Repositories whose environments were skipped by subscription tier     |
 | `managed_custom_properties` | Names of the managed custom property definitions                      |
-| `skipped_custom_properties` | Names of custom property definitions skipped by tier or account type  |
+| `skipped_custom_properties` | Names of custom property definitions skipped for a personal account    |
 
 ## Configuration Structure
 
@@ -175,9 +175,9 @@ api-gateway:
     tags: [backend, critical]
 ```
 
-Custom properties need an organization on the `team` or `enterprise` tier. On `free`, `pro` or a personal
-account they are skipped and the definitions are listed in the `skipped_custom_properties` output. A
-required property without a `default_value` must be set on every repository, or the plan fails.
+Custom properties need an organization and work on every subscription tier. For a personal account they are
+skipped and the definitions are listed in the `skipped_custom_properties` output. A required property without a
+`default_value` must be set on every repository, or the plan fails.
 
 ## Detecting Drift
 

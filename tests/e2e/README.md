@@ -17,15 +17,13 @@ have forked this repo, create your own **throwaway** organization and update bot
 Do **not** point this fixture at a real org — it creates, modifies, and deletes repositories
 and teams, and nothing it touches should be anything you would miss.
 
-Free-tier orgs work out of the box, with some features skipped by design:
+Free-tier orgs work out of the box, with two features skipped by design:
 
 - Org rulesets require Team or Enterprise — reported in `skipped_org_rulesets`
 - Branch protections on **private** repos require a paid plan — reported in
   `skipped_branch_protections`
-- Custom properties require an organization on Team or Enterprise — reported in
-  `skipped_custom_properties`
 
-The verification script asserts these skips on free tier, so a free org is a valid run. To
+The verification script asserts both skips on free tier, so a free org is a valid run. To
 exercise those features for real, upgrade the org to Team and set `subscription: team` in
 `config/config.yml`.
 
@@ -50,7 +48,7 @@ Repository permissions:
 - **Administration** — read and write (repo creation, deletion, branch protection)
 - **Contents** — read and write
 - **Webhooks** — read and write
-- **Custom properties** — read and write (repository property values; only used on the team or enterprise tier)
+- **Custom properties** — read and write (repository property values)
 - **Dependabot alerts** — read (verification only)
 - **Dependabot secrets** — read and write (repo Dependabot secrets)
 - **Environments** — read and write (repo environments, deployment policies, environment secrets and variables)
@@ -172,7 +170,7 @@ make destroy
 | Repo environment (custom branch/tag policies, secret, variable) | `config/repository/test-repos.yml` | `e2e-oss-public` |
 | `skipped_environments` output (free tier) | `config/repository/test-repos.yml` | `e2e-internal-private` |
 | Custom properties (definitions, group and repo values) | `config/custom-property/test-properties.yml` | `e2e-oss-public` |
-| `skipped_custom_properties` output (free tier) | `config/custom-property/test-properties.yml` | `e2e-oss-public` |
+| `managed_custom_properties` output (any tier) | `config/custom-property/test-properties.yml` | `e2e-oss-public` |
 | Vulnerability alerts enabled | `config/group/test-groups.yml` | all repos |
 | Branch protection (basic) | `config/branch-protection/test-branch-protections.yml` | `e2e-main-bp` |
 | Branch protection (strict, all fields) | `config/branch-protection/test-branch-protections.yml` | `e2e-strict-bp` |

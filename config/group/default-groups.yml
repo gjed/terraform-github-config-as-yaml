@@ -69,7 +69,7 @@ oss:
   #         value: "env:DEPLOY_TOKEN"
   # Custom properties: values for properties defined in config/custom-property/. Groups apply in
   # order and a repository value replaces a group value. Scalars for single-value types, a list for
-  # multi_select. Team or Enterprise organizations only (skipped on free/pro).
+  # multi_select. Organizations only (skipped for a personal account).
   # custom_property_values:
   #   environment: production
   #   tags: ["frontend", "critical"]
