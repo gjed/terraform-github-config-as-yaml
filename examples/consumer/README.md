@@ -98,6 +98,18 @@ Copy `backend.tf.example` to `backend.tf` and uncomment the block matching your
 preferred state backend (S3, GCS, Azure, or Terraform Cloud). Do not commit
 `backend.tf` to version control.
 
+## CI/CD (optional)
+
+[`ci/`](../../ci/README.md) has GitHub Actions and Jenkins pipelines that fit this layout (`main.tf` at the
+repository root): plan on pull requests, apply behind an approval, and a nightly drift check. Copy the
+workflows you need to `.github/workflows/` and read [`ci/README.md`](../../ci/README.md) for the secrets and
+App permissions they use.
+
+For drift detection, copy
+[`ci/github-actions/terraform-drift.yml`](../../ci/github-actions/terraform-drift.yml). It runs
+`scripts/detect-drift.sh`, so also copy `scripts/detect-drift.sh` and `scripts/drift_report.py` from the
+module repository into your own `scripts/` directory and keep them executable.
+
 ## Migrating an existing fork
 
 If you previously forked this repository and used it as a root module, follow these

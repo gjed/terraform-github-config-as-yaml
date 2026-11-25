@@ -482,6 +482,19 @@ needs the exit codes must call the script directly.
 A kept `--plan-file` contains sensitive values in clear text; treat it as a secret. Notifications,
 auto-remediation and scheduled CI runs are not part of this script.
 
+## CI/CD examples
+
+`ci/` holds consumer templates, not this repository's own CI (that is `.github/workflows/`, whose job
+names the main-branch ruleset requires: never rename them, and never put a template there):
+
+- `ci/github-actions/terraform-pr.yml`, `terraform-apply.yml` and `terraform-drift.yml`
+- `ci/jenkins/Jenkinsfile`, `ci/backends/*/backend.tf` and `ci/docs/authentication.md`
+
+Rules for editing them: pin every action to a full commit SHA with a `# vX.Y.Z` comment (resolve it with
+`gh api repos/<owner>/<action>/git/ref/tags/<tag>`), keep `permissions:` minimal, never use
+`pull_request_target`, and keep the drift workflow calling `scripts/detect-drift.sh` directly rather than
+`make drift-check` (make flattens the exit codes). `tests/test_ci_examples.py` enforces these.
+
 ## Development Workflow
 
 1. Create/activate virtual environment: `source .venv/bin/activate`
