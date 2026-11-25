@@ -176,7 +176,7 @@ VALID_DEPLOYMENT_BRANCH_POLICY_KEYS = {
 MAX_ENVIRONMENT_WAIT_TIMER = 43200
 MAX_ENVIRONMENT_REVIEWERS = 6
 
-# Custom property definitions (config/custom-property/*.yml) and the tiers that support them.
+# Custom property definitions (config/custom-property/*.yml).
 VALID_CUSTOM_PROPERTY_TYPES = ["string", "single_select", "multi_select", "true_false"]
 SELECT_CUSTOM_PROPERTY_TYPES = ["single_select", "multi_select"]
 VALID_CUSTOM_PROPERTY_EDITORS = ["org_actors", "org_and_repo_actors"]
@@ -188,7 +188,6 @@ VALID_CUSTOM_PROPERTY_KEYS = {
     "allowed_values",
     "values_editable_by",
 }
-CUSTOM_PROPERTY_SUBSCRIPTIONS = ["team", "enterprise"]
 
 VALID_TEAM_PRIVACIES = ["closed", "secret"]
 # The GitHub provider only accepts these two values and rejects any other
@@ -1665,14 +1664,11 @@ def validate_environments_tier(
 
 
 def custom_properties_supported(config: dict) -> bool:
-    """Whether Terraform manages custom properties: an organization on team or enterprise.
+    """Whether Terraform manages custom properties: organizations only, on any tier.
 
     Mirrors local.custom_properties_supported in yaml-config.tf.
     """
-    return (
-        bool(config.get("is_organization", True))
-        and config.get("subscription", "free") in CUSTOM_PROPERTY_SUBSCRIPTIONS
-    )
+    return bool(config.get("is_organization", True))
 
 
 def _scalar_text(value) -> str | None:
@@ -1927,30 +1923,26 @@ def validate_required_custom_properties(
     return errors
 
 
-def validate_custom_properties_tier(
+def validate_custom_properties_account(
     config: dict, repos: dict, groups: dict, definitions: dict
 ) -> list[str]:
     """Warn when custom properties are configured but Terraform will skip them.
 
-    Terraform skips definitions and assignments unless the target is an organization on the
-    team or enterprise tier and reports the definitions in skipped_custom_properties.
-    Surfacing this before plan avoids a silent no-op.
+    Terraform skips definitions and assignments for a personal account (is_organization:
+    false) and reports the definitions in skipped_custom_properties. Surfacing this before
+    plan avoids a silent no-op.
 
     Returns a list of warning messages.
     """
     if custom_properties_supported(config):
         return []
 
-    reason = (
-        f"subscription '{config.get('subscription', 'free')}', "
-        f"is_organization {str(bool(config.get('is_organization', True))).lower()}"
-    )
     warnings: list[str] = []
 
     if definitions:
         warnings.append(
             f"custom properties: {len(definitions)} definition(s) in config/custom-property/ "
-            f"require an organization on the team or enterprise subscription ({reason}) "
+            f"require an organization (is_organization is false) "
             f"- they will be skipped by Terraform and listed in skipped_custom_properties"
         )
 
@@ -1960,8 +1952,8 @@ def validate_custom_properties_tier(
         if effective_custom_property_names(repo_config, groups):
             warnings.append(
                 f"repositories: Repository '{repo_name}' sets custom_property_values, but "
-                f"custom properties require an organization on the team or enterprise "
-                f"subscription ({reason}) - they will be skipped by Terraform"
+                f"custom properties require an organization (is_organization is false) "
+                f"- they will be skipped by Terraform"
             )
 
     return warnings
@@ -2127,7 +2119,7 @@ def main():
             )
         )
     all_warnings.extend(
-        validate_custom_properties_tier(
+        validate_custom_properties_account(
             config, repos, groups, custom_property_definitions
         )
     )

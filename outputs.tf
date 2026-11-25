@@ -74,9 +74,9 @@ output "skipped_environments" {
   } : null
 }
 
-# Names only. Custom properties are skipped on free/pro and for personal accounts
+# Names only. Custom properties are skipped for personal accounts
 output "skipped_custom_properties" {
-  description = "Names of custom property definitions skipped because custom properties need an organization on the team or enterprise tier (empty when nothing is skipped)"
+  description = "Names of custom property definitions skipped because custom properties need an organization, not a personal account (empty when nothing is skipped)"
   value       = local.skipped_custom_property_names
 }
 
