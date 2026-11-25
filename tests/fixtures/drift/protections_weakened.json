@@ -1,0 +1,173 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.8",
+  "resource_changes": [
+    {
+      "address": "module.repositories[\"api\"].github_branch_protection.this[\"main-protection\"]",
+      "mode": "managed",
+      "type": "github_branch_protection",
+      "name": "this[\"main-protection\"]",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "before": {
+          "pattern": "main",
+          "require_signed_commits": true
+        },
+        "after": null,
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      },
+      "module_address": "module.repositories[\"api\"]"
+    },
+    {
+      "address": "module.repositories[\"api\"].github_branch_protection.this[\"release-protection\"]",
+      "mode": "managed",
+      "type": "github_branch_protection",
+      "name": "this[\"release-protection\"]",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "pattern": "release/*",
+          "require_signed_commits": true,
+          "enforce_admins": true
+        },
+        "after": {
+          "pattern": "release/*",
+          "require_signed_commits": false,
+          "enforce_admins": true
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      },
+      "module_address": "module.repositories[\"api\"]"
+    },
+    {
+      "address": "module.repositories[\"api\"].github_repository_ruleset.this[\"disabled\"]",
+      "mode": "managed",
+      "type": "github_repository_ruleset",
+      "name": "this[\"disabled\"]",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "disabled",
+          "enforcement": "active",
+          "rules": [
+            {
+              "deletion": true,
+              "non_fast_forward": true,
+              "required_signatures": true
+            }
+          ]
+        },
+        "after": {
+          "name": "disabled",
+          "enforcement": "disabled",
+          "rules": [
+            {
+              "deletion": true,
+              "non_fast_forward": true,
+              "required_signatures": true
+            }
+          ]
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      },
+      "module_address": "module.repositories[\"api\"]"
+    },
+    {
+      "address": "module.repositories[\"api\"].github_repository_ruleset.this[\"unsigned\"]",
+      "mode": "managed",
+      "type": "github_repository_ruleset",
+      "name": "this[\"unsigned\"]",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "unsigned",
+          "enforcement": "active",
+          "rules": [
+            {
+              "deletion": true,
+              "non_fast_forward": true,
+              "required_signatures": true
+            }
+          ]
+        },
+        "after": {
+          "name": "unsigned",
+          "enforcement": "active",
+          "rules": [
+            {
+              "deletion": true,
+              "non_fast_forward": true,
+              "required_signatures": null
+            }
+          ]
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      },
+      "module_address": "module.repositories[\"api\"]"
+    },
+    {
+      "address": "module.repositories[\"api\"].github_repository_ruleset.this[\"gone\"]",
+      "mode": "managed",
+      "type": "github_repository_ruleset",
+      "name": "this[\"gone\"]",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "before": {
+          "name": "gone",
+          "enforcement": "active"
+        },
+        "after": null,
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      },
+      "module_address": "module.repositories[\"api\"]"
+    },
+    {
+      "address": "github_organization_ruleset.this[\"org-main\"]",
+      "mode": "managed",
+      "type": "github_organization_ruleset",
+      "name": "this[\"org-main\"]",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "org-main",
+          "enforcement": "active"
+        },
+        "after": {
+          "name": "org-main",
+          "enforcement": "disabled"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    }
+  ]
+}

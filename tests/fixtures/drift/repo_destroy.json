@@ -1,0 +1,54 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.8",
+  "resource_changes": [
+    {
+      "address": "module.repositories[\"old-repo\"].github_repository.this",
+      "mode": "managed",
+      "type": "github_repository",
+      "name": "this",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "before": {
+          "name": "old-repo",
+          "description": "Managed by Terraform",
+          "visibility": "private",
+          "archived": false,
+          "topics": [
+            "terraform"
+          ],
+          "has_issues": true
+        },
+        "after": null,
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      },
+      "module_address": "module.repositories[\"old-repo\"]"
+    },
+    {
+      "address": "module.repositories[\"old-repo\"].github_repository_ruleset.this",
+      "mode": "managed",
+      "type": "github_repository_ruleset",
+      "name": "this",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "before": {
+          "name": "main",
+          "enforcement": "active"
+        },
+        "after": null,
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      },
+      "module_address": "module.repositories[\"old-repo\"]"
+    }
+  ]
+}
