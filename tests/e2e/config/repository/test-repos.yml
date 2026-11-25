@@ -7,12 +7,30 @@ e2e-oss-public:
   license_template: mit
   topics:
     - terraform
+  environments:
+    e2e-deploy:
+      deployment_branch_policy:
+        custom_branch_policies: true
+        branch_patterns:
+          - main
+          - "release/*"
+        tag_patterns:
+          - "v*"
+      secrets:
+        E2E_ENV_SECRET:
+          value: "env:E2E_SECRET_VALUE"  # pragma: allowlist secret
+      variables:
+        E2E_ENV_VARIABLE:
+          value: "from-environment"
 
 e2e-internal-private:
   description: "E2E test private internal repository (exercises subscription_warnings on free tier)"
   groups:
     - base
     - internal-e2e
+  environments:
+    e2e-skipped:
+      wait_timer: 5
 
 e2e-multi-group:
   description: "E2E test repository inheriting from multiple groups"

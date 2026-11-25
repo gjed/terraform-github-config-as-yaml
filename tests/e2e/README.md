@@ -49,6 +49,7 @@ Repository permissions:
 - **Webhooks** — read and write
 - **Dependabot alerts** — read (verification only)
 - **Dependabot secrets** — read and write (repo Dependabot secrets)
+- **Environments** — read and write (repo environments, deployment policies, environment secrets and variables)
 - **Secrets** — read and write (repo Actions secrets)
 - **Variables** — read and write (repo Actions variables)
 
@@ -164,6 +165,8 @@ make destroy
 | `subscription_warnings` output (free tier) | `config/config.yml` | `e2e-internal-private` |
 | `skipped_org_rulesets` output (free tier) | `config/ruleset/test-rulesets.yml` | `e2e-org-protection` |
 | `skipped_branch_protections` output (free tier) | `config/group/test-groups.yml` | `e2e-internal-private`, `e2e-multi-group` |
+| Repo environment (custom branch/tag policies, secret, variable) | `config/repository/test-repos.yml` | `e2e-oss-public` |
+| `skipped_environments` output (free tier) | `config/repository/test-repos.yml` | `e2e-internal-private` |
 | Vulnerability alerts enabled | `config/group/test-groups.yml` | all repos |
 | Branch protection (basic) | `config/branch-protection/test-branch-protections.yml` | `e2e-main-bp` |
 | Branch protection (strict, all fields) | `config/branch-protection/test-branch-protections.yml` | `e2e-strict-bp` |
