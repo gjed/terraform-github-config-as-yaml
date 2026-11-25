@@ -465,6 +465,46 @@ resource "github_actions_environment_variable" "this" {
   }
 }
 
+# Manage custom property values
+# The property definitions are created by the root module before the repositories (depends_on).
+# Everything is skipped at the yaml-config layer when the tier or account type does not support
+# custom properties (see skipped_custom_properties output).
+resource "github_repository_custom_property" "this" {
+  for_each = var.custom_property_values
+
+  repository     = github_repository.this.name
+  property_name  = each.key
+  property_type  = coalesce(each.value.value_type, "string")
+  property_value = toset(coalesce(each.value.values, []))
+
+  lifecycle {
+    precondition {
+      condition     = each.value.value_type != null
+      error_message = "Repository '${var.name}' sets custom property '${each.key}', which is not defined in config/custom-property/."
+    }
+    precondition {
+      condition     = each.value.values != null
+      error_message = "Repository '${var.name}' custom property '${each.key}': the value must be a string, number, boolean, or a list of those."
+    }
+    precondition {
+      condition     = try(length(each.value.values) > 0, false)
+      error_message = "Repository '${var.name}' custom property '${each.key}': at least one value is required."
+    }
+    precondition {
+      condition     = each.value.value_type == "multi_select" || try(length(each.value.values) <= 1, true)
+      error_message = "Repository '${var.name}' custom property '${each.key}' is of type ${coalesce(each.value.value_type, "unknown")} and takes exactly one value; only multi_select properties take a list."
+    }
+    precondition {
+      condition     = !try(contains(["single_select", "multi_select"], each.value.value_type), false) || alltrue([for v in coalesce(each.value.values, []) : contains(each.value.allowed_values, v)])
+      error_message = "Repository '${var.name}' custom property '${each.key}': ${join(", ", [for v in coalesce(each.value.values, []) : "'${v}'" if !contains(each.value.allowed_values, v)])} not in the allowed values (${join(", ", each.value.allowed_values)})."
+    }
+    precondition {
+      condition     = each.value.value_type != "true_false" || alltrue([for v in coalesce(each.value.values, []) : contains(["true", "false"], v)])
+      error_message = "Repository '${var.name}' custom property '${each.key}' is of type true_false and takes true or false."
+    }
+  }
+}
+
 # Manage traditional branch protection rules
 # Keyed by protection name (e.g. "main-protection") - renaming requires a state move
 resource "github_branch_protection" "this" {

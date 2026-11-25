@@ -58,6 +58,11 @@ output "environments" {
   }
 }
 
+output "custom_properties" {
+  description = "Names of the custom properties assigned to the repository"
+  value       = sort(keys(github_repository_custom_property.this))
+}
+
 output "webhooks" {
   description = "Map of webhook names to their URLs"
   value = {
