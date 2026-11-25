@@ -25,11 +25,16 @@ the map is a property name and each value is the property value to assign.
 - **AND** `oss` defines `custom_property_values: { environment: production, compliance_level: none }`
 - **THEN** the system SHALL assign `environment = production` (last group wins) and `compliance_level = none`
 
+#### Scenario: Absent or null block
+
+- **WHEN** a group or repository has no `custom_property_values:` key, or defines it with no value
+- **THEN** the system SHALL treat it as an empty map and assign nothing from it
+
 ### Requirement: Handle multi_select property values
 
-The system SHALL accept list values for `multi_select` properties and scalar string values for all other types
-(`string`, `single_select`, `true_false`). The Terraform layer SHALL normalize all values to the list format expected by
-the `github_repository_custom_property` resource.
+The system SHALL accept list values for `multi_select` properties and scalar values (string, number or boolean) for all
+other types (`string`, `single_select`, `true_false`). The Terraform layer SHALL normalize all values to the set of
+strings expected by the `github_repository_custom_property` resource.
 
 #### Scenario: Scalar value for single_select
 
@@ -40,6 +45,11 @@ the `github_repository_custom_property` resource.
 
 - **WHEN** a repository has `custom_property_values: { tags: [frontend, critical] }` and `tags` is `multi_select`
 - **THEN** the system SHALL pass `property_value = ["frontend", "critical"]` to the resource
+
+#### Scenario: Boolean value for true_false
+
+- **WHEN** a repository has `custom_property_values: { is_deprecated: true }` and `is_deprecated` is `true_false`
+- **THEN** the system SHALL pass `property_value = ["true"]` to the resource
 
 ### Requirement: Subscription tier gating for property assignments
 
@@ -71,7 +81,8 @@ mechanism on the repository module.
 ### Requirement: Validate property references
 
 The validation script SHALL verify that every property name used in `custom_property_values:` (in groups or
-repositories) is defined in `config/custom-property/`. Undefined references SHALL be reported as validation errors.
+repositories) is defined in `config/custom-property/`, and `terraform plan` SHALL fail on the assignment resource for an
+undefined name. Undefined references SHALL be reported as errors.
 
 #### Scenario: Undefined property reference
 
@@ -79,22 +90,28 @@ repositories) is defined in `config/custom-property/`. Undefined references SHAL
 - **AND** `nonexistent` is not defined in `config/custom-property/`
 - **THEN** the validation script SHALL report an error identifying the undefined property name and the group/repo that
   references it
+- **AND** `terraform plan` SHALL fail on the assignment resource for that repository
 
 #### Scenario: All references valid
 
 - **WHEN** all `custom_property_values:` keys match defined property names in `config/custom-property/`
 - **THEN** the validation script SHALL report no property reference errors
 
-### Requirement: Validate select-type values
+### Requirement: Validate assigned values
 
-The validation script SHALL verify that values assigned to `single_select` and `multi_select` properties are in the
-property's `allowed_values` list. Invalid values SHALL be reported as validation errors.
+The validation script SHALL verify that assigned values match the property's `value_type`, and `terraform plan` SHALL
+fail on the assignment resource for the same violations. Violations SHALL be reported as errors:
+
+- `string`, `single_select` and `true_false` take exactly one value; only `multi_select` takes a list
+- `single_select` and `multi_select` values SHALL be in the property's `allowed_values`
+- `true_false` values SHALL be `true` or `false`
 
 #### Scenario: Invalid single_select value
 
 - **WHEN** property `environment` has `allowed_values: [development, staging, production]`
 - **AND** a repository assigns `custom_property_values: { environment: testing }`
 - **THEN** the validation script SHALL report an error that `testing` is not in the allowed values for `environment`
+- **AND** `terraform plan` SHALL fail on the assignment resource for that repository
 
 #### Scenario: Valid multi_select values
 
@@ -102,20 +119,34 @@ property's `allowed_values` list. Invalid values SHALL be reported as validation
 - **AND** a repository assigns `custom_property_values: { tags: [frontend, critical] }`
 - **THEN** the validation script SHALL report no error for this assignment
 
-### Requirement: Validate required properties have assignments
+#### Scenario: List for a single-value type
 
-The validation script SHALL verify that every property marked `required: true` has a value assigned (via group or
-repo-level `custom_property_values:`) for every managed repository when the subscription tier supports custom
-properties.
+- **WHEN** property `environment` is `single_select`
+- **AND** a repository assigns `custom_property_values: { environment: [development, staging] }`
+- **THEN** the validation script SHALL report an error that `environment` takes exactly one value
+
+### Requirement: Validate required properties have values
+
+The validation script SHALL verify that every property marked `required: true` has a value for every managed
+repository: either assigned (via group or repo-level `custom_property_values:`) or provided by the property's
+`default_value`. A missing value SHALL be an error, and `terraform plan` SHALL fail on the property definition resource.
+The check applies only when the subscription tier supports custom properties.
 
 #### Scenario: Required property missing on a repo
 
-- **WHEN** property `environment` is `required: true`
+- **WHEN** property `environment` is `required: true` with no `default_value`
 - **AND** repository `orphan-repo` has no `environment` in its effective `custom_property_values:`
-- **THEN** the validation script SHALL report a warning that `orphan-repo` is missing required property `environment`
+- **THEN** the validation script SHALL report an error that `orphan-repo` is missing required property `environment`
+- **AND** `terraform plan` SHALL fail on the definition resource for `environment`
 
 #### Scenario: Required property satisfied via group
 
 - **WHEN** property `environment` is `required: true`
 - **AND** the repository's group assigns `custom_property_values: { environment: production }`
-- **THEN** the validation script SHALL report no warning for this repository
+- **THEN** the validation script SHALL report no error for this repository
+
+#### Scenario: Required property satisfied by default
+
+- **WHEN** property `environment` is `required: true` with `default_value: development`
+- **AND** a repository has no `environment` value
+- **THEN** the validation script SHALL report no error for this repository
