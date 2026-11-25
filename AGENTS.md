@@ -455,8 +455,8 @@ my-repo:
    non-select type, a `default_value` outside `allowed_values`, undefined property names, values outside
    `allowed_values`, a list for a single-value type, and a missing required value.
 
-1. Custom properties need an organization (`is_organization: true`) on the `team` or `enterprise` subscription.
-   On `free`, `pro` or a personal account the definitions and all assignments are skipped, the
+1. Custom properties need an organization (`is_organization: true`) and work on every subscription tier.
+   For a personal account the definitions and all assignments are skipped, the
    `skipped_custom_properties` output lists the skipped definitions and `validate-config.py` warns.
    `managed_custom_properties` lists the created definitions.
 

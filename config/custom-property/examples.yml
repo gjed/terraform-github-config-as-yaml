@@ -2,9 +2,9 @@
 # Define organization custom properties here, one property per top-level key.
 # Assign values to repositories with custom_property_values: in groups and repositories.
 #
-# Requires an organization on the team or enterprise subscription. On free/pro or a
-# personal account the definitions and assignments are skipped and listed in the
-# skipped_custom_properties output.
+# Requires an organization (any subscription tier). For a personal account the
+# definitions and assignments are skipped and listed in the skipped_custom_properties
+# output.
 #
 # Schema:
 #   property-name:
