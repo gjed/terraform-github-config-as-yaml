@@ -161,6 +161,14 @@ GNU make turns every failing recipe into exit status 2, so CI that needs these c
 directly (after `export TF_VAR_config_path="$PWD/config"`). See `scripts/detect-drift.sh --help` and the
 "Detecting drift" section of `AGENTS.md`.
 
+## CI/CD Examples
+
+[`ci/`](ci/README.md) holds copy-ready pipelines for GitHub Actions and Jenkins: a plan posted on every
+pull request, an apply behind an approval gate that refuses to destroy a repository, and a nightly drift
+check built on `scripts/detect-drift.sh`. It also has `backend.tf` examples (S3, GCS, Azure, Terraform
+Cloud) and a [guide to the GitHub App credential](ci/docs/authentication.md) they need. The templates are
+not run on this repository.
+
 ## GitHub Subscription Tiers
 
 | Feature               | Free | Pro | Team | Enterprise |
