@@ -1,0 +1,253 @@
+// Template: copy to the root of your consumer repository. See ci/README.md.
+//
+// Declarative pipeline for the GitHub organization configuration:
+//   - Pull requests and merges to the default branch: validate, then plan WITHOUT refresh
+//     (-refresh=false), so the plan shows what the change does rather than re-reading every resource.
+//     On a pull request the plan is posted as a comment (tfcmt).
+//   - Nightly (timer trigger): plan WITH a full refresh to detect drift. A plan that has changes raises a
+//     "[DRIFT]" notification. The nightly run never applies.
+//   - Default branch: after the plan, an Apply stage waits for a human approval (`input`), then applies the
+//     saved plan.
+//   - Any plan that destroys or replaces a github_repository fails the build.
+//
+// Every value in <ANGLE_BRACKETS> is a placeholder for your site. Search for "PLACEHOLDER".
+//
+// Agent requirements: git, terraform, jq, curl (for tfcmt). Plugins: Pipeline, Lockable Resources,
+// GitHub Branch Source (GitHub App credentials), Credentials Binding, Mail.
+//
+// Authentication: see ci/docs/authentication.md. The GitHub App credential is exposed as GITHUB_TOKEN.
+
+pipeline {
+    agent {
+        node {
+            label '<AGENT_LABEL>' // PLACEHOLDER: a node with terraform and jq installed
+        }
+    }
+    environment {
+        // PLACEHOLDER: lockable resource name; it serialises every plan and apply of this pipeline.
+        TF_LOCK_RESOURCE   = '<LOCK_RESOURCE_NAME>'
+        // PLACEHOLDER: Jenkins credential ID of the GitHub App (kind "GitHub App").
+        GITHUB_CREDENTIAL  = '<GITHUB_APP_CREDENTIAL_ID>'
+        // PLACEHOLDER: Jenkins user IDs allowed to approve the Apply stage (comma separated). This
+        // matches user IDs, not email addresses.
+        APPLY_APPROVERS    = '<JENKINS_USER_ID_1>,<JENKINS_USER_ID_2>'
+        // PLACEHOLDER: where [DRIFT] and apply notifications go.
+        NOTIFY_EMAIL       = '<TEAM_EMAIL_ADDRESS>'
+        // PLACEHOLDER: pin a tfcmt release (https://github.com/suzuki-shunsuke/tfcmt/releases).
+        TFCMT_VERSION      = '<TFCMT_VERSION>'
+        // Directory with main.tf; "." matches a repository laid out like examples/consumer.
+        TF_WORKING_DIR     = '.'
+    }
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '100'))
+        disableConcurrentBuilds()
+        timeout(time: 2, unit: 'HOURS')
+        skipDefaultCheckout()
+    }
+    parameters {
+        booleanParam(
+            defaultValue: false,
+            description: 'Force a full terraform refresh on this run (PR and merge plans skip the refresh by default)',
+            name: 'FORCE_REFRESH'
+        )
+    }
+    triggers {
+        // Nightly drift detection, at a random minute within 02:xx. PLACEHOLDER: adjust the schedule.
+        cron('H 2 * * *')
+    }
+    stages {
+        stage('Setup') {
+            steps {
+                checkout scm
+                sh '''
+                    set -eu
+                    mkdir -p "${WORKSPACE}/.bin"
+                    curl -fsSL "https://github.com/suzuki-shunsuke/tfcmt/releases/download/${TFCMT_VERSION}/tfcmt_linux_amd64.tar.gz" \
+                        | tar xz -C "${WORKSPACE}/.bin" tfcmt
+                '''
+                // PLACEHOLDER: add the step that gives Terraform access to your state backend here, for
+                // example a withCredentials block that exports AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+                // Prefer short-lived credentials from the agent's own role over stored keys.
+            }
+        }
+
+        stage('Validate') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: env.GITHUB_CREDENTIAL,
+                    usernameVariable: 'GITHUB_APP_SLUG',
+                    passwordVariable: 'GITHUB_TOKEN' // pragma: allowlist secret
+                )]) {
+                    dir(env.TF_WORKING_DIR) {
+                        sh '''
+                            terraform init -input=false
+                            terraform fmt -check -recursive -diff
+                            terraform validate -no-color
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Plan') {
+            when {
+                allOf {
+                    anyOf {
+                        changeRequest()
+                        branch 'main' // PLACEHOLDER: your default branch
+                    }
+                    // The timer also fires on pull request jobs; drift only matters on the default branch.
+                    not {
+                        allOf {
+                            changeRequest()
+                            triggeredBy 'TimerTrigger'
+                        }
+                    }
+                }
+            }
+            steps {
+                lock(resource: env.TF_LOCK_RESOURCE) {
+                    script {
+                        // The nightly trigger and the PR/merge path share this stage. Drift detection needs
+                        // a full refresh; a PR or merge plan does not, and skipping it avoids re-reading
+                        // every managed resource just to plan a handful of changes.
+                        env.IS_NIGHTLY = currentBuild.getBuildCauses(
+                            'hudson.triggers.TimerTrigger$TimerTriggerCause'
+                        ) ? 'true' : 'false'
+                        env.REFRESH_FLAG = (env.IS_NIGHTLY == 'true' || params.FORCE_REFRESH) ? '' : '-refresh=false'
+                        echo "Nightly drift run: ${env.IS_NIGHTLY}, force refresh: ${params.FORCE_REFRESH}"
+                    }
+                    withCredentials([usernamePassword(
+                        credentialsId: env.GITHUB_CREDENTIAL,
+                        usernameVariable: 'GITHUB_APP_SLUG',
+                        passwordVariable: 'GITHUB_TOKEN' // pragma: allowlist secret
+                    )]) {
+                        dir(env.TF_WORKING_DIR) {
+                            sh '''
+                                export PATH="${WORKSPACE}/.bin:${PATH}"
+                                if [ -n "${CHANGE_ID:-}" ]; then
+                                    # tfcmt posts the plan to the pull request. PLACEHOLDER: set the owner
+                                    # and repository if the job is not a GitHub Branch Source job.
+                                    export TFCMT_GITHUB_TOKEN="${GITHUB_TOKEN}"
+                                    export TFCMT_REPO_OWNER="${CHANGE_URL#https://github.com/}"
+                                    export TFCMT_REPO_OWNER="${TFCMT_REPO_OWNER%%/*}"
+                                    export TFCMT_REPO_NAME="${CHANGE_URL#https://github.com/*/}"
+                                    export TFCMT_REPO_NAME="${TFCMT_REPO_NAME%%/*}"
+                                    export TFCMT_PR_NUMBER="${CHANGE_ID}"
+                                    tfcmt plan -patch -- \
+                                        terraform plan -no-color -input=false ${REFRESH_FLAG} -out=tfplan
+                                else
+                                    terraform plan -no-color -input=false ${REFRESH_FLAG} -out=tfplan
+                                fi
+                            '''
+                        }
+                    }
+                    script {
+                        env.HAS_CHANGES = sh(
+                            script: '''
+                                terraform -chdir="${TF_WORKING_DIR}" show -json tfplan \
+                                    | jq '[.resource_changes[]? | select(.change.actions - ["no-op","read"] | length > 0)] | length > 0'
+                            ''',
+                            returnStdout: true
+                        ).trim()
+                        echo "Plan has changes: ${env.HAS_CHANGES}"
+                        env.IS_DRIFT = (env.HAS_CHANGES == 'true' && env.IS_NIGHTLY == 'true') ? 'true' : 'false'
+
+                        // Repository deletion is never applied from CI: it cannot be undone. Offboard a
+                        // repository by removing it from the Terraform state (scripts/offboard-repos.sh),
+                        // not by letting an apply delete it. This also catches a replace (create plus
+                        // delete), which deletes the repository too.
+                        String destroyedRepos = sh(
+                            script: '''
+                                set -o pipefail
+                                terraform -chdir="${TF_WORKING_DIR}" show -json tfplan \
+                                    | jq -r '[.resource_changes[]?
+                                        | select(.type == "github_repository")
+                                        | select(.change.actions | index("delete"))
+                                        | .address] | join(", ")'
+                            ''',
+                            returnStdout: true
+                        ).trim()
+                        if (destroyedRepos) {
+                            error("Plan would destroy or replace repositories: ${destroyedRepos}. " +
+                                'Repository deletion is blocked. To offboard a repository, remove it from ' +
+                                'the Terraform state with scripts/offboard-repos.sh. If this is a replace, ' +
+                                'revert the change to the repository name.')
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Drift notification') {
+            when {
+                expression { env.IS_DRIFT == 'true' }
+            }
+            steps {
+                mail(
+                    to: env.NOTIFY_EMAIL,
+                    subject: "[DRIFT] ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+                        Drift detected: GitHub differs from the Terraform configuration, or merged
+                        configuration has not been applied yet.
+                        Review the plan and apply it, or fix the manual change.
+                        Build: ${env.BUILD_URL}
+                    """.stripIndent()
+                )
+            }
+        }
+
+        stage('Apply') {
+            when {
+                branch 'main' // PLACEHOLDER: your default branch
+                expression { env.HAS_CHANGES == 'true' }
+                not { triggeredBy 'TimerTrigger' }
+            }
+            steps {
+                // input must stay outside lock() so the lock is not held while waiting for a person.
+                mail(
+                    to: env.NOTIFY_EMAIL,
+                    subject: "[DEPLOY] ${env.JOB_NAME} apply awaiting approval",
+                    body: "Approve or abort at: ${env.BUILD_URL}"
+                )
+                // An unanswered approval releases the executor after 60 minutes instead of holding it
+                // until the pipeline timeout.
+                timeout(time: 60, unit: 'MINUTES') {
+                    script {
+                        env.APPROVER = input(
+                            id: 'TERRAFORM_APPLY',
+                            message: 'Apply the GitHub organization configuration?',
+                            submitter: env.APPLY_APPROVERS,
+                            submitterParameter: 'APPROVER'
+                        )
+                        echo "Apply approved by: ${env.APPROVER}"
+                    }
+                }
+                lock(resource: env.TF_LOCK_RESOURCE) {
+                    withCredentials([usernamePassword(
+                        credentialsId: env.GITHUB_CREDENTIAL,
+                        usernameVariable: 'GITHUB_APP_SLUG',
+                        passwordVariable: 'GITHUB_TOKEN' // pragma: allowlist secret
+                    )]) {
+                        dir(env.TF_WORKING_DIR) {
+                            sh 'terraform apply -no-color -input=false tfplan'
+                        }
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            // A saved plan holds sensitive values in clear text; do not leave it on the agent.
+            sh 'rm -f "${TF_WORKING_DIR}/tfplan"'
+        }
+        failure {
+            mail(
+                to: env.NOTIFY_EMAIL,
+                subject: "[FAILED] ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "The build failed. GitHub configuration may be inconsistent if the failure was in Apply.\n${env.BUILD_URL}"
+            )
+        }
+    }
+}
