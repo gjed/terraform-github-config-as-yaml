@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Define the pull request and `main` CI workflow that runs this repository's own quality gates (pre-commit hooks
-and unit tests) without secrets, with least-privilege permissions and stable check names.
+Define the pull request and `main` CI workflow that runs this repository's own quality gates (pre-commit hooks,
+unit tests and Terraform tests) without secrets, with least-privilege permissions and stable check names.
 
 ## Requirements
 
@@ -67,11 +67,29 @@ fixture provisions real repositories and requires organization credentials, so i
 - **WHEN** the `pytest` job selects tests
 - **THEN** nothing under `tests/e2e` is collected or executed
 
+### Requirement: CI runs the Terraform tests offline
+
+The CI workflow SHALL contain a job named `terraform-test` that runs `terraform init -backend=false` and
+`terraform test` against the `mock_provider` definitions in `tests/*.tftest.hcl`. The job SHALL NOT set provider
+credentials, so the plans run offline.
+
+#### Scenario: Terraform tests gate the pull request
+
+- **GIVEN** a pull request breaks a test in `tests/*.tftest.hcl`
+- **WHEN** the `terraform-test` job runs
+- **THEN** the job fails
+
+#### Scenario: No credentials are available
+
+- **GIVEN** the CI workflow is running
+- **WHEN** the `terraform-test` job runs
+- **THEN** no provider token is set and no call reaches the GitHub API
+
 ### Requirement: CI runs with least privilege
 
-The CI workflow SHALL declare top-level `permissions` of `contents: read` and nothing broader. Third-party actions
-SHALL be referenced by version tag consistent with the repository's other workflows, so the existing dependency
-update automation keeps them current.
+The CI workflow SHALL declare top-level `permissions` of `{}` and grant each job only `contents: read`. Third-party
+actions SHALL be pinned to a full-length commit SHA with a `# vX.Y.Z` comment, so the existing dependency update
+automation keeps them current.
 
 #### Scenario: Token is read-only
 
@@ -81,16 +99,16 @@ update automation keeps them current.
 
 ### Requirement: Check names are stable and the baseline is green
 
-The jobs SHALL keep the names `pre-commit` and `pytest`, because rulesets managed outside this repository reference
-them as required status checks. The CI workflow SHALL pass on an unmodified `main`; pre-existing hook failures SHALL
-be fixed or explicitly suppressed with a stated reason before the workflow is introduced, so a failing check always
-indicates a regression.
+The jobs SHALL keep the names `pre-commit`, `pytest` and `terraform-test`, because rulesets managed outside this
+repository reference them as required status checks. The CI workflow SHALL pass on an unmodified `main`;
+pre-existing hook failures SHALL be fixed or explicitly suppressed with a stated reason before the workflow is
+introduced, so a failing check always indicates a regression.
 
 #### Scenario: Unmodified main is green
 
 - **GIVEN** the CI workflow exists on `main` with no pending changes
 - **WHEN** CI runs against `main`
-- **THEN** both `pre-commit` and `pytest` succeed
+- **THEN** `pre-commit`, `pytest` and `terraform-test` all succeed
 
 #### Scenario: Renaming a job is a breaking change for rulesets
 
