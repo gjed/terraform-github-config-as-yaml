@@ -51,20 +51,19 @@ strings expected by the `github_repository_custom_property` resource.
 - **WHEN** a repository has `custom_property_values: { is_deprecated: true }` and `is_deprecated` is `true_false`
 - **THEN** the system SHALL pass `property_value = ["true"]` to the resource
 
-### Requirement: Subscription tier gating for property assignments
+### Requirement: Account type gating for property assignments
 
-The system SHALL only create `github_repository_custom_property` resources when the subscription tier supports custom
-properties (`team` or `enterprise`) AND `is_organization` is `true`. On unsupported configurations, all property value
-assignments SHALL be skipped.
+The system SHALL only create `github_repository_custom_property` resources when `is_organization` is `true`, whatever
+the subscription tier. For a personal account, all property value assignments SHALL be skipped.
 
-#### Scenario: Free tier skips property assignments
+#### Scenario: Personal account skips property assignments
 
-- **WHEN** `subscription` is `free` and repositories have `custom_property_values:` defined
+- **WHEN** `is_organization` is `false` and repositories have `custom_property_values:` defined
 - **THEN** no `github_repository_custom_property` resources SHALL be created for any repository
 
-#### Scenario: Team tier creates property assignments
+#### Scenario: Free tier creates property assignments
 
-- **WHEN** `subscription` is `team`, `is_organization` is `true`, and repositories have `custom_property_values:`
+- **WHEN** `subscription` is `free`, `is_organization` is `true`, and repositories have `custom_property_values:`
 - **THEN** `github_repository_custom_property` resources SHALL be created for each property-value pair on each repository
 
 ### Requirement: Property definitions must exist before assignments
@@ -130,7 +129,7 @@ fail on the assignment resource for the same violations. Violations SHALL be rep
 The validation script SHALL verify that every property marked `required: true` has a value for every managed
 repository: either assigned (via group or repo-level `custom_property_values:`) or provided by the property's
 `default_value`. A missing value SHALL be an error, and `terraform plan` SHALL fail on the property definition resource.
-The check applies only when the subscription tier supports custom properties.
+The check applies only to organizations.
 
 #### Scenario: Required property missing on a repo
 

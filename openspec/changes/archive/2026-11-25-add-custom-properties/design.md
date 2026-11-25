@@ -19,7 +19,8 @@ provider (locked at 6.13.0, constraint `>= 6.12.0`) provides two resources:
 The resource name is plural for the definition (`custom_properties`) and singular for the assignment; the issue text
 names `github_organization_custom_property`, which does not exist in the provider.
 
-Custom properties are a Team/Enterprise feature on GitHub. On Free/Pro tiers, the API calls will fail.
+GitHub documents no plan requirement for organization custom properties, so they are available on every subscription
+tier; personal accounts have no organization-level properties.
 
 ## Goals / Non-Goals
 
@@ -29,8 +30,8 @@ Custom properties are a Team/Enterprise feature on GitHub. On Free/Pro tiers, th
   following the `config/ruleset/`, `config/webhook/` pattern)
 - Assign property values to repositories via `custom_property_values:` in groups and repositories (following the merge
   pattern used by `teams:`, `collaborators:`, `secrets:`)
-- Gate on subscription tier: skip all custom property resources on Free/Pro tiers and personal accounts, visibly
-  (output and validator warning), never silently
+- Gate on account type: skip all custom property resources for personal accounts, visibly (output and validator
+  warning), never silently
 - Validate that referenced property names are defined, values match the property type and allowed values, defaults are
   valid, and required properties are satisfied on every repository — in `validate-config.py` and as preconditions
 - Expose outputs for managed properties and skipped properties (names only)
@@ -104,19 +105,20 @@ ensure property definitions exist before any repo tries to assign values.
 resource reference, so Terraform cannot infer the order. The module contains no data sources, so the module-level
 `depends_on` does not defer any reads. It also reverses on destroy: assignments go before definitions.
 
-### 5. Subscription tier gating: Team/Enterprise organizations only
+### 5. Account type gating: organizations only, any subscription tier
 
-**Decision**: Custom property resources are only created when `subscription` is `team` or `enterprise` and
-`is_organization` is `true` (`custom_properties_supported`). Otherwise definitions and assignments are skipped. The
-skipped definition names are exposed in `skipped_custom_properties` (a list of names, empty when nothing is skipped);
-`validate-config.py` warns when definitions or assignments exist on an unsupported configuration.
+**Decision**: Custom property resources are only created when `is_organization` is `true`
+(`custom_properties_supported`), on any subscription tier. For a personal account definitions and assignments are
+skipped. The skipped definition names are exposed in `skipped_custom_properties` (a list of names, empty when nothing
+is skipped); `validate-config.py` warns when definitions or assignments exist for a personal account.
 
-**Rationale**: GitHub custom properties are a Team/Enterprise feature. The existing tier-gated features (org rulesets,
-environments) compute effective resources in locals and report skipped items in outputs. The output is a plain list of
-names, as the requirement states, instead of the object-or-null shape of `skipped_org_rulesets`, because the issue asks
-for names only and an empty list needs no null check. Assignments are filtered out with a `for … if` expression rather
-than a conditional, because values differ in shape per repository and a conditional would have to unify them with an
-empty map.
+**Rationale**: GitHub's documentation states no plan requirement for custom properties, which are managed by
+organization owners, so gating on the subscription tier would skip a feature that works. The existing gated features
+(org rulesets, environments) compute effective resources in locals and report skipped items in outputs. The output is
+a plain list of names, as the requirement states, instead of the object-or-null shape of `skipped_org_rulesets`,
+because the issue asks for names only and an empty list needs no null check. Assignments are filtered out with a `for
+… if` expression rather than a conditional, because values differ in shape per repository and a conditional would have
+to unify them with an empty map.
 
 ### 6. Value normalization and the module interface
 

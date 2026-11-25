@@ -11,9 +11,9 @@ forcing users to configure them manually outside Terraform and breaking the "con
   `github_organization_custom_properties` resources, configured in a new `config/custom-property/` directory
 - Add support for **assigning custom property values** to repositories via `github_repository_custom_property`
   resources, configurable per-group and per-repo in YAML (with the standard group-merge + repo-override inheritance)
-- Add subscription tier gating: custom properties require Team or Enterprise subscription on an organization; on
-  Free/Pro tiers and personal accounts definitions and assignments are skipped and reported in a
-  `skipped_custom_properties` output and a `validate-config.py` warning (matching org rulesets and environments)
+- Add account type gating: custom properties are organization-only and work on every subscription tier; for personal
+  accounts definitions and assignments are skipped and reported in a `skipped_custom_properties` output and a
+  `validate-config.py` warning (matching org rulesets and environments)
 - Add validation, in `validate-config.py` and mirrored as Terraform preconditions for module consumers: referenced
   property names must be defined, values must match the property's type and `allowed_values`, defaults must be valid,
   and a required property without a default must have a value on every repository
@@ -36,7 +36,7 @@ forcing users to configure them manually outside Terraform and breaking the "con
 
 - **New config directory**: `config/custom-property/` (one property per top-level key, optional directory)
 - **yaml-config.tf**: New locals for loading the definitions (with duplicate detection), merging and normalizing
-  `custom_property_values`, and tier gating
+  `custom_property_values`, and account type gating
 - **custom-properties.tf** (new, like `org-secrets.tf`): `github_organization_custom_properties` resource with
   preconditions for the definitions and for required properties
 - **main.tf**: `module "repositories"` receives `custom_property_values` and depends on the definitions
@@ -45,7 +45,7 @@ forcing users to configure them manually outside Terraform and breaking the "con
 - **outputs.tf**: `managed_custom_properties`, `skipped_custom_properties`, and custom property keys in
   `duplicate_key_warnings`
 - **scripts/validate-config.py**: `custom_property_values` group/repository key, definition and assignment validators
-  and a tier warning
+  and a personal-account warning
 - **tests/**: pytest suite, offline `terraform test` suite with fixtures, e2e fixture and `verify_e2e.py` checks
 - **AGENTS.md / README.md**: Documentation for the new feature
 - **Provider constraint**: Uses the existing `integrations/github >= 6.12.0` constraint; both resources exist in the
