@@ -1,0 +1,64 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.8",
+  "resource_changes": [
+    {
+      "address": "module.repositories[\"app\"].github_repository.this",
+      "mode": "managed",
+      "type": "github_repository",
+      "name": "this",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "name": "app",
+          "description": "Managed by Terraform",
+          "visibility": "private",
+          "archived": false,
+          "topics": [
+            "terraform"
+          ],
+          "has_issues": true
+        },
+        "after": {
+          "name": "app",
+          "description": "App service",
+          "visibility": "public",
+          "archived": false,
+          "topics": [
+            "terraform"
+          ],
+          "has_issues": true
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      },
+      "module_address": "module.repositories[\"app\"]"
+    },
+    {
+      "address": "module.repositories[\"app\"].github_repository_ruleset.this",
+      "mode": "managed",
+      "type": "github_repository_ruleset",
+      "name": "this",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "name": "main"
+        },
+        "after": {
+          "name": "main"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      },
+      "module_address": "module.repositories[\"app\"]"
+    }
+  ]
+}

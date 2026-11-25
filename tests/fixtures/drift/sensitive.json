@@ -1,0 +1,58 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.8",
+  "resource_changes": [
+    {
+      "address": "github_actions_organization_secret.this[\"DEPLOY_TOKEN\"]",
+      "mode": "managed",
+      "type": "github_actions_organization_secret",
+      "name": "this[\"DEPLOY_TOKEN\"]",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "plaintext_value": "old-hunter2-value",
+          "visibility": "all"
+        },
+        "after": {
+          "plaintext_value": "new-hunter2-value",
+          "visibility": "private"
+        },
+        "after_unknown": {},
+        "before_sensitive": {
+          "plaintext_value": true
+        },
+        "after_sensitive": {
+          "plaintext_value": true
+        }
+      }
+    },
+    {
+      "address": "module.repositories[\"app\"].github_actions_secret.this[\"DB_URL\"]",
+      "mode": "managed",
+      "type": "github_actions_secret",
+      "name": "this[\"DB_URL\"]",
+      "provider_name": "registry.terraform.io/integrations/github",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "plaintext_value": "db-hunter2-connection-string"
+        },
+        "after_unknown": {
+          "id": true,
+          "created_at": true
+        },
+        "before_sensitive": {},
+        "after_sensitive": {
+          "plaintext_value": true
+        }
+      },
+      "module_address": "module.repositories[\"app\"]"
+    }
+  ]
+}
