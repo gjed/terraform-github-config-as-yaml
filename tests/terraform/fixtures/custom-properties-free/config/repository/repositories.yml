@@ -1,5 +1,5 @@
 free-app:
-  description: "Has values that are skipped on the free tier"
+  description: "Has values that are applied on the free tier"
   groups:
     - base
   custom_property_values:
