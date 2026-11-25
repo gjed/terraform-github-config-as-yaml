@@ -115,3 +115,9 @@ def test_plan_workflow_is_read_only() -> None:
     for job in workflow["jobs"].values():
         assert job["permissions"].get("contents") == "read"
         assert "write-all" not in str(job["permissions"])
+
+
+def test_plan_workflow_does_not_lock_state_and_refuses_repository_destroy() -> None:
+    text = (CI_DIR / "github-actions" / "terraform-pr.yml").read_text()
+    assert "-lock=false" in text
+    assert '.type == "github_repository"' in text

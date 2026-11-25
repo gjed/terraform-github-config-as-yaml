@@ -29,7 +29,8 @@ Pick one. Running both against the same state only adds lock contention.
 
 - **Plan on pull request.** Runs `terraform fmt -check`, `validate` and `plan`, and posts the plan as a
   single comment that later pushes update. The plan skips the refresh (`-refresh=false`) so it shows what
-  the change does, not drift. It uses a read-only credential.
+  the change does, not drift. It uses a read-only credential and does not take the state lock. It fails when
+  the plan would destroy or replace a `github_repository`, so the problem shows up before the merge.
 - **Apply behind an approval.** On a push to the default branch, the apply job waits for the reviewers of a
   protected environment, plans with a full refresh, and applies that plan. A plan that destroys or replaces
   a `github_repository` is refused: to offboard a repository, remove it from the state with

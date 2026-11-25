@@ -4,7 +4,12 @@ name: Terraform PR
 #
 # Validates the configuration and posts `terraform plan` as one pull request comment, updated on every
 # push. The plan skips the refresh (-refresh=false) so it shows what the pull request changes, not drift;
-# the apply workflow plans with a full refresh. Remove the flag to see drift in the comment too.
+# the apply workflow plans with a full refresh. Remove the flag to see drift in the comment too. It also
+# skips the state lock (-lock=false): the plan is never applied, a cancelled run must not leave a lock
+# behind, and the read-only App then needs no write access to the backend's lock.
+#
+# After the comment, the job fails when the plan would destroy or replace a github_repository, so the
+# problem shows up on the pull request and not after the merge, when the apply would refuse it.
 #
 # Security:
 #   - Triggered by `pull_request`, never `pull_request_target`: branch code runs with the branch's own
@@ -31,8 +36,6 @@ concurrency:
 env:
   # Directory that holds main.tf. Use "." for a repository laid out like examples/consumer.
   TF_WORKING_DIR: .
-  # Wait for a state lock held by an apply or drift run instead of failing at once.
-  TF_CLI_ARGS_plan: -lock-timeout=5m
 
 jobs:
   plan:
@@ -89,7 +92,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          terraform plan -no-color -input=false -refresh=false -out="$RUNNER_TEMP/tfplan" > "$PLAN_TEXT" 2>&1
+          terraform plan -no-color -input=false -refresh=false -lock=false -out="$RUNNER_TEMP/tfplan" > "$PLAN_TEXT" 2>&1
           code=$?
           set -e
           cat "$PLAN_TEXT"
@@ -131,6 +134,25 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
+
+      - name: Refuse to destroy or replace repositories
+        if: steps.plan.outputs.exit_code == '0'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: bash
+        run: |
+          set -o pipefail
+          repos="$(terraform show -json "$RUNNER_TEMP/tfplan" | jq -r '
+            [.resource_changes[]?
+              | select(.type == "github_repository")
+              | select(.change.actions | index("delete"))
+              | .address] | join(", ")')"
+          if [ -n "$repos" ]; then
+            msg="This pull request would destroy or replace: $repos."
+            msg="$msg Offboard a repository by removing it from the Terraform state (scripts/offboard-repos.sh),"
+            msg="$msg not by merging its removal. If this is a replace, revert the change to the repository name."
+            echo "::error title=Repository destroy refused::$msg"
+            exit 1
+          fi
 
       - name: Fail when the plan failed
         if: steps.plan.outputs.exit_code != '0'
