@@ -353,6 +353,55 @@ Terraform variable (same pattern as `webhook_secrets`).
 
 1. Run `terraform plan` to review the changes before applying.
 
+### Managing environments
+
+Repository environments are defined under `environments:` in a group or repository, keyed by
+environment name. Groups apply in order, and a repository entry replaces a group entry with the
+same name as a whole (properties are not merged, so an override cannot inherit group reviewers or
+secrets by accident).
+
+```yaml
+environments:
+  production:
+    wait_timer: 10                  # minutes, 0-43200
+    can_admins_bypass: true
+    prevent_self_review: true
+    reviewers:                      # at most 6 in total
+      users: ["octocat"]            # logins
+      teams: ["platform"]           # slugs
+    deployment_branch_policy:
+      custom_branch_policies: true  # or protected_branches: true, never both
+      branch_patterns: ["main", "release/*"]
+      tag_patterns: ["v*"]
+    secrets:
+      DEPLOY_TOKEN:
+        value: "env:DEPLOY_TOKEN"
+    variables:
+      REGION:
+        value: "eu-west-1"
+```
+
+1. `protected_branches` and `custom_branch_policies` are mutually exclusive, and `branch_patterns` and
+   `tag_patterns` need `custom_branch_policies: true`. Both `scripts/validate-config.py` and a
+   Terraform `precondition` enforce this. Each pattern becomes one deployment policy.
+
+1. Team reviewers resolve like ruleset `required_reviewers`: a slug of a team in `config/team/`
+   resolves from the managed team, any other slug is looked up and fails the plan if missing. User
+   reviewers are looked up by login.
+
+1. Environment secrets follow the repository secret rules: `value` must be an `env:VAR_NAME`
+   reference resolved from `secret_values`, names must match `^[A-Z_][A-Z0-9_]*$` and must not start
+   with `GITHUB_`, and values are stored in Terraform state. Variable values are plaintext.
+
+1. On the `free` subscription tier, the environments of private repositories are skipped as a
+   whole, secrets and variables included, because environments, reviewers, wait timers and
+   deployment branch policies on private repositories need a paid plan. The `skipped_environments`
+   output lists them and `validate-config.py` warns. Public repositories keep their environments.
+
+1. The `repository_environments` output lists environment, secret and variable names, never values.
+
+1. Run `terraform plan` to review the changes before applying.
+
 ### Managing security managers
 
 Security managers are GitHub teams with read access to security alerts and advisories across all

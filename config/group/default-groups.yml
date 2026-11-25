@@ -51,6 +51,22 @@ oss:
   #   actions:
   #     DEPLOY_ENV:
   #       value: "staging"
+  # Environments: protection rules, reviewers, deployment branch policy, secrets and variables.
+  # protected_branches and custom_branch_policies are mutually exclusive. A repository entry
+  # replaces a group entry with the same name. Private repos need a paid plan (skipped on free).
+  # environments:
+  #   production:
+  #     wait_timer: 10
+  #     prevent_self_review: true
+  #     reviewers:
+  #       teams: ["platform"]
+  #     deployment_branch_policy:
+  #       custom_branch_policies: true
+  #       branch_patterns: ["main", "release/*"]
+  #       tag_patterns: ["v*"]
+  #     secrets:
+  #       DEPLOY_TOKEN:
+  #         value: "env:DEPLOY_TOKEN"
 
 # Internal - Private repositories
 # Use this group for internal/private projects
