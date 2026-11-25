@@ -40,6 +40,7 @@ documentation.
 - **GitHub Actions permissions** - Control which actions can run and workflow permissions
 - **Webhook management** - Configure CI/CD and notification webhooks as code
 - **Secrets and variables** - Actions and Dependabot secrets and Actions variables, org and repo level
+- **Environments** - Deployment branch policies, reviewers, wait timers, and environment secrets and variables
 - **Subscription-aware** - Gracefully handles GitHub Free tier limitations
 - **Onboarding script** - Easily import existing repositories
 - **Drift detection** - Spot differences between GitHub and the configuration with `make drift-check`
@@ -71,6 +72,7 @@ A GitHub Personal Access Token with `repo` and `admin:org` scopes is required.
 | `subscription_tier`      | GitHub subscription tier                                              |
 | `subscription_warnings`  | Warnings about features unavailable on current subscription tier      |
 | `duplicate_key_warnings` | Warnings about duplicate keys in config files                         |
+| `skipped_environments`   | Repositories whose environments were skipped by subscription tier     |
 
 ## Configuration Structure
 
@@ -105,6 +107,40 @@ api-gateway:
   description: "Internal API gateway"
   groups: ["base", "internal"]
 ```
+
+### Environments
+
+Repository environments are defined under `environments:` in a group or repository. Groups apply in
+order, and a repository entry replaces a group entry with the same environment name as a whole.
+
+```yaml
+# config/repository/repositories.yml
+api-gateway:
+  description: "Internal API gateway"
+  groups: ["base", "internal"]
+  environments:
+    production:
+      wait_timer: 10
+      prevent_self_review: true
+      reviewers:
+        users: ["octocat"]
+        teams: ["platform"]
+      deployment_branch_policy:
+        custom_branch_policies: true # or protected_branches: true, never both
+        branch_patterns: ["main", "release/*"]
+        tag_patterns: ["v*"]
+      secrets:
+        DEPLOY_TOKEN:
+          value: "env:DEPLOY_TOKEN" # resolved from the secret_values input
+      variables:
+        REGION:
+          value: "eu-west-1"
+```
+
+Environments, reviewers, wait timers, and deployment branch policies on private repositories need a
+paid GitHub plan. On the `free` tier the environments of private repositories are skipped and listed
+in the `skipped_environments` output. The names of managed environments, secrets, and variables are
+exposed by the `repository_environments` output, never their values.
 
 ## Detecting Drift
 
