@@ -85,9 +85,10 @@ Terraform uses.
 ## Setup for Jenkins
 
 1. Replace every value in `<ANGLE_BRACKETS>` in `jenkins/Jenkinsfile` (agent label, lock name, approvers,
-   credential IDs, notification address, tfcmt version).
+   the plan and apply credential IDs, notification address, tfcmt version and its SHA-256).
 
-1. Create the GitHub App credential as described in [`docs/authentication.md`](docs/authentication.md).
+1. Create the two GitHub App credentials (read-only for the plan stages, read and write for Apply) as
+   described in [`docs/authentication.md`](docs/authentication.md).
 
 1. Create a multibranch pipeline for the repository. The timer trigger in the file schedules the nightly
    drift run.

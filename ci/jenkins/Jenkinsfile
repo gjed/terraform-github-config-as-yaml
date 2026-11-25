@@ -26,8 +26,13 @@ pipeline {
     environment {
         // PLACEHOLDER: lockable resource name; it serialises every plan and apply of this pipeline.
         TF_LOCK_RESOURCE   = '<LOCK_RESOURCE_NAME>'
-        // PLACEHOLDER: Jenkins credential ID of the GitHub App (kind "GitHub App").
-        GITHUB_CREDENTIAL  = '<GITHUB_APP_CREDENTIAL_ID>'
+        // PLACEHOLDER: Jenkins credential IDs of two GitHub Apps (kind "GitHub App"), see
+        // ci/docs/authentication.md. Whoever can push a branch controls the Terraform code that runs in
+        // the Validate and Plan stages, so those stages use a READ-ONLY App; only the Apply stage, which
+        // runs on the default branch after approval, uses the write App. tfcmt needs the plan App to
+        // also have the Pull requests permission (read and write) to post the plan comment.
+        GITHUB_PLAN_CREDENTIAL  = '<GITHUB_PLAN_APP_CREDENTIAL_ID>'
+        GITHUB_APPLY_CREDENTIAL = '<GITHUB_APPLY_APP_CREDENTIAL_ID>'
         // PLACEHOLDER: Jenkins user IDs allowed to approve the Apply stage (comma separated). This
         // matches user IDs, not email addresses.
         APPLY_APPROVERS    = '<JENKINS_USER_ID_1>,<JENKINS_USER_ID_2>'
@@ -35,6 +40,9 @@ pipeline {
         NOTIFY_EMAIL       = '<TEAM_EMAIL_ADDRESS>'
         // PLACEHOLDER: pin a tfcmt release (https://github.com/suzuki-shunsuke/tfcmt/releases).
         TFCMT_VERSION      = '<TFCMT_VERSION>'
+        // PLACEHOLDER: SHA-256 of tfcmt_linux_amd64.tar.gz for that release, taken from the release's
+        // checksums file. The archive runs on an agent that holds credentials, so it is verified.
+        TFCMT_SHA256       = '<TFCMT_LINUX_AMD64_SHA256>'
         // Directory with main.tf; "." matches a repository laid out like examples/consumer.
         TF_WORKING_DIR     = '.'
     }
@@ -62,8 +70,11 @@ pipeline {
                 sh '''
                     set -eu
                     mkdir -p "${WORKSPACE}/.bin"
-                    curl -fsSL "https://github.com/suzuki-shunsuke/tfcmt/releases/download/${TFCMT_VERSION}/tfcmt_linux_amd64.tar.gz" \
-                        | tar xz -C "${WORKSPACE}/.bin" tfcmt
+                    archive="${WORKSPACE}/.bin/tfcmt_linux_amd64.tar.gz"
+                    curl -fsSL -o "${archive}" \
+                        "https://github.com/suzuki-shunsuke/tfcmt/releases/download/${TFCMT_VERSION}/tfcmt_linux_amd64.tar.gz"
+                    echo "${TFCMT_SHA256}  ${archive}" | sha256sum -c -
+                    tar xz -C "${WORKSPACE}/.bin" -f "${archive}" tfcmt
                 '''
                 // PLACEHOLDER: add the step that gives Terraform access to your state backend here, for
                 // example a withCredentials block that exports AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
@@ -74,7 +85,7 @@ pipeline {
         stage('Validate') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: env.GITHUB_CREDENTIAL,
+                    credentialsId: env.GITHUB_PLAN_CREDENTIAL,
                     usernameVariable: 'GITHUB_APP_SLUG',
                     passwordVariable: 'GITHUB_TOKEN' // pragma: allowlist secret
                 )]) {
@@ -118,7 +129,7 @@ pipeline {
                         echo "Nightly drift run: ${env.IS_NIGHTLY}, force refresh: ${params.FORCE_REFRESH}"
                     }
                     withCredentials([usernamePassword(
-                        credentialsId: env.GITHUB_CREDENTIAL,
+                        credentialsId: env.GITHUB_PLAN_CREDENTIAL,
                         usernameVariable: 'GITHUB_APP_SLUG',
                         passwordVariable: 'GITHUB_TOKEN' // pragma: allowlist secret
                     )]) {
@@ -225,7 +236,7 @@ pipeline {
                 }
                 lock(resource: env.TF_LOCK_RESOURCE) {
                     withCredentials([usernamePassword(
-                        credentialsId: env.GITHUB_CREDENTIAL,
+                        credentialsId: env.GITHUB_APPLY_CREDENTIAL,
                         usernameVariable: 'GITHUB_APP_SLUG',
                         passwordVariable: 'GITHUB_TOKEN' // pragma: allowlist secret
                     )]) {
