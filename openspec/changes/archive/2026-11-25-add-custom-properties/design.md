@@ -158,8 +158,8 @@ plan time is consistent with every other precondition in the module.
 
 **[Provider resource maturity]** → `github_organization_custom_properties` and `github_repository_custom_property` are
 relatively new resources in the provider. Edge cases (e.g., renaming a property, changing type) may cause unexpected
-behavior. **Mitigation**: Document that property type changes require destroy/recreate. Test with `terraform plan`
-before applying.
+behavior. **Mitigation**: Document that a type change is planned as an in-place update and may be rejected by GitHub at
+apply time. Test with `terraform plan` before applying.
 
 **[Dependency race condition]** → If `depends_on` is insufficient and Terraform parallelizes definition creation with
 value assignment, applies may fail intermittently. **Mitigation**: Explicit `depends_on` + documentation to
