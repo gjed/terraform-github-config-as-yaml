@@ -130,6 +130,7 @@ VALID_GROUP_KEYS = {
     "actions",
     "secrets",
     "variables",
+    "environments",
 }
 # Repository entries accept every group key plus the two identity fields.
 VALID_REPOSITORY_KEYS = VALID_GROUP_KEYS | {"description", "groups"}
@@ -149,6 +150,27 @@ VALID_SECRET_VISIBILITIES = ["all", "private", "selected"]
 SECRET_NAME_RE = re.compile(r"[A-Z_][A-Z0-9_]*")
 # Secret values are references resolved from the secret_values Terraform variable.
 SECRET_REF_RE = re.compile(r"env:[A-Za-z0-9_]+")
+
+# Keys accepted inside one `environments:` entry, and its nested blocks.
+VALID_ENVIRONMENT_KEYS = {
+    "wait_timer",
+    "can_admins_bypass",
+    "prevent_self_review",
+    "reviewers",
+    "deployment_branch_policy",
+    "secrets",
+    "variables",
+}
+VALID_ENVIRONMENT_REVIEWER_KEYS = {"users", "teams"}
+VALID_DEPLOYMENT_BRANCH_POLICY_KEYS = {
+    "protected_branches",
+    "custom_branch_policies",
+    "branch_patterns",
+    "tag_patterns",
+}
+# GitHub accepts wait timers of 0-43200 minutes and at most 6 reviewers per environment.
+MAX_ENVIRONMENT_WAIT_TIMER = 43200
+MAX_ENVIRONMENT_REVIEWERS = 6
 
 VALID_TEAM_PRIVACIES = ["closed", "secret"]
 # The GitHub provider only accepts these two values and rejects any other
@@ -1442,6 +1464,178 @@ def validate_all_repo_secret_blocks(groups: dict, repos: dict) -> list[str]:
     return errors
 
 
+def _validate_string_list(label: str, value) -> list[str]:
+    """Check that value is a list of non-empty strings; None is treated as empty."""
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(
+        isinstance(v, str) and v for v in value
+    ):
+        return [f"{label}: must be a list of non-empty strings"]
+    return []
+
+
+def validate_environment(label: str, name, env) -> list[str]:
+    """Validate one entry of an `environments:` block.
+
+    Mirrors the Terraform preconditions on github_repository_environment (mutual
+    exclusion, patterns need custom_branch_policies, wait_timer range) and the
+    secret/variable rules of repository-level blocks.
+    """
+    env_label = f"{label} environment '{name}'"
+    if not isinstance(name, str) or not name:
+        return [f"{label}: environment names must be non-empty strings"]
+    if env is None:
+        return []
+    if not isinstance(env, dict):
+        return [f"{env_label}: must be a mapping"]
+
+    errors: list[str] = []
+    for key in sorted(set(env) - VALID_ENVIRONMENT_KEYS, key=str):
+        errors.append(f"{env_label}: unknown key '{key}'")
+
+    wait_timer = env.get("wait_timer")
+    if wait_timer is not None and (
+        isinstance(wait_timer, bool)
+        or not isinstance(wait_timer, int)
+        or not 0 <= wait_timer <= MAX_ENVIRONMENT_WAIT_TIMER
+    ):
+        errors.append(
+            f"{env_label}: 'wait_timer' must be an integer between 0 and "
+            f"{MAX_ENVIRONMENT_WAIT_TIMER} minutes"
+        )
+
+    for key in ("can_admins_bypass", "prevent_self_review"):
+        if env.get(key) is not None and not isinstance(env[key], bool):
+            errors.append(f"{env_label}: '{key}' must be a boolean")
+
+    reviewers = env.get("reviewers")
+    if reviewers is not None:
+        if not isinstance(reviewers, dict):
+            errors.append(f"{env_label}: 'reviewers' must be a mapping")
+        else:
+            for key in sorted(set(reviewers) - VALID_ENVIRONMENT_REVIEWER_KEYS, key=str):
+                errors.append(
+                    f"{env_label}: unknown key 'reviewers.{key}' (expected: users, teams)"
+                )
+            total = 0
+            for key in ("users", "teams"):
+                entries = reviewers.get(key)
+                list_errors = _validate_string_list(
+                    f"{env_label} reviewers.{key}", entries
+                )
+                errors.extend(list_errors)
+                if not list_errors and entries:
+                    total += len(entries)
+            if total > MAX_ENVIRONMENT_REVIEWERS:
+                errors.append(
+                    f"{env_label}: {total} reviewers listed, GitHub allows at most "
+                    f"{MAX_ENVIRONMENT_REVIEWERS} per environment"
+                )
+
+    policy = env.get("deployment_branch_policy")
+    if policy is not None:
+        if not isinstance(policy, dict):
+            errors.append(f"{env_label}: 'deployment_branch_policy' must be a mapping")
+        else:
+            policy_label = f"{env_label} deployment_branch_policy"
+            for key in sorted(set(policy) - VALID_DEPLOYMENT_BRANCH_POLICY_KEYS, key=str):
+                errors.append(f"{policy_label}: unknown key '{key}'")
+            for key in ("protected_branches", "custom_branch_policies"):
+                if policy.get(key) is not None and not isinstance(policy[key], bool):
+                    errors.append(f"{policy_label}: '{key}' must be a boolean")
+            protected = policy.get("protected_branches") is True
+            custom = policy.get("custom_branch_policies") is True
+            if protected and custom:
+                errors.append(
+                    f"{policy_label}: 'protected_branches' and 'custom_branch_policies' "
+                    "are mutually exclusive"
+                )
+            for key in ("branch_patterns", "tag_patterns"):
+                patterns = policy.get(key)
+                errors.extend(_validate_string_list(f"{policy_label} {key}", patterns))
+                if patterns and not custom:
+                    errors.append(
+                        f"{policy_label}: '{key}' requires 'custom_branch_policies: true'"
+                    )
+
+    if env.get("secrets") is not None:
+        errors.extend(
+            validate_secret_entries(
+                f"{env_label} secrets", env["secrets"], "secret", {"value"}
+            )
+        )
+    if env.get("variables") is not None:
+        errors.extend(
+            validate_secret_entries(
+                f"{env_label} variables", env["variables"], "variable", {"value"}
+            )
+        )
+    return errors
+
+
+def validate_environment_blocks(label: str, config) -> list[str]:
+    """Validate a group's or repository's `environments:` block."""
+    if not isinstance(config, dict) or config.get("environments") is None:
+        return []
+
+    environments = config["environments"]
+    if not isinstance(environments, dict):
+        return [f"{label}: 'environments' must be a mapping of name to definition"]
+
+    errors: list[str] = []
+    for name, env in environments.items():
+        errors.extend(validate_environment(label, name, env))
+    return errors
+
+
+def validate_all_environment_blocks(groups: dict, repos: dict) -> list[str]:
+    """Run validate_environment_blocks over every group and repository."""
+    errors: list[str] = []
+    for name, config in groups.items():
+        errors.extend(validate_environment_blocks(f"group '{name}'", config))
+    for name, config in repos.items():
+        errors.extend(validate_environment_blocks(f"repository '{name}'", config))
+    return errors
+
+
+def validate_environments_tier(
+    repos: dict, groups: dict, subscription: str
+) -> list[str]:
+    """Warn when environments are configured for private repos on the free tier.
+
+    Environments on private repositories need a paid plan, so Terraform skips them
+    (whole environments, secrets and variables included) on free and reports them in
+    the skipped_environments output. Surfacing this before plan avoids a silent no-op.
+
+    Returns a list of warning messages.
+    """
+    if subscription != "free":
+        return []
+
+    warnings: list[str] = []
+
+    for repo_name, repo_config in repos.items():
+        if not isinstance(repo_config, dict):
+            continue
+
+        has_environments = bool(repo_config.get("environments")) or any(
+            isinstance(groups.get(g), dict) and groups[g].get("environments")
+            for g in repo_config.get("groups", []) or []
+        )
+        if not has_environments:
+            continue
+
+        if resolve_effective_visibility(repo_config, groups) != "public":
+            warnings.append(
+                f"repositories: Repository '{repo_name}' is private and has "
+                f"environments, but environments require a paid GitHub plan on "
+                f"private repositories — they will be skipped by Terraform"
+            )
+
+    return warnings
+
+
 def main():
     """Main validation entry point."""
     strict = "--strict" in sys.argv
@@ -1576,6 +1770,10 @@ def main():
     all_errors.extend(secret_errors)
     all_warnings.extend(secret_warnings)
     all_errors.extend(validate_all_repo_secret_blocks(groups, repos))
+    all_errors.extend(validate_all_environment_blocks(groups, repos))
+    all_warnings.extend(
+        validate_environments_tier(repos, groups, config.get("subscription", "free"))
+    )
 
     # Print SCIM/SSO reminder when membership config is present
     if members:
