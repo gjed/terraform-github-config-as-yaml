@@ -41,6 +41,7 @@ documentation.
 - **Webhook management** - Configure CI/CD and notification webhooks as code
 - **Secrets and variables** - Actions and Dependabot secrets and Actions variables, org and repo level
 - **Environments** - Deployment branch policies, reviewers, wait timers, and environment secrets and variables
+- **Custom properties** - Organization property definitions and per-repository values with group inheritance
 - **Subscription-aware** - Gracefully handles GitHub Free tier limitations
 - **Onboarding script** - Easily import existing repositories
 - **Drift detection** - Spot differences between GitHub and the configuration with `make drift-check`
@@ -64,15 +65,17 @@ A GitHub Personal Access Token with `repo` and `admin:org` scopes is required.
 
 ## Outputs
 
-| Name                     | Description                                                           |
-| ------------------------ | --------------------------------------------------------------------- |
-| `repositories`           | Map of managed repositories with their URLs, SSH URLs, and visibility |
-| `repository_count`       | Total number of managed repositories                                  |
-| `organization`           | GitHub organization being managed                                     |
-| `subscription_tier`      | GitHub subscription tier                                              |
-| `subscription_warnings`  | Warnings about features unavailable on current subscription tier      |
-| `duplicate_key_warnings` | Warnings about duplicate keys in config files                         |
-| `skipped_environments`   | Repositories whose environments were skipped by subscription tier     |
+| Name                        | Description                                                           |
+| --------------------------- | --------------------------------------------------------------------- |
+| `repositories`              | Map of managed repositories with their URLs, SSH URLs, and visibility |
+| `repository_count`          | Total number of managed repositories                                  |
+| `organization`              | GitHub organization being managed                                     |
+| `subscription_tier`         | GitHub subscription tier                                              |
+| `subscription_warnings`     | Warnings about features unavailable on current subscription tier      |
+| `duplicate_key_warnings`    | Warnings about duplicate keys in config files                         |
+| `skipped_environments`      | Repositories whose environments were skipped by subscription tier     |
+| `managed_custom_properties` | Names of the managed custom property definitions                      |
+| `skipped_custom_properties` | Names of custom property definitions skipped by tier or account type  |
 
 ## Configuration Structure
 
@@ -88,6 +91,8 @@ config/
 │   └── repositories.yml
 ├── ruleset/                # Ruleset definitions (one or more YAML files)
 │   └── rulesets.yml
+├── custom-property/        # Custom property definitions (optional, one or more YAML files)
+│   └── properties.yml
 ├── secret/                 # Org Actions/Dependabot secrets and variables (optional, one or more YAML files)
 │   └── secrets.yml
 └── webhook/                # Webhook definitions (optional, one or more YAML files)
@@ -141,6 +146,38 @@ Environments, reviewers, wait timers, and deployment branch policies on private 
 paid GitHub plan. On the `free` tier the environments of private repositories are skipped and listed
 in the `skipped_environments` output. The names of managed environments, secrets, and variables are
 exposed by the `repository_environments` output, never their values.
+
+### Custom properties
+
+Organization custom properties are defined in `config/custom-property/*.yml`, one property per key, and
+assigned with `custom_property_values:` in a group or repository. Groups apply in order and a repository
+value replaces a group value.
+
+```yaml
+# config/custom-property/properties.yml
+environment:
+  value_type: single_select # string, single_select, multi_select or true_false
+  required: true
+  default_value: development
+  allowed_values: [development, staging, production]
+tags:
+  value_type: multi_select
+  allowed_values: [frontend, backend, critical]
+```
+
+```yaml
+# config/repository/repositories.yml
+api-gateway:
+  description: "Internal API gateway"
+  groups: ["base", "internal"]
+  custom_property_values:
+    environment: production # a scalar, or a list for multi_select
+    tags: [backend, critical]
+```
+
+Custom properties need an organization on the `team` or `enterprise` tier. On `free`, `pro` or a personal
+account they are skipped and the definitions are listed in the `skipped_custom_properties` output. A
+required property without a `default_value` must be set on every repository, or the plan fails.
 
 ## Detecting Drift
 

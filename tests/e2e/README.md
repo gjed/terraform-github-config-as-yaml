@@ -171,6 +171,8 @@ make destroy
 | `skipped_branch_protections` output (free tier) | `config/group/test-groups.yml` | `e2e-internal-private`, `e2e-multi-group` |
 | Repo environment (custom branch/tag policies, secret, variable) | `config/repository/test-repos.yml` | `e2e-oss-public` |
 | `skipped_environments` output (free tier) | `config/repository/test-repos.yml` | `e2e-internal-private` |
+| Custom properties (definitions, group and repo values) | `config/custom-property/test-properties.yml` | `e2e-oss-public` |
+| `skipped_custom_properties` output (free tier) | `config/custom-property/test-properties.yml` | `e2e-oss-public` |
 | Vulnerability alerts enabled | `config/group/test-groups.yml` | all repos |
 | Branch protection (basic) | `config/branch-protection/test-branch-protections.yml` | `e2e-main-bp` |
 | Branch protection (strict, all fields) | `config/branch-protection/test-branch-protections.yml` | `e2e-strict-bp` |

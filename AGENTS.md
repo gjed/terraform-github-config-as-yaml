@@ -405,6 +405,66 @@ environments:
 
 1. Run `terraform plan` to review the changes before applying.
 
+### Managing custom properties
+
+Custom properties are organization-level metadata fields (for example `environment` or `compliance_level`)
+that can be assigned to repositories and used to target org rulesets. Definitions live in
+`config/custom-property/*.yml`, one property per top-level key, and values are assigned with
+`custom_property_values:` in groups and repositories. See `config/custom-property/examples.yml` for all four types.
+
+```yaml
+# config/custom-property/properties.yml
+environment:
+  description: "Deployment environment"
+  value_type: single_select       # string, single_select, multi_select or true_false
+  required: true
+  default_value: development      # required properties need a default or a value on every repository
+  allowed_values: [development, staging, production]
+tags:
+  value_type: multi_select
+  allowed_values: [frontend, backend, critical]
+```
+
+```yaml
+# config/group/groups.yml and config/repository/repositories.yml
+oss:
+  custom_property_values:
+    environment: production
+    tags: [frontend]
+
+my-repo:
+  groups: ["oss"]
+  custom_property_values:
+    environment: staging          # overrides the group value
+    tags: [backend, critical]     # replaces the group's list, it is not merged
+```
+
+1. Definitions take `description`, `value_type` (required), `required`, `default_value`, `allowed_values`
+   (required for select types, not allowed for the others) and `values_editable_by` (`org_actors` or
+   `org_and_repo_actors`). Files are merged in alphabetical order, and a property defined in two files
+   raises a `check` warning and appears in `duplicate_key_warnings`; the last file wins.
+
+1. Values merge like `teams:` and `collaborators:`: groups in order, then the repository, later values replace
+   earlier ones by property name. Write a scalar for `string`, `single_select` and `true_false` and a list for
+   `multi_select`; the module wraps scalars into the list the provider expects.
+
+1. A required property is satisfied by a `default_value` (GitHub applies it to repositories without a value).
+   A required property without a default must have a value on every managed repository, or the plan fails.
+
+1. `scripts/validate-config.py` and Terraform preconditions reject an invalid `value_type`, `allowed_values` on a
+   non-select type, a `default_value` outside `allowed_values`, undefined property names, values outside
+   `allowed_values`, a list for a single-value type, and a missing required value.
+
+1. Custom properties need an organization (`is_organization: true`) on the `team` or `enterprise` subscription.
+   On `free`, `pro` or a personal account the definitions and all assignments are skipped, the
+   `skipped_custom_properties` output lists the skipped definitions and `validate-config.py` warns.
+   `managed_custom_properties` lists the created definitions.
+
+1. Property definitions are created before any repository assignment. Changing a property's `value_type`
+   replaces it, so review the plan first; `values_editable_by` defaults to `org_actors` when omitted.
+
+1. Run `terraform plan` to review the changes before applying.
+
 ### Managing security managers
 
 Security managers are GitHub teams with read access to security alerts and advisories across all
