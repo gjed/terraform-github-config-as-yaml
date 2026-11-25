@@ -65,7 +65,9 @@ A team slug SHALL resolve exactly like a ruleset `required_reviewers` slug: a sl
 `config/team/` resolves from that managed team, so the team and the environment can be created in the same
 apply, and any other slug is resolved with a `github_team` lookup that fails the plan when the team does not
 exist. A user login SHALL be resolved with a `github_user` lookup that fails the plan when the user does not
-exist. Lookups are made only for environments that are applied, never for skipped ones.
+exist. Lookups are made only for environments that are applied, never for skipped ones. GitHub rejects reviewers that
+cannot access the repository, so the environment SHALL be created after the repository's team and collaborator
+access grants, and a reviewer SHALL be granted access to the repository through `teams:` or `collaborators:`.
 
 #### Scenario: Managed team reviewer
 
