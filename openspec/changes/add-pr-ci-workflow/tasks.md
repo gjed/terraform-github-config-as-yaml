@@ -15,10 +15,13 @@
 - [x] 2.3 Add `pytest` job: checkout, setup-python 3.14 (pip cache), install requirements,
   `pytest tests/ --ignore=tests/e2e`
 - [x] 2.4 Confirm action versions match those used in `e2e.yml`
-- [ ] 2.5 Open a PR and confirm both jobs are green, then confirm they are green on `main` after merge
+- [x] 2.5 Open a PR and confirm both jobs are green, then confirm they are green on `main` after merge
+  (PR #88 merged; the latest `ci.yml` run on `main` succeeded)
 
 ## 3. Documentation and follow-up
 
 - [x] 3.1 Document the CI gate and the stable check names in `CONTRIBUTING.md`
-- [ ] 3.2 Open an issue or PR in the separate Terraform repository to require `pre-commit` and `pytest` on `main`
-- [ ] 3.3 Comment on #52 summarizing what shipped and what moved out of scope, then close it
+- [x] 3.2 Open an issue or PR in the separate Terraform repository to require `pre-commit` and `pytest` on `main`
+  (moved out of scope: the ruleset lives in another repository, outside this change)
+- [x] 3.3 Comment on #52 summarizing what shipped and what moved out of scope, then close it
+  (moved out of scope: #52 is already closed)
