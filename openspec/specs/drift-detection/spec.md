@@ -1,6 +1,7 @@
 # drift-detection Specification
 
 ## Purpose
+
 Detect when the real GitHub state differs from the Terraform configuration and report the difference in
 a form that separates routine changes from critical and security-weakening ones, usable from any CI
 system or a developer terminal.
