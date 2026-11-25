@@ -6,7 +6,7 @@
   `check "duplicate_custom_property_keys"` block and an entry in the `duplicate_key_warnings` output
 - [x] 1.3 Normalize each definition to a uniform shape (`description`, `value_type`, `required`, `default_value`,
   `allowed_values`, `values_editable_by`) tolerant of nulls and YAML booleans
-- [x] 1.4 Add tier gating locals: `custom_properties_supported` (`team`/`enterprise` and `is_organization`),
+- [x] 1.4 Add account type gating locals: `custom_properties_supported` (`is_organization`),
   `effective_custom_properties`, `skipped_custom_property_names`
 
 ## 2. Value merging and normalization (yaml-config.tf)
@@ -35,20 +35,20 @@
 - [x] 4.2 Validate definitions: `value_type`, `allowed_values` vs type, `default_value`, `values_editable_by`, unknown keys
 - [x] 4.3 Validate assignments in groups and repositories: undefined names, value shape, allowed values, `true_false`
 - [x] 4.4 Validate required properties against each repository's effective values and the property default
-- [x] 4.5 Warn when definitions or assignments exist on an unsupported tier or account type
+- [x] 4.5 Warn when definitions or assignments exist for a personal account
 
 ## 5. Tests
 
 - [x] 5.1 Add `tests/test_validate_custom_properties.py`
-- [x] 5.2 Add `tests/custom_properties.tftest.hcl` with fixtures: merge precedence, scalar-to-list normalization, tier skip
-  with output, duplicate detection, invalid value and required-missing failures
+- [x] 5.2 Add `tests/custom_properties.tftest.hcl` with fixtures: merge precedence, scalar-to-list normalization,
+  personal-account skip with output, duplicate detection, invalid value and required-missing failures
 - [x] 5.3 Extend the e2e fixture (`tests/e2e/config`, `tests/e2e/main.tf`) and `tests/verify_e2e.py`
 
 ## 6. Documentation and examples
 
 - [x] 6.1 Add `config/custom-property/examples.yml` (commented, all four types) and commented
   `custom_property_values:` examples in the template group and repository YAML
-- [x] 6.2 Add "Managing custom properties" to AGENTS.md (definitions, assignments, tier requirements, inheritance,
+- [x] 6.2 Add "Managing custom properties" to AGENTS.md (definitions, assignments, account type requirement, inheritance,
   required and default semantics)
 - [x] 6.3 Add custom properties to the README.md feature list and configuration reference
 

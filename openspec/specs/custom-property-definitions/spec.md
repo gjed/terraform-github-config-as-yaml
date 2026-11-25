@@ -3,7 +3,7 @@
 ## Purpose
 
 Define the requirements for managing GitHub organization custom property definitions via YAML configuration:
-loading, duplicate detection, definition validation, subscription tier gating and the managed and skipped
+loading, duplicate detection, definition validation, account type gating and the managed and skipped
 property outputs.
 
 ## Requirements
@@ -53,42 +53,36 @@ The system SHALL detect when the same property name appears as a top-level key i
 - **THEN** the system SHALL emit a check warning listing the duplicate key and the files it appears in
 - **AND** the `duplicate_key_warnings` output SHALL list the key under custom properties
 
-### Requirement: Subscription tier gating for property definitions
+### Requirement: Account type gating for property definitions
 
-The system SHALL only create `github_organization_custom_properties` resources when the subscription tier is `team` or
-`enterprise` AND `is_organization` is `true`. On all other configurations, property definition resources SHALL be
-skipped.
+The system SHALL only create `github_organization_custom_properties` resources when `is_organization` is `true`,
+whatever the subscription tier. For a personal account, property definition resources SHALL be skipped.
 
-#### Scenario: Free tier skips property definitions
+#### Scenario: Free tier creates property definitions
 
-- **WHEN** `subscription` is `free` and custom property definitions exist in YAML
-- **THEN** no `github_organization_custom_properties` resources SHALL be created
+- **WHEN** `subscription` is `free`, `is_organization` is `true` and custom property definitions exist in YAML
+- **THEN** `github_organization_custom_properties` resources SHALL be created for each defined property
 
 #### Scenario: Personal account skips property definitions
 
 - **WHEN** `is_organization` is `false` and custom property definitions exist in YAML
 - **THEN** no `github_organization_custom_properties` resources SHALL be created
 
-#### Scenario: Team tier creates property definitions
-
-- **WHEN** `subscription` is `team` and `is_organization` is `true`
-- **THEN** `github_organization_custom_properties` resources SHALL be created for each defined property
-
 ### Requirement: Output managed and skipped custom properties
 
 The system SHALL expose a `managed_custom_properties` output listing the names of the created property definitions, and
-a `skipped_custom_properties` output listing the names of definitions that were skipped due to subscription tier or
-account type. Both outputs SHALL contain names only.
+a `skipped_custom_properties` output listing the names of definitions that were skipped because the account is a
+personal account. Both outputs SHALL contain names only.
 
 #### Scenario: Skipped properties listed in output
 
-- **WHEN** custom properties are defined but skipped due to tier/account type
+- **WHEN** custom properties are defined but skipped because `is_organization` is `false`
 - **THEN** the `skipped_custom_properties` output SHALL list the names of all skipped property definitions
 - **AND** the `managed_custom_properties` output SHALL be an empty list
 
 #### Scenario: No skip warning when properties are created
 
-- **WHEN** custom properties are defined and the subscription tier supports them
+- **WHEN** custom properties are defined and `is_organization` is `true`
 - **THEN** the `skipped_custom_properties` output SHALL be an empty list
 - **AND** the `managed_custom_properties` output SHALL list the defined property names
 
@@ -120,13 +114,12 @@ from preconditions on the `github_organization_custom_properties` resource.
 - **WHEN** a `string` property defines `allowed_values`
 - **THEN** the validation script SHALL report an error that `allowed_values` only applies to select types
 
-### Requirement: Warn when custom properties are skipped by the tier
+### Requirement: Warn when custom properties are skipped for a personal account
 
-The validation script SHALL warn when custom property definitions or `custom_property_values:` assignments exist and the
-configuration is not an organization on the `team` or `enterprise` subscription, because Terraform skips them.
+The validation script SHALL warn when custom property definitions or `custom_property_values:` assignments exist and
+`is_organization` is `false`, because Terraform skips them. It SHALL NOT warn about the subscription tier.
 
-#### Scenario: Definitions on the free tier
+#### Scenario: Definitions for a personal account
 
-- **WHEN** `subscription` is `free` and `config/custom-property/` defines properties
-- **THEN** the validation script SHALL emit a warning that the properties require a Team or Enterprise plan and will be
-  skipped
+- **WHEN** `is_organization` is `false` and `config/custom-property/` defines properties
+- **THEN** the validation script SHALL emit a warning that the properties require an organization and will be skipped

@@ -44,7 +44,7 @@ output "managed_custom_properties" {
 }
 
 output "skipped_custom_properties" {
-  description = "Names of custom property definitions skipped because custom properties need an organization on the team or enterprise tier"
+  description = "Names of custom property definitions skipped because custom properties need an organization, not a personal account"
   value       = module.github_org.skipped_custom_properties
 }
 
