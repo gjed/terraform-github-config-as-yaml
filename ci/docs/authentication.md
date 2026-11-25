@@ -94,7 +94,10 @@ Using a PAT instead: drop the first step and set `GITHUB_TOKEN: ${{ secrets.TF_G
 
 Jenkins: bind a "GitHub App" credential (from the GitHub Branch Source plugin) with `withCredentials`
 and a `usernamePassword` binding whose `passwordVariable` is `GITHUB_TOKEN`; the plugin exchanges the key
-for a short-lived installation token. Jenkins needs the private key in PKCS#8 format:
+for a short-lived installation token. Create one credential for the plan App (Validate and Plan stages) and
+one for the apply App (Apply stage), as in GitHub Actions. The `tfcmt` plan comment also needs the plan
+App to have Repository: Pull requests at read and write level. Jenkins needs the private key in PKCS#8
+format:
 
 ```bash
 openssl pkcs8 -topk8 -inform PEM -outform PEM -in downloaded-key.pem -out converted-key.pem -nocrypt
