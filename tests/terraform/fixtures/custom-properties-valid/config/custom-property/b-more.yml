@@ -1,0 +1,6 @@
+owner:
+  description: "Owning team"
+  value_type: string
+
+is_deprecated:
+  value_type: true_false

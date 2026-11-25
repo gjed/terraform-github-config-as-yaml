@@ -1,0 +1,4 @@
+dup-app:
+  description: "Duplicate property definitions across files"
+  groups:
+    - base

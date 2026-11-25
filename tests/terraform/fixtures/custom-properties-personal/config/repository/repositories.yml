@@ -1,0 +1,6 @@
+personal-app:
+  description: "Personal accounts have no custom properties"
+  groups:
+    - base
+  custom_property_values:
+    environment: production

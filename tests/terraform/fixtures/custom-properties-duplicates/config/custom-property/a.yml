@@ -1,0 +1,4 @@
+environment:
+  value_type: single_select
+  allowed_values:
+    - development

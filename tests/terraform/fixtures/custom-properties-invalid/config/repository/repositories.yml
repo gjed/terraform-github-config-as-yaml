@@ -1,0 +1,4 @@
+invalid-app:
+  description: "Does not set the required needs_value property"
+  groups:
+    - base

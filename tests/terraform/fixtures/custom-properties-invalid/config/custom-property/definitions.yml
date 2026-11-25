@@ -1,0 +1,35 @@
+bad_type:
+  value_type: number
+
+no_allowed:
+  value_type: single_select
+
+allowed_on_string:
+  value_type: string
+  allowed_values:
+    - a
+
+bad_default:
+  value_type: single_select
+  allowed_values:
+    - a
+    - b
+  default_value: c
+
+bad_bool_default:
+  value_type: true_false
+  default_value: maybe
+
+bad_editable_by:
+  value_type: string
+  values_editable_by: everyone
+
+needs_value:
+  value_type: string
+  required: true
+
+valid_one:
+  value_type: single_select
+  allowed_values:
+    - a
+    - b

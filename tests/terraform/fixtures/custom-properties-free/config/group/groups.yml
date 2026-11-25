@@ -1,0 +1,3 @@
+base:
+  custom_property_values:
+    environment: production

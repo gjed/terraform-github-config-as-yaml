@@ -1,0 +1,14 @@
+base:
+  custom_property_values:
+    environment: development
+    compliance_level: none
+    tags:
+      - frontend
+
+oss:
+  custom_property_values:
+    environment: production
+    owner: platform
+
+nulls:
+  custom_property_values:

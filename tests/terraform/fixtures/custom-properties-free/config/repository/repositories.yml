@@ -1,0 +1,6 @@
+free-app:
+  description: "Has values that are skipped on the free tier"
+  groups:
+    - base
+  custom_property_values:
+    owner: platform
