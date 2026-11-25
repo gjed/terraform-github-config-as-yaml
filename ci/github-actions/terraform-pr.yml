@@ -1,0 +1,137 @@
+name: Terraform PR
+
+# Template: copy to .github/workflows/ in your consumer repository. See ci/README.md.
+#
+# Validates the configuration and posts `terraform plan` as one pull request comment, updated on every
+# push. The plan skips the refresh (-refresh=false) so it shows what the pull request changes, not drift;
+# the apply workflow plans with a full refresh. Remove the flag to see drift in the comment too.
+#
+# Security:
+#   - Triggered by `pull_request`, never `pull_request_target`: branch code runs with the branch's own
+#     permissions, and fork pull requests get no secrets (the job is skipped for them).
+#   - The credential is a READ-ONLY GitHub App token. Anyone who can push a branch controls the
+#     Terraform code that runs here, so this job must not be able to change the organization.
+#   - The token reaches Terraform through the environment only and is never printed.
+#
+# Requires (see ci/docs/authentication.md):
+#   variable TF_PLAN_APP_CLIENT_ID, secret TF_PLAN_APP_PRIVATE_KEY, and credentials for your state backend.
+on:
+  pull_request:
+    paths:
+      - "config/**"
+      - "**.tf"
+      - ".github/workflows/terraform-pr.yml"
+
+permissions: {}
+
+concurrency:
+  group: terraform-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  # Directory that holds main.tf. Use "." for a repository laid out like examples/consumer.
+  TF_WORKING_DIR: .
+  # Wait for a state lock held by an apply or drift run instead of failing at once.
+  TF_CLI_ARGS_plan: -lock-timeout=5m
+
+jobs:
+  plan:
+    # Fork pull requests cannot read secrets; skip them instead of failing.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "~> 1.10" # PLACEHOLDER: the version you run locally
+          terraform_wrapper: false
+
+      # PLACEHOLDER: add the steps that give Terraform access to your state backend here, for example
+      # aws-actions/configure-aws-credentials with an OIDC role (pin it to a full commit SHA).
+
+      - name: Create read-only GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.TF_PLAN_APP_CLIENT_ID }}
+          private-key: ${{ secrets.TF_PLAN_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -input=false
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Terraform fmt
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform fmt -check -recursive -diff
+
+      - name: Terraform validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform validate -no-color
+
+      - name: Terraform plan
+        id: plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          PLAN_TEXT: ${{ runner.temp }}/plan.txt
+        shell: bash
+        run: |
+          set +e
+          terraform plan -no-color -input=false -refresh=false -out="$RUNNER_TEMP/tfplan" > "$PLAN_TEXT" 2>&1
+          code=$?
+          set -e
+          cat "$PLAN_TEXT"
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+
+      - name: Post plan comment
+        # Runs even when the plan failed, so the error reaches the pull request.
+        if: always() && steps.plan.outcome != 'skipped'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PLAN_TEXT: ${{ runner.temp }}/plan.txt
+          PLAN_EXIT_CODE: ${{ steps.plan.outputs.exit_code }}
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- terraform-pr-plan -->';
+            const failed = process.env.PLAN_EXIT_CODE !== '0';
+            let plan = fs.readFileSync(process.env.PLAN_TEXT, 'utf8');
+            // A comment is limited to 65,536 characters; keep the end, where the summary is.
+            const limit = 60000;
+            if (plan.length > limit) {
+              plan = '... (truncated, see the workflow run for the full plan)\n' + plan.slice(-limit);
+            }
+            const body = [
+              marker,
+              `## ${failed ? ':x: Terraform plan failed' : ':white_check_mark: Terraform plan'}`,
+              '',
+              '```text',
+              plan.replace(/```/g, "'''"),
+              '```',
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body && c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Fail when the plan failed
+        if: steps.plan.outputs.exit_code != '0'
+        run: exit 1

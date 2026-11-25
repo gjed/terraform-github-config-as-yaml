@@ -1,0 +1,108 @@
+name: Terraform Apply
+
+# Template: copy to .github/workflows/ in your consumer repository. See ci/README.md.
+#
+# Applies the configuration after a merge to the default branch, behind the approval of a protected
+# environment. Nothing runs and no credential is released until the environment's reviewers approve.
+#
+# Safety:
+#   - `environment:` requires reviewers. Create it first (Settings > Environments), add required
+#     reviewers, restrict it to the default branch, and store the Apply App's private key there.
+#   - `concurrency` makes applies queue instead of running in parallel. cancel-in-progress is false so a
+#     running apply is never killed half way; a newer pending run replaces an older pending one, which is
+#     safe because every run plans from the latest commit.
+#   - A plan that destroys or replaces a github_repository is refused. Deleting a repository on GitHub is
+#     irreversible; to offboard one, remove it from the Terraform state with scripts/offboard-repos.sh (or
+#     `terraform state rm`) instead. A replace is usually an accidental change of the repository name:
+#     revert that change.
+#   - The plan is saved on the runner and applied from the same job, because a plan file contains
+#     sensitive values in clear text and must not travel as an artifact.
+#
+# Requires (see ci/docs/authentication.md):
+#   variable TF_APPLY_APP_CLIENT_ID, environment secret TF_APPLY_APP_PRIVATE_KEY, and credentials for your
+#   state backend.
+on:
+  push:
+    branches: [main] # PLACEHOLDER: your default branch
+    paths:
+      - "config/**"
+      - "**.tf"
+
+permissions: {}
+
+concurrency:
+  group: terraform-apply
+  cancel-in-progress: false
+
+env:
+  # Directory that holds main.tf. Use "." for a repository laid out like examples/consumer.
+  TF_WORKING_DIR: .
+  # Wait for a state lock held by a drift run instead of failing at once.
+  TF_CLI_ARGS_plan: -lock-timeout=5m
+  TF_CLI_ARGS_apply: -lock-timeout=5m
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: github-org-apply # PLACEHOLDER: your protected environment
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "~> 1.10" # PLACEHOLDER: the version you run locally
+          terraform_wrapper: false
+
+      # PLACEHOLDER: add the steps that give Terraform access to your state backend here, for example
+      # aws-actions/configure-aws-credentials with an OIDC role (pin it to a full commit SHA).
+
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.TF_APPLY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.TF_APPLY_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -input=false
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Terraform plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform plan -no-color -input=false -out="$RUNNER_TEMP/tfplan"
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Refuse to destroy or replace repositories
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: bash
+        run: |
+          set -o pipefail
+          repos="$(terraform show -json "$RUNNER_TEMP/tfplan" | jq -r '
+            [.resource_changes[]?
+              | select(.type == "github_repository")
+              | select(.change.actions | index("delete"))
+              | .address] | join(", ")')"
+          if [ -n "$repos" ]; then
+            msg="The plan would destroy or replace: $repos."
+            msg="$msg Offboard a repository by removing it from the Terraform state (scripts/offboard-repos.sh),"
+            msg="$msg not by letting an apply delete it. If this is a replace, revert the change to the repository name."
+            echo "::error title=Repository destroy refused::$msg"
+            exit 1
+          fi
+
+      - name: Terraform apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -no-color -input=false "$RUNNER_TEMP/tfplan"
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
