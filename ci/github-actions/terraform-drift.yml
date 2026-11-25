@@ -1,0 +1,99 @@
+name: Terraform Drift
+
+# Template: copy to .github/workflows/ in your consumer repository. See ci/README.md.
+#
+# Checks nightly whether the real GitHub state still matches the configuration. It runs
+# scripts/detect-drift.sh, which plans with a full refresh (never -refresh=false: that would hide
+# out-of-band changes) and exits with a documented code:
+#
+#   0  no drift
+#   1  error (missing tool, failed plan, invalid plan JSON)
+#   2  drift: the plan changes at least one resource
+#   3  critical drift: a github_repository would be destroyed or replaced
+#
+# The script is called directly, not through `make drift-check`: GNU make turns any failing recipe into
+# exit status 2, so the codes could no longer be told apart.
+#
+# The script and its helper must exist in your repository: copy scripts/detect-drift.sh and
+# scripts/drift_report.py from github.com/gjed/terraform-github-config-as-yaml, keep them executable, and
+# pin them to the module release you use. A fork of that repository already has them.
+#
+# The job uses the READ-ONLY plan App. It fails on any non-zero code, so GitHub's failed-workflow
+# notification is the alert; the markdown report is in the job summary. Notifying a chat or opening an
+# issue is deliberately left to you.
+#
+# Requires (see ci/docs/authentication.md):
+#   variable TF_PLAN_APP_CLIENT_ID, secret TF_PLAN_APP_PRIVATE_KEY, and credentials for your state backend.
+on:
+  schedule:
+    - cron: "17 2 * * *" # PLACEHOLDER: nightly at 02:17 UTC; pick an odd minute to avoid the top of the hour
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: terraform-drift
+  cancel-in-progress: false
+
+env:
+  # Directory that holds main.tf. Use "." for a repository laid out like examples/consumer.
+  TF_WORKING_DIR: .
+  # Wait for a state lock held by an apply instead of failing at once.
+  TF_CLI_ARGS_plan: -lock-timeout=10m
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "~> 1.10" # PLACEHOLDER: the version you run locally
+          terraform_wrapper: false
+
+      # PLACEHOLDER: add the steps that give Terraform access to your state backend here, for example
+      # aws-actions/configure-aws-credentials with an OIDC role (pin it to a full commit SHA).
+
+      - name: Create read-only GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.TF_PLAN_APP_CLIENT_ID }}
+          private-key: ${{ secrets.TF_PLAN_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -input=false
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Detect drift
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          # Only for a repository that uses the root module directly (a fork of the module). A consumer
+          # that calls the module with `config_path = "${path.root}/config"` does not need it.
+          # TF_VAR_config_path: ${{ github.workspace }}/config
+        shell: bash
+        run: |
+          set +e
+          "$GITHUB_WORKSPACE/scripts/detect-drift.sh" --format markdown > "$RUNNER_TEMP/drift.md"
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/drift.md" >> "$GITHUB_STEP_SUMMARY"
+          case "$code" in
+            0) echo "No drift detected." ;;
+            2) echo "::error title=Drift detected::GitHub differs from the configuration. See the job summary." ;;
+            3) echo "::error title=Critical drift::A repository would be destroyed or replaced. See the job summary." ;;
+            *) echo "::error title=Drift check failed::detect-drift.sh exited with $code. See the log." ;;
+          esac
+          exit "$code"
