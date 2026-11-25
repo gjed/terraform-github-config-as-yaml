@@ -211,12 +211,14 @@ ______________________________________________________________________
 ### Requirement: Repository Resource Management
 
 The system SHALL create and manage GitHub repositories using the Terraform GitHub provider.
+Repositories SHALL have `archive_on_destroy` applied from the module variable (default `true`).
 
 #### Scenario: Create new repository
 
-- **WHEN** a repository is defined in `repositories.yml` that does not exist in GitHub
+- **WHEN** a repository is defined in configuration that does not exist in GitHub
 - **AND** `terraform apply` is executed
 - **THEN** the repository is created with the specified settings
+- **AND** `archive_on_destroy` is applied from the module variable (default `true`)
 
 #### Scenario: Update existing repository
 
@@ -230,9 +232,14 @@ The system SHALL create and manage GitHub repositories using the Terraform GitHu
 - **THEN** the following settings are applied: visibility, description, homepage_url, has_wiki,
   has_issues, has_projects, has_discussions, allow_merge_commit, allow_squash_merge,
   allow_rebase_merge, allow_auto_merge, allow_update_branch, delete_branch_on_merge,
-  web_commit_signoff_required, vulnerability_alerts, topics, license_template
+  web_commit_signoff_required, vulnerability_alerts, topics, license_template, archive_on_destroy
 
-______________________________________________________________________
+#### Scenario: Repository archived on destroy
+
+- **WHEN** a repository is removed from configuration
+- **AND** `terraform apply` is executed
+- **THEN** the repository is archived instead of permanently deleted (with the default
+  `archive_on_destroy = true`)
 
 ### Requirement: Team Access Management
 
