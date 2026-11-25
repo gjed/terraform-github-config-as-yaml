@@ -387,6 +387,40 @@ an unsupported tier.
 ./scripts/import-repo.sh <org-name> <repo-name>
 ```
 
+### Detecting drift
+
+Drift is a difference between the real GitHub state and the configuration, caused by manual changes
+(GitHub UI, `gh`, other API clients). `make drift-check` runs a full-refresh `terraform plan`
+(`-detailed-exitcode`, never `-refresh=false`), converts it with `terraform show -json` and summarises it:
+
+```bash
+make drift-check                        # text report (coloured on a terminal)
+make drift-check FORMAT=markdown        # for a PR comment or issue body
+make drift-check REPO=my-repo           # one repository, same -target as plan-repo
+./scripts/detect-drift.sh --format json --plan-file drift.tfplan
+```
+
+Run it where `terraform init` was done and `GITHUB_TOKEN` is set. The report goes to stdout; progress and
+Terraform output go to stderr, so `--format json` can be piped.
+
+Exit codes, decided from the plan JSON:
+
+| Code | Meaning                                                           |
+| ---- | ----------------------------------------------------------------- |
+| 0    | No drift                                                          |
+| 1    | Error (missing tool, failed plan, invalid plan JSON, bad option)  |
+| 2    | Drift: the plan changes at least one resource                     |
+| 3    | Critical drift: a `github_repository` would be destroyed/replaced |
+
+The report groups changes by repository (organization-level resources last) and flags as critical any
+destroy or replace of a `github_repository`, and any change that weakens security: visibility
+`private`/`internal` to `public`, a branch protection or ruleset deleted or disabled, required signatures
+removed. Sensitive values print as `(sensitive)`. The helper can also be used on its own:
+`terraform show -json tfplan | python scripts/drift_report.py --format markdown`.
+
+A kept `--plan-file` contains sensitive values in clear text; treat it as a secret. Notifications,
+auto-remediation and scheduled CI runs are not part of this script.
+
 ## Development Workflow
 
 1. Create/activate virtual environment: `source .venv/bin/activate`
