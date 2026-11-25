@@ -460,8 +460,9 @@ my-repo:
    `skipped_custom_properties` output lists the skipped definitions and `validate-config.py` warns.
    `managed_custom_properties` lists the created definitions.
 
-1. Property definitions are created before any repository assignment. Changing a property's `value_type`
-   replaces it, so review the plan first; `values_editable_by` defaults to `org_actors` when omitted.
+1. Property definitions are created before any repository assignment. Changing a property's `value_type` is
+   planned as an in-place update, so the plan shows no replacement and GitHub may reject the change at apply
+   time; review the plan first. `values_editable_by` defaults to `org_actors` when omitted.
 
 1. Run `terraform plan` to review the changes before applying.
 
