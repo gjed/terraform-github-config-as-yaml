@@ -1,0 +1,10 @@
+private-app:
+  description: "Private by default, so its environments are skipped on the free tier"
+  groups:
+    - base
+
+public-app:
+  description: "Public repositories keep their environments on the free tier"
+  groups:
+    - base
+  visibility: public

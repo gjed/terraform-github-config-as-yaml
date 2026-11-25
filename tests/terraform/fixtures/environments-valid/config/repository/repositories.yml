@@ -1,0 +1,41 @@
+env-app:
+  description: "Later group replaces the production environment of an earlier group"
+  groups:
+    - base
+    - hardened
+  environments:
+    qa:
+      reviewers:
+        teams:
+          - platform
+      secrets:
+        QA_SECRET:
+          value: "env:API_TOKEN"  # pragma: allowlist secret
+      variables:
+        RETRIES:
+          value: 3
+
+env-lib:
+  description: "Repository entry replaces the group's production environment as a whole"
+  groups:
+    - base
+  environments:
+    production:
+      wait_timer: 0
+      can_admins_bypass: false
+
+env-plain:
+  description: "No environments at all"
+  groups: []
+
+env-nulls:
+  description: "Explicit nulls and empty environments fall back to the defaults"
+  groups: []
+  environments:
+    bare:
+      wait_timer: null
+      reviewers: null
+      deployment_branch_policy: null
+      secrets: null
+      variables: null
+    empty:

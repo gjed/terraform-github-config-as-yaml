@@ -1,0 +1,35 @@
+base:
+  environments:
+    staging:
+      wait_timer: 5
+      deployment_branch_policy:
+        custom_branch_policies: true
+        branch_patterns:
+          - main
+          - "release/*"
+        tag_patterns:
+          - "v*"
+      variables:
+        LOG_LEVEL:
+          value: info
+    production:
+      wait_timer: 30
+      reviewers:
+        teams:
+          - platform
+      secrets:
+        GROUP_SECRET:
+          value: "env:DEPLOY_TOKEN"  # pragma: allowlist secret
+
+hardened:
+  environments:
+    production:
+      wait_timer: 60
+      prevent_self_review: true
+      reviewers:
+        users:
+          - octocat
+        teams:
+          - security-team
+      deployment_branch_policy:
+        protected_branches: true
