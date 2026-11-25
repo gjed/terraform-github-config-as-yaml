@@ -22,9 +22,9 @@
 
 ## 5. Spec Updates
 
-- [ ] 5.1 Archive the change specs into the main `openspec/specs/` directory after implementation is complete
+- [x] 5.1 Archive the change specs into the main `openspec/specs/` directory after implementation is complete
 
 ## 6. Verification
 
 - [x] 6.1 Run `terraform fmt` and `terraform validate` to verify no syntax errors
-- [ ] 6.2 Run `pre-commit run --all-files` to verify all hooks pass
+- [x] 6.2 Run `pre-commit run --all-files` to verify all hooks pass
