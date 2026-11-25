@@ -1,0 +1,6 @@
+security-team:
+  description: "Managed reviewer team"
+  privacy: closed
+  members: []
+  maintainers: []
+  review_request_delegation: null

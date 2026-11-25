@@ -1,0 +1,7 @@
+base:
+  environments:
+    production:
+      wait_timer: 10
+      secrets:
+        DEPLOY_TOKEN:
+          value: "env:DEPLOY_TOKEN"  # pragma: allowlist secret
