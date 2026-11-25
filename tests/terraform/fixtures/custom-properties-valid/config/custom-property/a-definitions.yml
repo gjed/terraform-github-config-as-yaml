@@ -1,0 +1,24 @@
+environment:
+  description: "Deployment environment"
+  value_type: single_select
+  required: true
+  default_value: development
+  allowed_values:
+    - development
+    - staging
+    - production
+
+compliance_level:
+  value_type: single_select
+  allowed_values:
+    - soc2
+    - hipaa
+    - none
+  values_editable_by: org_and_repo_actors
+
+tags:
+  value_type: multi_select
+  allowed_values:
+    - frontend
+    - backend
+    - critical

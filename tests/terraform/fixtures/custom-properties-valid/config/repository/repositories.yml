@@ -1,0 +1,26 @@
+cp-app:
+  description: "Later group and repository override earlier values"
+  groups:
+    - base
+    - oss
+  custom_property_values:
+    compliance_level: soc2
+    tags:
+      - backend
+      - critical
+    is_deprecated: false
+
+cp-lib:
+  description: "Inherits everything from the base group"
+  groups:
+    - base
+
+cp-plain:
+  description: "No values: the required property falls back to its default"
+  groups: []
+
+cp-nulls:
+  description: "Explicit nulls must not break the plan"
+  groups:
+    - nulls
+  custom_property_values:
