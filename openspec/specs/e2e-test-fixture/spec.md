@@ -89,8 +89,6 @@ any selection variable.
 - **THEN** `e2e-partitioned-repo` (defined in `config/repository/partitioned/`) appears in the
   `repositories` output
 
----
-
 ### Requirement: Subscription-gating outputs are exercised
 
 The fixture, running with `subscription: free`, SHALL produce non-null
