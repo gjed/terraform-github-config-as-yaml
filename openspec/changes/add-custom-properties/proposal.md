@@ -8,15 +8,17 @@ forcing users to configure them manually outside Terraform and breaking the "con
 ## What Changes
 
 - Add support for **defining custom property schemas** at the organization level via
-  `github_organization_custom_properties` resources, configured in YAML under `config/config.yml` or a new
-  `config/custom-property/` directory
+  `github_organization_custom_properties` resources, configured in a new `config/custom-property/` directory
 - Add support for **assigning custom property values** to repositories via `github_repository_custom_property`
   resources, configurable per-group and per-repo in YAML (with the standard group-merge + repo-override inheritance)
-- Add subscription tier gating: custom properties require Team or Enterprise subscription; skip gracefully on Free/Pro
-  tiers (matching existing patterns for org rulesets, security managers)
-- Add validation: referenced property names must be defined, select-type values must be in the allowed set, required
-  properties must have values assigned
-- Extend the validation script, outputs, and AGENTS.md documentation
+- Add subscription tier gating: custom properties require Team or Enterprise subscription on an organization; on
+  Free/Pro tiers and personal accounts definitions and assignments are skipped and reported in a
+  `skipped_custom_properties` output and a `validate-config.py` warning (matching org rulesets and environments)
+- Add validation, in `validate-config.py` and mirrored as Terraform preconditions for module consumers: referenced
+  property names must be defined, values must match the property's type and `allowed_values`, defaults must be valid,
+  and a required property without a default must have a value on every repository
+- Extend outputs with `managed_custom_properties` and `skipped_custom_properties` (names only), the offline
+  `terraform test` suite, the e2e fixture and AGENTS.md / README.md documentation
 
 ## Capabilities
 
@@ -32,15 +34,19 @@ forcing users to configure them manually outside Terraform and breaking the "con
 
 ## Impact
 
-- **New config directory**: `config/custom-property/` (or inline in `config.yml` under `custom_properties:`)
-- **yaml-config.tf**: New locals for loading, merging, and validating custom property definitions and assignments
-- **main.tf**: New `github_organization_custom_properties` resource block; new `github_repository_custom_property`
-  resources (likely inside or alongside `modules/repository/`)
-- **modules/repository/**: New `custom_property_values` variable and corresponding `github_repository_custom_property` resources
-- **variables.tf / outputs.tf**: New outputs for managed properties and any skipped-tier warnings
-- **scripts/validate-config.py**: Validation rules for property definitions and value assignments
+- **New config directory**: `config/custom-property/` (one property per top-level key, optional directory)
+- **yaml-config.tf**: New locals for loading the definitions (with duplicate detection), merging and normalizing
+  `custom_property_values`, and tier gating
+- **custom-properties.tf** (new, like `org-secrets.tf`): `github_organization_custom_properties` resource with
+  preconditions for the definitions and for required properties
+- **main.tf**: `module "repositories"` receives `custom_property_values` and depends on the definitions
+- **modules/repository/**: New `custom_property_values` variable and `github_repository_custom_property` resource with
+  preconditions for the assigned values
+- **outputs.tf**: `managed_custom_properties`, `skipped_custom_properties`, and custom property keys in
+  `duplicate_key_warnings`
+- **scripts/validate-config.py**: `custom_property_values` group/repository key, definition and assignment validators
+  and a tier warning
+- **tests/**: pytest suite, offline `terraform test` suite with fixtures, e2e fixture and `verify_e2e.py` checks
 - **AGENTS.md / README.md**: Documentation for the new feature
-- **Dependency ordering**: Property definitions must be created before repo assignments (Terraform handles this via
-  `depends_on` or implicit reference)
-- **Provider constraint**: Uses existing `integrations/github ~> 6.0` — both resources are available in current provider
-  versions
+- **Provider constraint**: Uses the existing `integrations/github >= 6.12.0` constraint; both resources exist in the
+  locked 6.13.0 provider (`property_value` is a set of strings, `default_value` a string)

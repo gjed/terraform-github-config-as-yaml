@@ -1,71 +1,60 @@
-## 1. YAML Config Loading (yaml-config.tf)
+## 1. YAML config loading (yaml-config.tf)
 
-- [ ] 1.1 Add `custom_property_config_path` local and `custom_property_files` fileset (optional directory pattern
-      matching `membership_config_path`)
-- [ ] 1.2 Add `custom_property_configs_by_file` map for per-file loading (duplicate detection)
-- [ ] 1.3 Add `duplicate_custom_property_keys` local and `check "duplicate_custom_property_keys"` block
-- [ ] 1.4 Add `custom_properties_config` merged map of all property definitions
-- [ ] 1.5 Add subscription tier gating locals: `custom_properties_supported` (`team`/`enterprise` + `is_organization`),
-      `effective_custom_properties`, `skipped_custom_property_names`
+- [ ] 1.1 Load `config/custom-property/*.yml` (optional directory, comment-only files tolerated) into per-file maps and
+  a merged `custom_properties_config`
+- [ ] 1.2 Detect duplicate property names across files (`duplicate_custom_property_keys`) with a
+  `check "duplicate_custom_property_keys"` block and an entry in the `duplicate_key_warnings` output
+- [ ] 1.3 Normalize each definition to a uniform shape (`description`, `value_type`, `required`, `default_value`,
+  `allowed_values`, `values_editable_by`) tolerant of nulls and YAML booleans
+- [ ] 1.4 Add tier gating locals: `custom_properties_supported` (`team`/`enterprise` and `is_organization`),
+  `effective_custom_properties`, `skipped_custom_property_names`
 
-## 2. Custom Property Value Merging (yaml-config.tf)
+## 2. Value merging and normalization (yaml-config.tf)
 
-- [ ] 2.1 Add `merged_custom_property_values` local that collects `custom_property_values:` from groups (in order) and
-      merges with repo-level values (repo overrides group, matching `merged_teams` pattern)
-- [ ] 2.2 Add `effective_custom_property_values` local that returns empty maps when `custom_properties_supported` is false
-- [ ] 2.3 Add the `custom_property_values` key to the `repositories` local block, passing effective values to each repo
+- [ ] 2.1 Merge `custom_property_values` from groups (in order) and the repository (repository wins by property name)
+- [ ] 2.2 Normalize scalars to one-element lists and pass lists through; attach the definition's `value_type` and
+  `allowed_values`; filter everything out when `custom_properties_supported` is false
+- [ ] 2.3 Add `custom_property_values` to the `repositories` local block
+- [ ] 2.4 Compute the repositories missing each required property that has no default
 
-## 3. Normalize Values for Provider (yaml-config.tf)
+## 3. Resources and wiring
 
-- [ ] 3.1 Add normalization logic that wraps scalar values in a single-element list and passes list values through for
-      `multi_select` types (lookup property type from `custom_properties_config`)
+- [ ] 3.1 Add `custom-properties.tf` with `github_organization_custom_properties` (`for_each` over
+  `effective_custom_properties`) and preconditions for `value_type`, `allowed_values`, `default_value`,
+  `values_editable_by` and required properties
+- [ ] 3.2 Add the `custom_property_values` variable to `modules/repository/variables.tf`
+- [ ] 3.3 Add `github_repository_custom_property` to `modules/repository/main.tf` with preconditions for undefined
+  properties, value shape and allowed values, and expose the assigned names in `modules/repository/outputs.tf`
+- [ ] 3.4 Pass `custom_property_values` to `module "repositories"` and add `depends_on` on the definitions
+- [ ] 3.5 Add `managed_custom_properties` and `skipped_custom_properties` outputs to `outputs.tf`
 
-## 4. Organization-Level Resources (main.tf)
+## 4. Validation (scripts/validate-config.py)
 
-- [ ] 4.1 Add `github_organization_custom_properties` resource with `for_each = local.effective_custom_properties`
-      mapping YAML fields to resource arguments (`property_name`, `value_type`, `required`, `description`,
-      `default_value`, `allowed_values`, `values_editable_by`)
-- [ ] 4.2 Add `depends_on = [github_organization_custom_properties.this]` to the `module "repositories"` block
+- [ ] 4.1 Add `custom_property_values` to `VALID_GROUP_KEYS` and load `config/custom-property/` (`set_config_dir`
+  included)
+- [ ] 4.2 Validate definitions: `value_type`, `allowed_values` vs type, `default_value`, `values_editable_by`, unknown keys
+- [ ] 4.3 Validate assignments in groups and repositories: undefined names, value shape, allowed values, `true_false`
+- [ ] 4.4 Validate required properties against each repository's effective values and the property default
+- [ ] 4.5 Warn when definitions or assignments exist on an unsupported tier or account type
 
-## 5. Repository-Level Resources (modules/repository/)
+## 5. Tests
 
-- [ ] 5.1 Add `custom_property_values` variable to `modules/repository/variables.tf` (type: `map(list(string))`,
-      default: `{}`)
-- [ ] 5.2 Add `github_repository_custom_property` resource in `modules/repository/main.tf` with `for_each` over
-      `var.custom_property_values`, setting `repository`, `property_name`, `property_type`, and `property_value`
+- [ ] 5.1 Add `tests/test_validate_custom_properties.py`
+- [ ] 5.2 Add `tests/custom_properties.tftest.hcl` with fixtures: merge precedence, scalar-to-list normalization, tier skip
+  with output, duplicate detection, invalid value and required-missing failures
+- [ ] 5.3 Extend the e2e fixture (`tests/e2e/config`, `tests/e2e/main.tf`) and `tests/verify_e2e.py`
 
-## 6. Module Interface (main.tf)
+## 6. Documentation and examples
 
-- [ ] 6.1 Pass `custom_property_values = each.value.custom_property_values` to the `module "repositories"` block
+- [ ] 6.1 Add `config/custom-property/examples.yml` (commented, all four types) and commented
+  `custom_property_values:` examples in the template group and repository YAML
+- [ ] 6.2 Add "Managing custom properties" to AGENTS.md (definitions, assignments, tier requirements, inheritance,
+  required and default semantics)
+- [ ] 6.3 Add custom properties to the README.md feature list and configuration reference
 
-## 7. Outputs (outputs.tf)
+## 7. Verification
 
-- [ ] 7.1 Add `skipped_custom_properties` output listing property names skipped due to tier/account type
-- [ ] 7.2 Add `managed_custom_properties` output listing property names that are actively managed
-
-## 8. Template YAML Config
-
-- [ ] 8.1 Create `config/custom-property/` directory with a commented example `.yml` file showing all property types
-      (string, single_select, multi_select, true_false)
-- [ ] 8.2 Add commented `custom_property_values:` examples in the template group and repository YAML files
-
-## 9. Validation Script (scripts/validate-config.py)
-
-- [ ] 9.1 Add custom property definition loading and schema validation (value_type enum, allowed_values only on select types)
-- [ ] 9.2 Add validation that `custom_property_values:` references exist in property definitions
-- [ ] 9.3 Add validation that select-type values are in the `allowed_values` list
-- [ ] 9.4 Add validation that required properties have values for all repos (warning level, not blocking)
-- [ ] 9.5 Add tier-awareness: skip property validations when subscription doesn't support them (with info message)
-
-## 10. Documentation
-
-- [ ] 10.1 Add "Managing custom properties" section to AGENTS.md with YAML examples, tier requirements, and inheritance
-      explanation
-- [ ] 10.2 Update README.md features list to include custom properties
-
-## 11. Verification
-
-- [ ] 11.1 Run `terraform fmt` on all modified `.tf` files
-- [ ] 11.2 Run `terraform validate` to confirm syntax
-- [ ] 11.3 Run `pre-commit run --all-files` to confirm all hooks pass
-- [ ] 11.4 Run `terraform plan` (with example config) to verify resource creation and dependency ordering
+- [ ] 7.1 `terraform fmt -check -recursive`, `terraform validate` and `terraform test` pass
+- [ ] 7.2 `pytest tests/`, `python scripts/validate-config.py` and `openspec validate --all` pass
+- [ ] 7.3 `pre-commit run --all-files` and the markdown lint pass
+- [ ] 7.4 Archive the change and fix the Purpose heading spacing in the new specs
