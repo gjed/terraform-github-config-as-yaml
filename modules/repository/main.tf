@@ -376,6 +376,12 @@ resource "github_repository_environment" "this" {
       error_message = "Environment '${each.key}': branch_patterns and tag_patterns require deployment_branch_policy.custom_branch_policies: true."
     }
     precondition {
+      condition = !each.value.deployment_branch_policy.custom_branch_policies || (
+        length(each.value.deployment_branch_policy.branch_patterns) + length(each.value.deployment_branch_policy.tag_patterns) > 0
+      )
+      error_message = "Environment '${each.key}': deployment_branch_policy.custom_branch_policies: true needs at least one entry in branch_patterns or tag_patterns, otherwise no branch or tag can deploy."
+    }
+    precondition {
       condition     = each.value.wait_timer >= 0 && each.value.wait_timer <= 43200
       error_message = "Environment '${each.key}': wait_timer must be between 0 and 43200 minutes."
     }

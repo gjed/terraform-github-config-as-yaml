@@ -71,6 +71,7 @@ class TestBranchPolicy:
                 "deployment_branch_policy": {
                     "protected_branches": True,
                     "custom_branch_policies": True,
+                    "branch_patterns": ["main"],
                 }
             }
         )
@@ -98,6 +99,22 @@ class TestBranchPolicy:
             }
         )
         assert len(errors) == 1
+
+    @pytest.mark.parametrize(
+        "policy",
+        [
+            {"custom_branch_policies": True},
+            {"custom_branch_policies": True, "branch_patterns": [], "tag_patterns": None},
+        ],
+    )
+    def test_custom_policies_need_a_pattern(self, policy):
+        errors = _errors({"deployment_branch_policy": policy})
+        assert len(errors) == 1
+        assert "at least one" in errors[0]
+
+    def test_a_tag_pattern_alone_is_enough(self):
+        policy = {"custom_branch_policies": True, "tag_patterns": ["v*"]}
+        assert _errors({"deployment_branch_policy": policy}) == []
 
     def test_unknown_policy_key(self):
         errors = _errors({"deployment_branch_policy": {"branches": ["main"]}})

@@ -1551,6 +1551,16 @@ def validate_environment(label: str, name, env) -> list[str]:
                     f"{policy_label}: 'protected_branches' and 'custom_branch_policies' "
                     "are mutually exclusive"
                 )
+            if (
+                custom
+                and not policy.get("branch_patterns")
+                and not policy.get("tag_patterns")
+            ):
+                errors.append(
+                    f"{policy_label}: 'custom_branch_policies: true' needs at least one "
+                    "entry in 'branch_patterns' or 'tag_patterns', otherwise no branch "
+                    "or tag can deploy"
+                )
             for key in ("branch_patterns", "tag_patterns"):
                 patterns = policy.get(key)
                 errors.extend(_validate_string_list(f"{policy_label} {key}", patterns))
