@@ -417,7 +417,7 @@ locals {
       value_type         = try(tostring(p.value_type), null)
       required           = try(tobool(p.required), false)
       default_value      = try(tostring(p.default_value), null)
-      allowed_values     = try(tolist(p.allowed_values), null)
+      allowed_values     = try([for v in tolist(p.allowed_values) : tostring(v)], null)
       values_editable_by = try(tostring(p.values_editable_by), null)
     }
   }
