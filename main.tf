@@ -71,8 +71,14 @@ module "repositories" {
   secrets   = each.value.secrets
   variables = each.value.variables
 
-  # Team slug => ID map used to resolve ruleset required_reviewers given by slug
+  # Repository environments (secret values resolved in yaml-config.tf)
+  environments = each.value.environments
+
+  # Team slug => ID map used to resolve ruleset and environment reviewers given by slug
   team_ids = local.reviewer_team_ids
+
+  # User login => ID map used to resolve environment reviewers
+  user_ids = local.environment_reviewer_user_ids
 }
 
 # Organization membership management
@@ -408,6 +414,17 @@ locals {
     { for slug, team in data.github_team.reviewers : slug => team.id },
     { for slug in local.reviewer_team_slugs : slug => local.managed_team_ids[slug] if contains(local.managed_team_slugs, slug) },
   )
+}
+
+# Environment reviewers are users given by login; the provider takes numeric IDs.
+data "github_user" "environment_reviewers" {
+  for_each = local.environment_reviewer_users
+
+  username = each.value
+}
+
+locals {
+  environment_reviewer_user_ids = { for login, user in data.github_user.environment_reviewers : login => user.id }
 }
 
 data "github_team" "reviewers" {

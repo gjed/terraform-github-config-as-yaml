@@ -47,6 +47,17 @@ output "variable_names" {
   value       = keys(github_actions_variable.this)
 }
 
+# Names only - environment secret and variable values are never exposed as outputs
+output "environments" {
+  description = "Names of managed environments with their secret and variable names"
+  value = {
+    for env, r in github_repository_environment.this : env => {
+      secrets   = sort([for k, s in github_actions_environment_secret.this : s.secret_name if s.environment == env])
+      variables = sort([for k, v in github_actions_environment_variable.this : v.variable_name if v.environment == env])
+    }
+  }
+}
+
 output "webhooks" {
   description = "Map of webhook names to their URLs"
   value = {

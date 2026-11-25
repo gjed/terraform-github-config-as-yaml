@@ -989,21 +989,28 @@ locals {
     (local.rulesets_require_paid_for_private && local.repo_visibility[repo_name] != "public") ? tomap({}) : rulesets
   }
 
-  # Team slugs referenced as ruleset required_reviewers (pull_request rule) that
-  # need resolving to a team ID. Reviewers given by numeric id are excluded.
-  # Only effective rulesets count, so skipped rulesets trigger no team lookups.
-  reviewer_team_slugs = toset(flatten([
-    for ruleset in concat(
-      flatten([for repo_name, rulesets in local.effective_rulesets : values(rulesets)]),
-      values(local.effective_org_rulesets),
-      ) : [
-      for rule in try(ruleset.rules, []) : [
-        for reviewer in coalesce(try(rule.parameters.required_reviewers, null), []) :
-        reviewer.reviewer.slug
-        if try(reviewer.reviewer.id, null) == null && try(reviewer.reviewer.slug, null) != null
-      ] if try(rule.type, null) == "pull_request"
-    ]
-  ]))
+  # Team slugs referenced as ruleset required_reviewers (pull_request rule) or as environment
+  # reviewers that need resolving to a team ID. Reviewers given by numeric id are excluded.
+  # Only effective rulesets and environments count, so skipped ones trigger no team lookups.
+  reviewer_team_slugs = toset(concat(
+    flatten([
+      for ruleset in concat(
+        flatten([for repo_name, rulesets in local.effective_rulesets : values(rulesets)]),
+        values(local.effective_org_rulesets),
+        ) : [
+        for rule in try(ruleset.rules, []) : [
+          for reviewer in coalesce(try(rule.parameters.required_reviewers, null), []) :
+          reviewer.reviewer.slug
+          if try(reviewer.reviewer.id, null) == null && try(reviewer.reviewer.slug, null) != null
+        ] if try(rule.type, null) == "pull_request"
+      ]
+    ]),
+    flatten([
+      for repo_name, envs in local.effective_environments : [
+        for env_name, e in envs : e.reviewers.teams
+      ]
+    ]),
+  ))
 
   # Track which repos have rulesets skipped due to subscription limitations
   repos_with_skipped_rulesets = [
@@ -1164,6 +1171,77 @@ locals {
     }
   }
 
+  # Merge environments from groups (in order) and the repo for each repository.
+  # Later definitions replace earlier ones by environment name (whole-definition replacement,
+  # so a repo override cannot silently inherit a group's reviewers or secrets).
+  merged_environments_raw = {
+    for repo_name, repo_config in local.repos_yaml : repo_name => merge(concat(
+      [for g in repo_config.groups : try(merge(local.config_groups[g].environments), {})],
+      [try(merge(repo_config.environments), {})],
+    )...)
+  }
+
+  # Normalise each environment to a uniform shape and resolve env:VAR_NAME references for its
+  # secrets (same rules as repo-level secrets). Lists use coalesce because an explicit null in
+  # YAML would otherwise bypass the module's defaults.
+  merged_environments = {
+    for repo_name, envs in local.merged_environments_raw : repo_name => {
+      for env_name, e in envs : env_name => {
+        wait_timer          = try(e.wait_timer, null)
+        can_admins_bypass   = try(e.can_admins_bypass, null)
+        prevent_self_review = try(e.prevent_self_review, null)
+        reviewers = {
+          users = coalesce(try(e.reviewers.users, null), [])
+          teams = coalesce(try(e.reviewers.teams, null), [])
+        }
+        deployment_branch_policy = {
+          protected_branches     = try(e.deployment_branch_policy.protected_branches, null)
+          custom_branch_policies = try(e.deployment_branch_policy.custom_branch_policies, null)
+          branch_patterns        = coalesce(try(e.deployment_branch_policy.branch_patterns, null), [])
+          tag_patterns           = coalesce(try(e.deployment_branch_policy.tag_patterns, null), [])
+        }
+        secrets = {
+          for name, s in try(merge(e.secrets), {}) : name => {
+            value  = can(regex(local.secret_ref_pattern, try(tostring(s.value), ""))) ? lookup(var.secret_values, substr(tostring(s.value), 4, -1), null) : null
+            source = can(regex(local.secret_ref_pattern, try(tostring(s.value), ""))) ? tostring(s.value) : "non-env value"
+          }
+        }
+        variables = {
+          for name, v in try(merge(e.variables), {}) : name => {
+            value = try(tostring(v.value), null)
+          }
+        }
+      }
+    }
+  }
+
+  # Environments need a paid plan on private repositories (reviewers, wait timers and
+  # deployment branch policies). On free they are skipped as a whole rather than created
+  # without protection rules; skipped_environments reports them.
+  environments_require_paid_for_private = contains(["free"], local.subscription)
+
+  effective_environments = {
+    for repo_name, envs in local.merged_environments : repo_name => {
+      # A filter rather than a conditional: environments differ in shape per repository, and a
+      # conditional would have to unify them with an empty map.
+      for env_name, e in envs : env_name => e
+      if !(local.environments_require_paid_for_private && local.repo_visibility[repo_name] != "public")
+    }
+  }
+
+  repos_with_skipped_environments = {
+    for repo_name, envs in local.merged_environments : repo_name => sort(keys(envs))
+    if length(envs) > 0 && length(local.effective_environments[repo_name]) == 0
+  }
+
+  # Logins referenced as environment reviewers that need resolving to a user ID.
+  # Only effective environments count, so skipped ones trigger no lookups.
+  environment_reviewer_users = toset(flatten([
+    for repo_name, envs in local.effective_environments : [
+      for env_name, e in envs : e.reviewers.users
+    ]
+  ]))
+
   # Transform YAML repos into the format expected by the module
   # Multiple groups are applied sequentially with proper merging
   repositories = {
@@ -1223,6 +1301,10 @@ locals {
       # Secrets and variables: merged from groups + repo (repo overrides group by name)
       secrets   = local.merged_secrets[repo_name]
       variables = local.merged_variables[repo_name]
+
+      # Environments: merged from groups + repo (repo overrides group by name)
+      # Note: effective_environments filters based on subscription tier
+      environments = local.effective_environments[repo_name]
 
       # Branch protections: merge from all groups + repo-specific (repo overrides group by name)
       # Note: effective_branch_protections filters based on subscription tier
