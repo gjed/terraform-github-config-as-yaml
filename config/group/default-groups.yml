@@ -67,6 +67,12 @@ oss:
   #     secrets:
   #       DEPLOY_TOKEN:
   #         value: "env:DEPLOY_TOKEN"
+  # Custom properties: values for properties defined in config/custom-property/. Groups apply in
+  # order and a repository value replaces a group value. Scalars for single-value types, a list for
+  # multi_select. Team or Enterprise organizations only (skipped on free/pro).
+  # custom_property_values:
+  #   environment: production
+  #   tags: ["frontend", "critical"]
 
 # Internal - Private repositories
 # Use this group for internal/private projects

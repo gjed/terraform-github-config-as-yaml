@@ -1,0 +1,56 @@
+# Custom Property Definitions
+# Define organization custom properties here, one property per top-level key.
+# Assign values to repositories with custom_property_values: in groups and repositories.
+#
+# Requires an organization on the team or enterprise subscription. On free/pro or a
+# personal account the definitions and assignments are skipped and listed in the
+# skipped_custom_properties output.
+#
+# Schema:
+#   property-name:
+#     description: "Human-readable description"   # Optional
+#     value_type: single_select                    # Required: string, single_select, multi_select, true_false
+#     required: false                              # Optional: default false
+#     default_value: "development"                 # Optional: string; one of allowed_values for select types
+#     allowed_values: [a, b]                       # Required for select types, not allowed for the others
+#     values_editable_by: org_actors               # Optional: org_actors (default) or org_and_repo_actors
+#
+# A required property without a default_value must be set on every managed repository,
+# in a group or repository custom_property_values:. A default_value satisfies it.
+#
+# Example property definitions (uncomment to use):
+
+# environment:
+#   description: "Deployment environment"
+#   value_type: single_select
+#   required: true
+#   default_value: development
+#   allowed_values:
+#     - development
+#     - staging
+#     - production
+
+# compliance_level:
+#   description: "Compliance requirements"
+#   value_type: single_select
+#   allowed_values:
+#     - soc2
+#     - hipaa
+#     - none
+
+# tags:
+#   description: "Repository tags"
+#   value_type: multi_select
+#   allowed_values:
+#     - frontend
+#     - backend
+#     - critical
+
+# owner:
+#   description: "Owning team"
+#   value_type: string
+
+# is_deprecated:
+#   description: "Whether the repository is deprecated"
+#   value_type: true_false
+#   values_editable_by: org_and_repo_actors

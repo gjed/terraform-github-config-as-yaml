@@ -33,6 +33,10 @@
 #   has_discussions: true        # Override: enable discussions
 #   topics:
 #     - custom
+#   # Custom properties: override group values (properties are defined in config/custom-property/)
+#   custom_property_values:
+#     compliance_level: soc2
+#     tags: ["backend"]          # replaces the group's list, it is not merged
 #   # Webhooks: reference by name or define inline
 #   webhooks:
 #     - slack-notify             # Reference by name from config/webhook/
