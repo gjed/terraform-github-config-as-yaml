@@ -61,6 +61,8 @@ These cannot be done from the repository and are the owner's to perform:
 
 ## 9. Out of scope
 
-- [ ] 9.1 Static CI for this repository — `terraform fmt`/`validate`/`tflint`,
+- [x] 9.1 Static CI for this repository — `terraform fmt`/`validate`/`tflint`,
   `validate-config.py`, pytest. Tracked as #52. No secret requirement, so it should land
-  independently of this change.
+  independently of this change. Shipped separately in #88: `.github/workflows/ci.yml` runs the
+  `pre-commit` job (`terraform_fmt`, `terraform_validate`, `terraform_tflint`, `validate-config`),
+  the `pytest` job and a `terraform-test` job.
