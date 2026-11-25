@@ -387,7 +387,9 @@ environments:
 
 1. Team reviewers resolve like ruleset `required_reviewers`: a slug of a team in `config/team/`
    resolves from the managed team, any other slug is looked up and fails the plan if missing. User
-   reviewers are looked up by login.
+   reviewers are looked up by login. GitHub rejects reviewers without access to the repository, so
+   grant each reviewer team under `teams:` and each user under `collaborators:` on that repository;
+   the environment is created after those grants.
 
 1. Environment secrets follow the repository secret rules: `value` must be an `env:VAR_NAME`
    reference resolved from `secret_values`, names must match `^[A-Z_][A-Z0-9_]*$` and must not start

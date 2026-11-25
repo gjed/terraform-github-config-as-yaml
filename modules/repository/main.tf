@@ -361,6 +361,9 @@ resource "github_repository_environment" "this" {
     }
   }
 
+  # GitHub rejects reviewers that cannot access the repository, so access grants come first.
+  depends_on = [github_team_repository.this, github_repository_collaborator.this]
+
   lifecycle {
     precondition {
       condition     = !(each.value.deployment_branch_policy.protected_branches && each.value.deployment_branch_policy.custom_branch_policies)
