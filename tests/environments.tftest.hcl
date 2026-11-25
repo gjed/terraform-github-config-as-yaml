@@ -183,6 +183,30 @@ run "patterns_without_custom_policies_fail" {
   ]
 }
 
+run "custom_policies_without_patterns_fail" {
+  command = plan
+
+  module {
+    source = "./modules/repository"
+  }
+
+  variables {
+    name        = "fixture"
+    description = "fixture"
+    environments = {
+      production = {
+        deployment_branch_policy = {
+          custom_branch_policies = true
+        }
+      }
+    }
+  }
+
+  expect_failures = [
+    github_repository_environment.this["production"],
+  ]
+}
+
 run "wait_timer_out_of_range_fails" {
   command = plan
 

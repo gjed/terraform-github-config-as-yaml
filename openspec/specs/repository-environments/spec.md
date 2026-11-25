@@ -95,8 +95,10 @@ create one `github_repository_environment_deployment_policy` per entry of `branc
 `branch_pattern`) and of `tag_patterns` (as `tag_pattern`). When neither flag is true, no deployment branch
 policy block is created and any branch may deploy.
 
-`protected_branches` and `custom_branch_policies` SHALL be mutually exclusive, and `branch_patterns` and
-`tag_patterns` SHALL be accepted only together with `custom_branch_policies: true`. Both rules SHALL be enforced
+`protected_branches` and `custom_branch_policies` SHALL be mutually exclusive, `branch_patterns` and
+`tag_patterns` SHALL be accepted only together with `custom_branch_policies: true`, and
+`custom_branch_policies: true` SHALL list at least one pattern, because an empty list would let no branch or tag
+deploy. All three rules SHALL be enforced
 by `scripts/validate-config.py` and by a `precondition` on the environment resource, so consumers using the
 module directly are protected as well.
 
@@ -116,6 +118,12 @@ module directly are protected as well.
 #### Scenario: Mutually exclusive flags
 
 - **WHEN** an environment sets both `protected_branches: true` and `custom_branch_policies: true`
+- **THEN** `scripts/validate-config.py` reports an error
+- **AND** `terraform plan` fails on a `precondition` of the environment resource
+
+#### Scenario: Custom policies without patterns
+
+- **WHEN** an environment sets `custom_branch_policies: true` with no `branch_patterns` and no `tag_patterns`
 - **THEN** `scripts/validate-config.py` reports an error
 - **AND** `terraform plan` fails on a `precondition` of the environment resource
 

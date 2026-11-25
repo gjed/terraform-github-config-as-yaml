@@ -382,8 +382,9 @@ environments:
 ```
 
 1. `protected_branches` and `custom_branch_policies` are mutually exclusive, and `branch_patterns` and
-   `tag_patterns` need `custom_branch_policies: true`. Both `scripts/validate-config.py` and a
-   Terraform `precondition` enforce this. Each pattern becomes one deployment policy.
+   `tag_patterns` need `custom_branch_policies: true`, which in turn needs at least one pattern (an
+   empty list would let nothing deploy). Both `scripts/validate-config.py` and a Terraform
+   `precondition` enforce this. Each pattern becomes one deployment policy.
 
 1. Team reviewers resolve like ruleset `required_reviewers`: a slug of a team in `config/team/`
    resolves from the managed team, any other slug is looked up and fails the plan if missing. User
