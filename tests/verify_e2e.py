@@ -229,6 +229,60 @@ def verify_vulnerability_alerts(result: CheckResult, outputs: dict, gh_org) -> N
         result.assert_eq(f"{repo_name} vulnerability alerts", True, enabled)
 
 
+def verify_environments(result: CheckResult, outputs: dict, gh_org) -> None:
+    """Assert environments are applied on the public repo and skipped on the private one.
+
+    e2e-oss-public carries an environment with custom branch and tag policies, a secret
+    and a variable. e2e-internal-private is private, so on the free tier its environment
+    is skipped and reported, and must not exist on GitHub.
+    """
+    print("\n## Environments check")
+    tier = outputs.get("subscription_tier", {}).get("value")
+    managed = outputs.get("repository_environments", {}).get("value") or {}
+    skipped = outputs.get("skipped_environments", {}).get("value")
+
+    env = managed.get("e2e-oss-public", {}).get("e2e-deploy")
+    result.assert_not_none("repository_environments e2e-oss-public/e2e-deploy", env)
+    if env is not None:
+        result.assert_eq("e2e-deploy secret names", ["E2E_ENV_SECRET"], env.get("secrets"))
+        result.assert_eq(
+            "e2e-deploy variable names", ["E2E_ENV_VARIABLE"], env.get("variables")
+        )
+
+    try:
+        gh_repo = gh_org.get_repo("e2e-oss-public")
+        # PyGithub has no wrapper for deployment branch policies, so use the REST endpoint.
+        _, data = gh_repo._requester.requestJsonAndCheck(
+            "GET",
+            f"{gh_repo.url}/environments/e2e-deploy/deployment-branch-policies",
+        )
+        patterns = sorted(
+            (p.get("type", "branch"), p["name"]) for p in data.get("branch_policies", [])
+        )
+        result.assert_eq(
+            "e2e-deploy deployment policies",
+            [("branch", "main"), ("branch", "release/*"), ("tag", "v*")],
+            patterns,
+        )
+    except GithubException as e:
+        result.fail(f"e2e-oss-public environment e2e-deploy: GitHub API error — {e}")
+
+    if tier != "free":
+        result.assert_is_none(f"skipped_environments on {tier!r} tier", skipped)
+        return
+
+    result.assert_not_none("skipped_environments", skipped)
+    if skipped is not None:
+        result.assert_eq(
+            "skipped_environments.repos", ["e2e-internal-private"], skipped.get("repos")
+        )
+        try:
+            gh_org.get_repo("e2e-internal-private").get_environment("e2e-skipped")
+            result.fail("e2e-internal-private has environment e2e-skipped, but it should be skipped")
+        except GithubException:
+            result.ok("e2e-internal-private has no environment e2e-skipped (skipped)")
+
+
 def verify_skipped_org_rulesets(result: CheckResult, outputs: dict) -> None:
     """Assert skipped_org_rulesets is non-null on free/pro tier."""
     print("\n## Skipped org rulesets check")
@@ -327,6 +381,7 @@ def main() -> None:
     verify_skipped_branch_protections(result, outputs)
     verify_branch_protection_state(result, outputs, gh_org)
     verify_vulnerability_alerts(result, outputs, gh_org)
+    verify_environments(result, outputs, gh_org)
     verify_skipped_org_rulesets(result, outputs)
     verify_org_webhooks(result, outputs)
     verify_no_duplicate_warnings(result, outputs)

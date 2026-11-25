@@ -28,6 +28,16 @@ output "skipped_branch_protections" {
   value       = module.github_org.skipped_branch_protections
 }
 
+output "skipped_environments" {
+  description = "Repositories whose environments were skipped because environments on private repos require a paid subscription tier"
+  value       = module.github_org.skipped_environments
+}
+
+output "repository_environments" {
+  description = "Names of managed repository environments with their secret and variable names, keyed by repository"
+  value       = module.github_org.repository_environments
+}
+
 output "skipped_org_rulesets" {
   description = "Org rulesets skipped because the subscription tier does not support them"
   value       = module.github_org.skipped_org_rulesets
