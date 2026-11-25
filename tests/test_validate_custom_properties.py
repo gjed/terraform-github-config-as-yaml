@@ -22,7 +22,7 @@ validate_all_custom_property_value_blocks = (
     validate_config.validate_all_custom_property_value_blocks
 )
 validate_required_custom_properties = validate_config.validate_required_custom_properties
-validate_custom_properties_tier = validate_config.validate_custom_properties_tier
+validate_custom_properties_account = validate_config.validate_custom_properties_account
 merge_custom_property_definitions = validate_config.merge_custom_property_definitions
 custom_properties_supported = validate_config.custom_properties_supported
 VALID_GROUP_KEYS = validate_config.VALID_GROUP_KEYS
@@ -274,41 +274,41 @@ class TestRequiredProperties:
         assert len(self._errors({"app": {"groups": ["missing"]}})) == 1
 
 
-class TestTier:
+class TestAccountType:
     @pytest.mark.parametrize(
         "config,expected",
         [
+            ({"subscription": "free"}, True),
+            ({"subscription": "pro"}, True),
             ({"subscription": "team"}, True),
             ({"subscription": "enterprise", "is_organization": True}, True),
-            ({"subscription": "free"}, False),
-            ({"subscription": "pro"}, False),
+            ({}, True),
             ({"subscription": "team", "is_organization": False}, False),
-            ({}, False),
+            ({"subscription": "free", "is_organization": False}, False),
         ],
     )
     def test_supported(self, config, expected):
         assert custom_properties_supported(config) is expected
 
-    def test_supported_tier_has_no_warnings(self):
+    @pytest.mark.parametrize("subscription", ["free", "pro", "team", "enterprise"])
+    def test_organization_has_no_warnings_on_any_tier(self, subscription):
         repos = {"app": {"groups": [], "custom_property_values": {"owner": "a"}}}
-        assert validate_custom_properties_tier({"subscription": "team"}, repos, {}, DEFINITIONS) == []
+        config = {"subscription": subscription}
+        assert validate_custom_properties_account(config, repos, {}, DEFINITIONS) == []
 
-    def test_free_tier_warns_for_definitions_and_assignments(self):
+    def test_personal_account_warns_for_definitions_and_assignments(self):
         repos = {
             "app": {"groups": ["oss"]},
             "plain": {"groups": []},
         }
         groups = {"oss": {"custom_property_values": {"owner": "a"}}}
-        warnings = validate_custom_properties_tier({"subscription": "free"}, repos, groups, DEFINITIONS)
+        config = {"subscription": "team", "is_organization": False}
+        warnings = validate_custom_properties_account(config, repos, groups, DEFINITIONS)
         assert len(warnings) == 2
         assert "4 definition(s)" in warnings[0] and "skipped_custom_properties" in warnings[0]
+        assert "is_organization is false" in warnings[0]
         assert "Repository 'app'" in warnings[1]
 
-    def test_personal_account_warns(self):
-        config = {"subscription": "team", "is_organization": False}
-        warnings = validate_custom_properties_tier(config, {}, {}, DEFINITIONS)
-        assert len(warnings) == 1
-        assert "is_organization false" in warnings[0]
-
     def test_no_configuration_means_no_warnings(self):
-        assert validate_custom_properties_tier({"subscription": "free"}, {"a": {"groups": []}}, {}, {}) == []
+        config = {"is_organization": False}
+        assert validate_custom_properties_account(config, {"a": {"groups": []}}, {}, {}) == []

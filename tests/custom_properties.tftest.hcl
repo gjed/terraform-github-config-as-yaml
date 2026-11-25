@@ -19,7 +19,7 @@ run "merge_and_normalisation" {
 
   assert {
     condition     = length(output.skipped_custom_properties) == 0
-    error_message = "Nothing is skipped on the team tier."
+    error_message = "Nothing is skipped for an organization."
   }
 
   assert {
@@ -79,8 +79,8 @@ run "merge_and_normalisation" {
   }
 }
 
-# Free tier: definitions and assignments are skipped, and the definitions are reported.
-run "free_tier_skips_with_output" {
+# Free tier: custom properties are not gated on the subscription tier, so they are applied.
+run "free_tier_applies" {
   command = plan
 
   variables {
@@ -88,18 +88,18 @@ run "free_tier_skips_with_output" {
   }
 
   assert {
-    condition     = length(github_organization_custom_properties.this) == 0 && length(output.managed_custom_properties) == 0
-    error_message = "No definition may be created on the free tier."
+    condition     = join(",", output.managed_custom_properties) == "environment,owner"
+    error_message = "Both definitions should be created on the free tier."
   }
 
   assert {
-    condition     = join(",", output.skipped_custom_properties) == "environment,owner"
-    error_message = "skipped_custom_properties should list both definitions by name."
+    condition     = length(output.skipped_custom_properties) == 0
+    error_message = "Nothing is skipped on the free tier."
   }
 
   assert {
-    condition     = length(module.repositories["free-app"].custom_properties) == 0
-    error_message = "The free-app assignments must be skipped on the free tier."
+    condition     = join(",", module.repositories["free-app"].custom_properties) == "environment,owner"
+    error_message = "The free-app assignments must be applied on the free tier."
   }
 }
 
@@ -112,7 +112,7 @@ run "personal_account_skips_with_output" {
 
   assert {
     condition     = length(github_organization_custom_properties.this) == 0 && join(",", output.skipped_custom_properties) == "environment"
-    error_message = "A personal account on the team tier must still skip custom properties."
+    error_message = "A personal account must skip custom properties on any tier."
   }
 
   assert {

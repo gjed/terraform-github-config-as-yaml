@@ -294,30 +294,18 @@ E2E_CUSTOM_PROPERTIES = ["e2e_environment", "e2e_owner", "e2e_tags"]
 
 
 def verify_custom_properties(result: CheckResult, outputs: dict, gh_org) -> None:
-    """Assert custom properties are applied on team/enterprise and skipped otherwise.
+    """Assert custom properties are created and applied on any subscription tier.
 
     e2e-oss-public inherits e2e_environment and e2e_owner from the oss-e2e group, overrides
-    e2e_environment and sets the multi-select e2e_tags. On free or pro the definitions are
-    skipped and reported, and no value may exist on GitHub.
+    e2e_environment and sets the multi-select e2e_tags.
     """
     print("\n## Custom properties check")
-    tier = outputs.get("subscription_tier", {}).get("value")
-    supported = tier in ("team", "enterprise")
     managed = outputs.get("managed_custom_properties", {}).get("value")
     skipped = outputs.get("skipped_custom_properties", {}).get("value")
 
-    result.assert_eq(
-        "managed_custom_properties",
-        E2E_CUSTOM_PROPERTIES if supported else [],
-        managed,
-    )
-    result.assert_eq(
-        "skipped_custom_properties",
-        [] if supported else E2E_CUSTOM_PROPERTIES,
-        skipped,
-    )
+    result.assert_eq("managed_custom_properties", E2E_CUSTOM_PROPERTIES, managed)
+    result.assert_eq("skipped_custom_properties", [], skipped)
 
-    values = None
     try:
         gh_repo = gh_org.get_repo("e2e-oss-public")
         # PyGithub has no wrapper for repository property values, so use the REST endpoint.
@@ -326,19 +314,7 @@ def verify_custom_properties(result: CheckResult, outputs: dict, gh_org) -> None
         )
         values = {p["property_name"]: p["value"] for p in data}
     except GithubException as e:
-        if supported:
-            result.fail(f"e2e-oss-public property values: GitHub API error — {e}")
-        else:
-            result.ok("e2e-oss-public property values are not readable (skipped)")
-
-    if values is None:
-        return
-    if not supported:
-        for name in E2E_CUSTOM_PROPERTIES:
-            if name in values:
-                result.fail(f"e2e-oss-public has property {name}, but it should be skipped")
-            else:
-                result.ok(f"e2e-oss-public has no property {name} (skipped)")
+        result.fail(f"e2e-oss-public property values: GitHub API error — {e}")
         return
 
     result.assert_eq(

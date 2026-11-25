@@ -1,6 +1,5 @@
 # Custom property definitions for the e2e fixture.
-# The fixture runs on the free tier, so these are skipped and reported in
-# skipped_custom_properties; on a team or enterprise organization they are created.
+# Custom properties are available on every subscription tier, so the fixture org creates them.
 e2e_environment:
   description: "E2E deployment environment"
   value_type: single_select
