@@ -34,6 +34,9 @@ repos:
         args:
           - --hook-config=--retry-once-with-cleanup=true
       - id: terraform_tflint
+        # ci/backends/* are one-file backend templates for consumers, not modules, so the
+        # standard module structure rule (main.tf, variables.tf, outputs.tf) does not apply.
+        exclude: ^ci/backends/
         args:
           - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
       - id: terraform_checkov
