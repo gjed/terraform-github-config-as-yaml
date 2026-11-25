@@ -290,6 +290,68 @@ def verify_environments(result: CheckResult, outputs: dict, gh_org) -> None:
             result.ok("e2e-internal-private has no environment e2e-skipped (skipped)")
 
 
+E2E_CUSTOM_PROPERTIES = ["e2e_environment", "e2e_owner", "e2e_tags"]
+
+
+def verify_custom_properties(result: CheckResult, outputs: dict, gh_org) -> None:
+    """Assert custom properties are applied on team/enterprise and skipped otherwise.
+
+    e2e-oss-public inherits e2e_environment and e2e_owner from the oss-e2e group, overrides
+    e2e_environment and sets the multi-select e2e_tags. On free or pro the definitions are
+    skipped and reported, and no value may exist on GitHub.
+    """
+    print("\n## Custom properties check")
+    tier = outputs.get("subscription_tier", {}).get("value")
+    supported = tier in ("team", "enterprise")
+    managed = outputs.get("managed_custom_properties", {}).get("value")
+    skipped = outputs.get("skipped_custom_properties", {}).get("value")
+
+    result.assert_eq(
+        "managed_custom_properties",
+        E2E_CUSTOM_PROPERTIES if supported else [],
+        managed,
+    )
+    result.assert_eq(
+        "skipped_custom_properties",
+        [] if supported else E2E_CUSTOM_PROPERTIES,
+        skipped,
+    )
+
+    values = None
+    try:
+        gh_repo = gh_org.get_repo("e2e-oss-public")
+        # PyGithub has no wrapper for repository property values, so use the REST endpoint.
+        _, data = gh_repo._requester.requestJsonAndCheck(
+            "GET", f"{gh_repo.url}/properties/values"
+        )
+        values = {p["property_name"]: p["value"] for p in data}
+    except GithubException as e:
+        if supported:
+            result.fail(f"e2e-oss-public property values: GitHub API error — {e}")
+        else:
+            result.ok("e2e-oss-public property values are not readable (skipped)")
+
+    if values is None:
+        return
+    if not supported:
+        for name in E2E_CUSTOM_PROPERTIES:
+            if name in values:
+                result.fail(f"e2e-oss-public has property {name}, but it should be skipped")
+            else:
+                result.ok(f"e2e-oss-public has no property {name} (skipped)")
+        return
+
+    result.assert_eq(
+        "e2e-oss-public e2e_environment", "development", values.get("e2e_environment")
+    )
+    result.assert_eq("e2e-oss-public e2e_owner", "platform", values.get("e2e_owner"))
+    result.assert_eq(
+        "e2e-oss-public e2e_tags",
+        ["alpha", "beta"],
+        sorted(values.get("e2e_tags") or []),
+    )
+
+
 def verify_skipped_org_rulesets(result: CheckResult, outputs: dict) -> None:
     """Assert skipped_org_rulesets is non-null on free/pro tier."""
     print("\n## Skipped org rulesets check")
@@ -389,6 +451,7 @@ def main() -> None:
     verify_branch_protection_state(result, outputs, gh_org)
     verify_vulnerability_alerts(result, outputs, gh_org)
     verify_environments(result, outputs, gh_org)
+    verify_custom_properties(result, outputs, gh_org)
     verify_skipped_org_rulesets(result, outputs)
     verify_org_webhooks(result, outputs)
     verify_no_duplicate_warnings(result, outputs)

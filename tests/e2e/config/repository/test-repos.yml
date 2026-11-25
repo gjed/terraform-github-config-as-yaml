@@ -22,6 +22,11 @@ e2e-oss-public:
       variables:
         E2E_ENV_VARIABLE:
           value: "from-environment"
+  custom_property_values:
+    e2e_environment: development
+    e2e_tags:
+      - alpha
+      - beta
 
 e2e-internal-private:
   description: "E2E test private internal repository (exercises subscription_warnings on free tier)"
