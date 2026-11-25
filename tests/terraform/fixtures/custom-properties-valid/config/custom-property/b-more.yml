@@ -4,3 +4,9 @@ owner:
 
 is_deprecated:
   value_type: true_false
+
+priority:
+  description: "Numeric allowed values and default (YAML numbers)"
+  value_type: single_select
+  default_value: 1
+  allowed_values: [1, 2, 3]

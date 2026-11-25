@@ -13,8 +13,8 @@ run "merge_and_normalisation" {
 
   # Definitions from every file are loaded, the comment-only file is ignored.
   assert {
-    condition     = join(",", output.managed_custom_properties) == "compliance_level,environment,is_deprecated,owner,tags"
-    error_message = "All five definitions across the files should be managed."
+    condition     = join(",", output.managed_custom_properties) == "compliance_level,environment,is_deprecated,owner,priority,tags"
+    error_message = "All six definitions across the files should be managed."
   }
 
   assert {
@@ -25,6 +25,12 @@ run "merge_and_normalisation" {
   assert {
     condition     = github_organization_custom_properties.this["environment"].required && github_organization_custom_properties.this["environment"].default_value == "development" && github_organization_custom_properties.this["compliance_level"].values_editable_by == "org_and_repo_actors"
     error_message = "Definition fields should reach the resource."
+  }
+
+  # YAML numbers in allowed_values and default_value compare as strings.
+  assert {
+    condition     = github_organization_custom_properties.this["priority"].default_value == "1" && join(",", github_organization_custom_properties.this["priority"].allowed_values) == "1,2,3"
+    error_message = "A numeric default_value must match numeric allowed_values after string conversion."
   }
 
   # Later group replaces an earlier group's value; a repository replaces the group's value.
