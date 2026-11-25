@@ -1,4 +1,4 @@
-.PHONY: help init plan plan-repo plan-show plan-pr apply apply-repo destroy validate fmt clean \
+.PHONY: help init plan plan-repo plan-show plan-pr drift-check apply apply-repo destroy validate fmt clean \
         e2e-init e2e-validate e2e-plan e2e-apply e2e-verify e2e-destroy
 
 # Plan file location
@@ -20,6 +20,7 @@ help:
 	@echo "  plan-repo  Plan for a single repository (REPO=name)"
 	@echo "  plan-show  Show saved plan in human-readable format"
 	@echo "  plan-pr    Run plan and post comment to GitHub PR (CI)"
+	@echo "  drift-check Detect drift with a full-refresh plan (REPO=name, FORMAT=text|markdown|json)"
 	@echo "  apply      Apply changes from saved plan"
 	@echo "  apply-repo Apply changes for a single repository (REPO=name)"
 	@echo "  destroy    Destroy all managed resources (use with caution)"
@@ -30,6 +31,7 @@ help:
 	@echo "Examples:"
 	@echo "  make plan-repo REPO=my-repo-name"
 	@echo "  make apply-repo REPO=my-repo-name"
+	@echo "  make drift-check FORMAT=markdown"
 	@echo ""
 	@echo "Environment:"
 	@echo "  GITHUB_TOKEN must be set (see .env.example)"
@@ -72,6 +74,11 @@ plan-show:
 plan-pr:
 	@echo "Running plan with tfcmt..."
 	tfcmt plan -- terraform plan
+
+# Detect configuration drift: full-refresh plan summarised by scripts/detect-drift.sh
+# Exit codes: 0 no drift, 1 error, 2 drift, 3 critical (repository destroy/replace)
+drift-check:
+	@./scripts/detect-drift.sh $(if $(REPO),--repo '$(REPO)') $(if $(FORMAT),--format '$(FORMAT)')
 
 # Apply changes from saved plan
 apply:
