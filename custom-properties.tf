@@ -1,7 +1,7 @@
 # Organization-level custom property definitions.
 # Definitions come from config/custom-property/*.yml (see yaml-config.tf).
-# Only created for organizations on the team or enterprise tier; elsewhere they are skipped and
-# listed in the skipped_custom_properties output.
+# Only created for organizations; for a personal account they are skipped and listed in the
+# skipped_custom_properties output.
 #
 # Values are assigned per repository by modules/repository, which depends on these definitions
 # (depends_on on module.repositories in main.tf).

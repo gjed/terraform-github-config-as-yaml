@@ -678,10 +678,10 @@ locals {
     : toset([])
   )
 
-  # Custom properties are an organization feature on the team and enterprise tiers.
-  # On free/pro or a personal account definitions and assignments are skipped, and
+  # Custom properties are an organization feature on every subscription tier.
+  # For a personal account definitions and assignments are skipped, and
   # skipped_custom_properties reports the definitions that were left out.
-  custom_properties_supported = local.is_organization && contains(["team", "enterprise"], local.subscription)
+  custom_properties_supported = local.is_organization
 
   # A filter rather than a conditional: definitions differ in shape and a conditional would have
   # to unify them with an empty map.
@@ -1423,7 +1423,7 @@ locals {
       environments = local.effective_environments[repo_name]
 
       # Custom properties: merged from groups + repo (repo overrides group by property name)
-      # Note: effective_custom_property_values is empty when the tier or account type is unsupported
+      # Note: effective_custom_property_values is empty for a personal account
       custom_property_values = local.effective_custom_property_values[repo_name]
 
       # Branch protections: merge from all groups + repo-specific (repo overrides group by name)
